@@ -25,7 +25,8 @@ als einzelne Wörter, die rund um dich schweben.
 ## Funktionen
 
 - **Wort für Wort synchron.** Genaue Wortzeiten, wenn die Lyrics sie haben; sonst folgen die Wörter dem
-  Tempo, in dem der Song gesungen wird. Spulen im Lied zeigt sich sofort.
+  Tempo, in dem der Song gesungen wird. Spulen im Lied zeigt sich sofort. Mit **Wortgenau** bekommen die
+  meisten Songs echte Wortzeiten von mehreren Diensten (siehe [Wortgenau](#wortgenau-optionale-inoffizielle-dienste)).
 - **Am Himmel:** Wortgruppen in unterschiedlichen Größen bauen jede Zeile knapp über dem Horizont auf, auf
   versetzten, leicht ansteigenden Reihen, etwas von dir weggedreht, sodass die Zeile räumlich wirkt. Jede
   Gruppe blendet im Takt ein, die Zeile blendet weich aus, wenn die nächste woanders beginnt. Wie die Sonne
@@ -33,22 +34,26 @@ als einzelne Wörter, die rund um dich schweben.
 - **Um dich herum:** Jedes gesungene Wort schwebt einzeln an einem festen Platz in deiner Nähe – groß,
   kursiv, leicht gedreht – und bleibt dort, während du läufst oder kämpfst, bis es nach ein paar Sekunden
   verblasst. Zum Songstart hängt eine „Now Playing“-Karte vor dir.
-- **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder sechs weiteren Paletten, oder je Song
-  anders.
+- **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder acht weiteren Paletten (neu: *Glas* und
+  *Neon*), oder je Song anders; Leuchten bei Nacht und Schatten bei Tag so stark, wie du willst.
 - **Vier Stile:** *Elegant* (die beiden Looks oben), *Natürlich 1:1* (dasselbe, als stünde es wirklich in der Welt:
   Zeilen knapp über den Hügeln, Spieler und Blöcke vor den Wörtern um dich herum, die gesungenen Wörter als
   Gruppe markiert), *Stapel* (aktuelle Zeile in der Mitte, die nächste
   schwach darunter, alles gleitet weich nach oben) und *Verspielt* (Aufploppen, Zoom, Wirbel und mehr, mit
   Funken).
-- **Now-Playing-Leiste** mit aktueller Zeile und markiertem Wort, frei verschiebbar (oben oder über der Hotbar), als Pille, Karaoke, schlicht oder nur mit dem Titel.
-- **Vorlagen:** Standard, Himmel 1:1, Um dich 1:1, Party und Ruhig setzen den ganzen Look mit einem Klick.
+- **Now-Playing-Leiste** mit aktueller Zeile und markiertem Wort, frei verschiebbar (oben oder über der Hotbar), als
+  Pille, Karaoke, schlicht oder nur mit dem Titel, in deiner Größe, Rundung und Deckkraft.
+- **Liquid Glass** (Standard): Leiste und Einstellungen aus mattem Glas wie bei iOS 26, mit hellem Rand und weichem
+  Schatten; die Welt hinter den Einstellungen wird weichgezeichnet. *Klassisch* behält den Schwarz-Weiß-Look.
+- **Vorlagen:** Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig und Glas setzen den ganzen Look mit einem Klick.
 - **Mitdrehen** (optional): Die Songtexte folgen deinem Blick dicht, statt stehen zu bleiben.
 - **Im Takt wackeln** (optional): Jedes gesungene Wort gibt dem Text einen kleinen Kick, lange Wörter einen
   stärkeren.
 - **Hinter Bergen oder immer sichtbar:** Am Himmel steht die Schrift wie die Sonne hinter Bergen, Bäumen und
   Wolken; ein Schalter holt sie vor alles.
-- **Einstellungen mit der rechten Umschalttaste**, schlicht in Schwarz-Weiß, mit Live-Vorschau: Anzeige,
-  Stil, Farben, Schrift (modern, Handschrift oder Minecraft), Größe, Höhe, Deckkraft, Timing und mehr.
+- **Einstellungen mit der rechten Umschalttaste** mit Live-Vorschau, auf drei Seiten: *Allgemein* (Anzeige, Stil,
+  Timing, Abfragen, Spotify), *Aussehen* (Theme, Schrift, Farben, Größen, Leuchten, die Leiste) und *Quellen*
+  (woher Songtexte und Wortzeiten kommen).
 - **Keine Anmeldung nötig** für Musik auf dem PC. **Optional Spotify-Login** für Musik vom Handy, von der
   Konsole oder einem anderen Spotify-Connect-Gerät.
 
@@ -122,7 +127,7 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics opacity <0.1–1>` | Deckkraft (Standard 0.82) |
 | `/skylyrics scale <0.3–3>` | Textgröße |
 | `/skylyrics height <10–70>` | Höhe über dem Horizont in Grad |
-| `/skylyrics palette <name>` | `standard`, `rose`, `lavender`, `auto` (je Song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
+| `/skylyrics palette <name>` | `standard`, `rose`, `lavender`, `auto` (je Song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white`, `glass`, `neon` |
 | `/skylyrics font <sans\|script\|minecraft>` | moderne Schrift, Handschrift oder Minecraft-Schrift |
 | `/skylyrics style <elegant\|natural\|flow\|classic>` | Look: elegant, natürlich, Stapel oder verspielt |
 | `/skylyrics follow <on\|off>` | neue Zeilen erscheinen dort, wo du hinschaust |
@@ -130,12 +135,18 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics behind <on\|off>` | Am Himmel hinter Bergen und Wolken oder vor allem |
 | `/skylyrics beat <on\|off>` | Bei jedem gesungenen Wort wackeln |
 | `/skylyrics along <on\|off>` | Songtexte drehen sich mit deinem Blick |
-| `/skylyrics preset <standard\|sky\|around\|party\|calm>` | Ganzen Look auf einmal setzen |
+| `/skylyrics preset <standard\|sky\|around\|party\|calm\|glass>` | Ganzen Look auf einmal setzen |
 | `/skylyrics hud <on\|off>` | Now-Playing-Leiste an oder aus |
 | `/skylyrics bar <pill\|karaoke\|plain\|title>` | Aussehen der Leiste |
 | `/skylyrics barpos <top\|bottom>` | Leiste oben oder über der Hotbar (frei verschieben mit dem Knopf „Leiste“ in den Einstellungen) |
+| `/skylyrics theme <classic\|glass>` | Aussehen von Einstellungen und Leiste: Schwarz-Weiß oder Liquid Glass (Standard) |
+| `/skylyrics barsize <0.75–1.5>` | Größe der Leiste |
+| `/skylyrics barbg <0–1>` | Wie dicht der Hintergrund der Leiste ist |
+| `/skylyrics barround <0–1>` | Ecken der Leiste, von eckig bis Kapsel |
+| `/skylyrics glow <0–2>` | Leuchten bei Nacht und Schatten bei Tag um die Songtexte; über 1 mit dunkler Kontur |
 | `/skylyrics lrclib <on\|off>` | Abfrage bei lrclib.net erlauben oder verbieten |
-| `/skylyrics lyricsplus <on\|off>` | Wortzeiten von LyricsPlus („Wortgenau“, standardmäßig aus) |
+| `/skylyrics wortgenau <on\|off>` | Alle inoffiziellen Wortzeit-Dienste auf einmal („Wortgenau“ / „Grauzone“, standardmäßig aus) |
+| `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | Einzelne Wortzeit-Dienste |
 | `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
 
 **Tasten** (unter *Steuerung → Lyrics in the Sky*): Einstellungen (**rechte Umschalttaste**), dazu
@@ -165,9 +176,7 @@ flowchart LR
   LRCLIB gerade nicht antwortet. Findet die genaue Abfrage nichts, versucht die Mod den Titel ohne
   Versionszusatz („- Remastered 2009“, „(Single Mix)“), dann eine freie Suche. Hat LRCLIB nur den Text ohne
   Zeiten, wird er über den Song verteilt (markiert mit „≈“).
-- **Wortgenau (optional, standardmäßig aus):** Wortzeiten von LyricsPlus, einem inoffiziellen Dienst, der sie aus
-  Apple Music und QQ Music liest. Sie werden nur genommen, wenn sie zu LRCLIBs Zeilen passen; für Songs, die
-  LRCLIB nicht kennt, springt LyricsPlus ein.
+- **Wortgenau (optional, standardmäßig aus):** echte Wortzeiten von inoffiziellen Diensten, siehe unten.
 - **Timing pro Song:** Läuft der Text eines Songs zu früh oder zu spät, lässt er sich einzeln korrigieren. Diese
   Korrekturen werden anonym mit einem kleinen Tracker auf `henrik.click/lyrics-sync` geteilt (Quelltext in
   [`tracker/`](tracker/)): eine zufällige Kennung deiner Installation und der Song als Prüfsumme aus Künstler,
@@ -180,11 +189,34 @@ flowchart LR
   nach dem Himmel gezeichnet, kamerarelativ wie die Sonne, sodass alles später Gezeichnete davor steht; die
   Wörter um dich herum stehen 5 bis 9 Blöcke entfernt fest in der Welt und werden zuletzt über allem gezeichnet.
 
+## Wortgenau: optionale inoffizielle Dienste
+
+LRCLIB hat meist nur Zeiten für ganze Zeilen; die Wörter dazwischen werden geschätzt. „Wortgenau“ fragt Dienste, die
+jedes Wort timen. **Alle sind inoffiziell („Grauzone“):** frei erreichbar ohne Konto, Cookie oder Schlüssel, aber
+nicht für fremde Apps gedacht, sie können sich jederzeit ändern oder wegfallen, und jeder ist aus, bis du ihn
+einschaltest – alle auf einmal mit „Wortgenau“ (oder „Grauzone“ auf der Seite *Quellen*), einzeln dort und mit
+`/skylyrics source <name> on|off`. Gefragt wird nacheinander, in der Reihenfolge, die in Tests am meisten Songs traf:
+
+| Dienst | Woher die Wortzeiten stammen | Was er bekommt |
+|---|---|---|
+| **Deezer** | Deezers Songtexte (von Musixmatch, dieselben Zeiten wie bei Spotify), über Deezers Web-Player mit einer anonymen Sitzung, die nur im Speicher liegt | Künstler und Titel (an `api.deezer.com`), dann die Deezer-Song-ID (an `pipe.deezer.com`) |
+| **LyricsPlus** | der Server der Erweiterung YouLy+, der Apple Music und QQ Music liest | Titel, Künstler, Album, Länge (an `lyricsplus.prjktla.my.id`) |
+| **NetEase** | „YRC“-Songtexte von NetEase Cloud Music, auch zu vielen westlichen Songs | Künstler und Titel (an `music.163.com`) |
+| **Kugou** | „KRC“-Songtexte von Kugou Music, oft dieselben wie bei QQ Music | Künstler, Titel, Länge (an `lyrics.kugou.com`) |
+
+Wortzeiten werden nur gezeigt, wenn sie zu der Aufnahme gehören, die du hörst: Die ersten Wörter jeder LRCLIB-Zeile
+müssen gesungen werden, wenn die Zeile beginnt, bis auf eine gleichbleibende Verschiebung (ein längeres Intro einer
+anderen Abmischung) – oder zwei Dienste, die den Song unabhängig getimt haben, müssen übereinstimmen (von Hand
+gesetzte LRCLIB-Zeilen driften manchmal um eine Sekunde). Sonst werden die Wörter wie bisher geschätzt. Ergebnisse,
+und „nichts gefunden“ für zwei Wochen, bleiben in `config/lyricsinthesky/lyrics`; ein Dienst, der nicht antwortet,
+hat fünf Minuten Pause, sodass nichts hängt. Ohne LRCLIB-Songtext springt der erste Dienst ein, der den Song hat.
+
 ## Datenschutz und faire Nutzung
 
 - Keine Anmeldung nötig. Der optionale Spotify-Login liest nur, was gerade läuft
   (`user-read-currently-playing`, `user-read-playback-state`), und lässt sich jederzeit trennen.
-- Keine Cookies. LyricsPlus, ein inoffizieller Dienst, wird nur gefragt, wenn du „Wortgenau“ einschaltest.
+- Keine Cookies. Die inoffiziellen Wortzeit-Dienste werden nur gefragt, wenn du sie einschaltest (siehe oben),
+  jeder höchstens einmal pro Sekunde und mit dem Namen der Mod als User-Agent.
 - Abfragen sind von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten in den Einstellungen oder
   mit `/skylyrics lrclib off`.
 - Das Teilen von Timing-Korrekturen ist von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten mit

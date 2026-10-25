@@ -10,6 +10,22 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.4 – 2026-10-26
+
+- **Word times for most songs:** "Wortgenau" now asks four unofficial services one after the other – Deezer
+  (Musixmatch's timing, as on Spotify), LyricsPlus (Apple Music, QQ Music), NetEase and Kugou – each of which can be
+  switched on its own (page *Quellen*, `/skylyrics source <name> on|off`); "Wortgenau" switches all of them, and all
+  are off until you do. Of 47 test songs with LRCLIB lines, 43 now get real word times (22 before).
+- Word times are matched by each line's first words, so services that break lines differently still fit, and a
+  steady shift of up to 8 s (a longer intro) is recognised. When LRCLIB's hand-made lines drift, two services that
+  agree with each other are trusted instead. Differences below 1 s are no longer shifted onto LRCLIB's lines.
+- **Liquid Glass** (new default theme): the now-playing bar in every look, its editor and the settings as frosted
+  glass like iOS 26, with the world behind the settings softly blurred. *Klassisch* keeps the old look
+  (`/skylyrics theme classic`).
+- **Settings in three pages:** *Allgemein*, *Aussehen* and *Quellen*; hints show in up to two lines.
+- **More looks:** size, background and roundness of the bar (`barsize`, `barbg`, `barround`), glow and shadow of the
+  lyrics (`glow`), the palettes *Glas* and *Neon* and the preset *Glas*.
+
 ### 1.3.0-dev.3 – 2026-10-25
 
 - The now-playing bar shows the song again during music without singing (intros, solos). Since the bar could be

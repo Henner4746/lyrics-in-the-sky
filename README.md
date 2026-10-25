@@ -25,7 +25,8 @@ you.
 ## Features
 
 - **Synced word by word.** Exact word timing when the lyrics have it, otherwise the words follow the pace
-  the song is sung at. Skipping within a song shows up at once.
+  the song is sung at. Skipping within a song shows up at once. With **Wortgenau** switched on, most songs get
+  real word times from several services (see [Wortgenau](#wortgenau-optional-unofficial-services)).
 - **In the sky:** word groups of different sizes build up each line close above the horizon, on staggered,
   gently rising rows turned slightly away from you, so the line reads with depth. Every group fades in as it
   is sung, the line fades out when the next one starts somewhere else. Like the sun, it stands behind
@@ -33,20 +34,24 @@ you.
 - **Around you:** every sung word floats on its own at a fixed spot near you – big, slanted, slightly
   turned – and stays there while you walk or fight, until it fades out a couple of seconds later. A "now
   playing" card hangs in front of you when a song starts.
-- **Colors of your choice:** gradient text in rose, lavender or six more palettes, or a different one per song.
+- **Colors of your choice:** gradient text in rose, lavender or eight more palettes (new: *Glas* and *Neon*), or a
+  different one per song; glow at night and shadow by day as strong as you like.
 - **Four styles:** *Elegant* (the two looks above), *Natürlich 1:1* (the same as if it really stood in the world:
   lines right above the hills, players and blocks in front of the words around you, the words being sung
   highlighted as a group), *Stapel* (the current line in the middle, the next
   one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and more, with sparkles).
-- **Now-playing pill** at the top of the screen with the current line, the sung word highlighted and a
-  little equalizer.
-- **Presets:** Standard, Himmel 1:1, Um dich 1:1, Party and Ruhig set the whole look with one click.
+- **Now-playing bar** with the current line and the sung word highlighted, as a pill, karaoke box, plain words or
+  only the title; movable, in your size, roundness and density.
+- **Liquid Glass** (default): the bar and the settings as frosted glass like iOS 26, with a bright rim and a soft
+  shadow; the world behind the settings is softly blurred. *Klassisch* keeps the black-and-white look.
+- **Presets:** Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig and Glas set the whole look with one click.
 - **Turn along** (optional): the lyrics follow your view closely instead of staying where they appeared.
 - **Wobble on the beat** (optional): every sung word gives the lyrics a little kick, long words a stronger one.
 - **Behind the hills or always visible:** in the sky the text stands behind mountains, trees and clouds like
   the sun; one switch puts it in front of everything instead.
-- **Settings screen on Right Shift**, minimal in black and white, with live preview: mode, style, colors, font
-  (modern, handwriting or Minecraft), size, height, opacity, timing and more.
+- **Settings screen on Right Shift** with live preview, in three pages: *Allgemein* (mode, style, timing, lookups,
+  Spotify), *Aussehen* (theme, font, colors, sizes, glow, the bar) and *Quellen* (where lyrics and word times come
+  from).
 - **No login needed** for music on your PC. **Optional Spotify login** for music on your phone, console or
   any other Spotify Connect device.
 
@@ -120,19 +125,25 @@ working automatically through the media session on your PC.
 | `/skylyrics opacity <0.1–1>` | Transparency (default 0.82) |
 | `/skylyrics scale <0.3–3>` | Text size |
 | `/skylyrics height <10–70>` | Height above the horizon in degrees |
-| `/skylyrics palette <name>` | `standard`, `rose`, `lavender`, `auto` (per song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
+| `/skylyrics palette <name>` | `standard`, `rose`, `lavender`, `auto` (per song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white`, `glass`, `neon` |
 | `/skylyrics font <sans\|script\|minecraft>` | Modern, handwriting or the Minecraft font |
 | `/skylyrics follow <on\|off>` | New lines appear where you are looking |
 | `/skylyrics title <on\|off>` | Song title in the sky when a song starts |
 | `/skylyrics hud <on\|off>` | Now-playing bar on or off |
 | `/skylyrics bar <pill\|karaoke\|plain\|title>` | Look of the bar |
 | `/skylyrics barpos <top\|bottom>` | Bar at the top or above the hotbar (move it freely with the "Leiste" button in the settings) |
+| `/skylyrics theme <classic\|glass>` | Look of the settings and the bar: black and white, or Liquid Glass (default) |
+| `/skylyrics barsize <0.75–1.5>` | Size of the bar |
+| `/skylyrics barbg <0–1>` | How solid the bar's background is |
+| `/skylyrics barround <0–1>` | Corners of the bar, from square to a capsule |
+| `/skylyrics glow <0–2>` | Glow at night and shadow by day around the lyrics; above 1 with a dark outline |
 | `/skylyrics behind <on\|off>` | In the sky behind mountains and clouds, or in front of everything |
 | `/skylyrics beat <on\|off>` | Wobble on every sung word |
 | `/skylyrics along <on\|off>` | Lyrics turn along with your view |
-| `/skylyrics preset <standard\|sky\|around\|party\|calm>` | Set a whole look at once |
+| `/skylyrics preset <standard\|sky\|around\|party\|calm\|glass>` | Set a whole look at once |
 | `/skylyrics lrclib <on\|off>` | Allow or forbid lyrics lookups on lrclib.net |
-| `/skylyrics lyricsplus <on\|off>` | Word times from LyricsPlus ("Wortgenau", off by default) |
+| `/skylyrics wortgenau <on\|off>` | All unofficial word time services at once ("Wortgenau" / "Grauzone", off by default) |
+| `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | One word time service at a time |
 | `/skylyrics spotify <connect\|disconnect>` | Connect or disconnect the optional Spotify account |
 
 **Key bindings** (under *Controls → Lyrics in the Sky*): settings (**Right Shift**), and unbound by default:
@@ -161,9 +172,7 @@ flowchart LR
   (up to 1000 songs), so a song heard before still has them when LRCLIB is busy or offline. When the exact
   lookup finds nothing, the mod tries the title without version notes ("- Remastered 2009", "(Single Mix)"),
   then a free search. If LRCLIB only has the text without times, it is spread over the song (marked "≈").
-- **Wortgenau (optional, off by default):** word times from LyricsPlus, an unofficial service that reads them from
-  Apple Music and QQ Music. They are only used when they fit LRCLIB's lines; for songs LRCLIB does not know,
-  LyricsPlus stands in.
+- **Wortgenau (optional, off by default):** real word times from unofficial services, see below.
 - **Timing per song:** a song whose lyrics run early or late can be corrected on its own. These corrections are
   shared anonymously with a small tracker at `henrik.click/lyrics-sync` (source in [`tracker/`](tracker/)): a
   random ID of your installation and the song as a hash of artist, title and the first timed lines. Once 10
@@ -175,11 +184,34 @@ flowchart LR
   after the sky, camera-relative like the sun, so everything drawn later stands in front of it; the words
   around you are anchored in the world 5 to 9 blocks away and drawn last, on top of everything.
 
+## Wortgenau: optional unofficial services
+
+LRCLIB mostly times whole lines; the words in between are estimated. "Wortgenau" asks services that time every
+word. **All of them are unofficial ("Grauzone"):** they are free to reach without any account, cookie or key, but
+they are not meant for other apps, can change or disappear any day, and are each off until you switch them on –
+all at once with "Wortgenau" (or "Grauzone" on the page *Quellen*), or one by one there and with
+`/skylyrics source <name> on|off`. Asked one after the other, in the order that fitted most songs in tests:
+
+| Service | Where its word times come from | What it gets |
+|---|---|---|
+| **Deezer** | Deezer's lyrics (Musixmatch, the same timing as Spotify's), through Deezer's web player with an anonymous session that lives only in memory | artist and title (to `api.deezer.com`), then the Deezer song ID (to `pipe.deezer.com`) |
+| **LyricsPlus** | the server of the YouLy+ extension, which reads Apple Music and QQ Music | title, artist, album, length (to `lyricsplus.prjktla.my.id`) |
+| **NetEase** | NetEase Cloud Music's "YRC" lyrics, also for many western songs | artist and title (to `music.163.com`) |
+| **Kugou** | Kugou Music's "KRC" lyrics, often the same as QQ Music's | artist, title, length (to `lyrics.kugou.com`) |
+
+Word times are only shown when they belong to the recording you hear: each LRCLIB line's first words have to be
+sung when the line starts, give or take one steady shift (a longer intro of another mastering), or two services
+that timed the song independently have to agree with each other (hand-made LRCLIB lines sometimes drift by a
+second). Otherwise the words are estimated as before. Results, and "nothing found" for two weeks, are kept in
+`config/lyricsinthesky/lyrics`; a service that fails is left alone for five minutes, so nothing hangs. Without
+LRCLIB lyrics, the first service that has the song stands in.
+
 ## Privacy and fair use
 
 - No login needed. The optional Spotify login only reads what is playing (`user-read-currently-playing`,
   `user-read-playback-state`) and can be disconnected at any time.
-- No cookies. LyricsPlus, an unofficial service, is only asked when you switch on "Wortgenau".
+- No cookies. The unofficial word time services are only asked when you switch them on (see above), at most
+  once a second each, with the mod's name as user agent.
 - Lookups are on from the start, with a note in chat the first time; switch them off in the settings or
   with `/skylyrics lrclib off`.
 - Sharing timing corrections is on from the start, with a note in chat the first time; switch it off with
