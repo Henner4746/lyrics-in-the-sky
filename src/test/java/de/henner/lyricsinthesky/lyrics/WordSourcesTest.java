@@ -94,6 +94,14 @@ class WordSourcesTest {
     }
 
     @Test
+    void refusalsInsideAnAnswerAreErrors() throws Exception {
+        NeteaseClient.checkCode("{\"result\":{\"songs\":[]},\"code\":200}");
+        assertThrows(java.io.IOException.class, () -> NeteaseClient.checkCode("{\"code\":-460,\"msg\":\"Cheating\"}"));
+        KugouClient.checkStatus("{\"status\":200,\"candidates\":[]}");
+        assertThrows(java.io.IOException.class, () -> KugouClient.checkStatus("{\"status\":0,\"errcode\":1}"));
+    }
+
+    @Test
     void aRefusedDeezerSessionIsAnErrorButAnUnknownSongIsNot() throws Exception {
         DeezerClient.checkErrors("{\"errors\":[{\"type\":\"TrackNotFoundError\"}],\"data\":{\"track\":null}}");
         DeezerClient.checkErrors("{\"data\":{\"track\":{\"lyrics\":null}}}");

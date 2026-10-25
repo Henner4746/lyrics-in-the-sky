@@ -60,6 +60,7 @@ public final class KugouClient implements WordTimeSource {
         if (found.isEmpty()) {
             return Optional.empty();
         }
+        checkStatus(found.get());
         for (SearchHit hit : SearchHit.matching(track, hits(found.get()), TRIES)) {
             Map<String, String> download = new LinkedHashMap<>();
             download.put("ver", "1");
@@ -68,14 +69,24 @@ public final class KugouClient implements WordTimeSource {
             download.put("accesskey", hit.key());
             download.put("fmt", "krc");
             download.put("charset", "utf8");
-            Optional<TimedWords> words = web.get(BASE + "download?" + WebText.query(download))
-                    .flatMap(KugouClient::content)
-                    .flatMap(KugouClient::parseKrc);
+            Optional<String> body = web.get(BASE + "download?" + WebText.query(download));
+            if (body.isPresent()) {
+                checkStatus(body.get());
+            }
+            Optional<TimedWords> words = body.flatMap(KugouClient::content).flatMap(KugouClient::parseKrc);
             if (words.isPresent()) {
                 return words;
             }
         }
         return Optional.empty();
+    }
+
+    /** Kugou answers refusals with HTTP 200 and its own status; those must not read as "nothing found". */
+    static void checkStatus(String body) throws IOException {
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        if (root.has("status") && root.get("status").isJsonPrimitive() && root.get("status").getAsInt() != 200) {
+            throw new IOException("Kugou refused: status " + root.get("status").getAsInt());
+        }
     }
 
     static List<SearchHit> hits(String body) {

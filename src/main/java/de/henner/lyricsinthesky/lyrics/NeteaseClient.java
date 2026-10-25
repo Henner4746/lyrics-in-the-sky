@@ -44,8 +44,11 @@ public final class NeteaseClient implements WordTimeSource {
     @Override
     public Optional<TimedWords> find(NowPlaying track) throws IOException, InterruptedException {
         for (SearchHit hit : search(track)) {
-            Optional<TimedWords> words = web.get(BASE + "song/lyric/v1?id=" + hit.id() + "&lv=-1&yv=-1&tv=0&rv=0&kv=0")
-                    .flatMap(NeteaseClient::parse);
+            Optional<String> body = web.get(BASE + "song/lyric/v1?id=" + hit.id() + "&lv=-1&yv=-1&tv=0&rv=0&kv=0");
+            if (body.isPresent()) {
+                checkCode(body.get());
+            }
+            Optional<TimedWords> words = body.flatMap(NeteaseClient::parse);
             if (words.isPresent()) {
                 return words;
             }
@@ -60,7 +63,22 @@ public final class NeteaseClient implements WordTimeSource {
         query.put("type", "1");
         query.put("limit", Integer.toString(SEARCH_RESULTS));
         Optional<String> body = web.get(BASE + "search/get?" + WebText.query(query));
-        return body.map(text -> SearchHit.matching(track, hits(text), TRIES)).orElse(List.of());
+        if (body.isEmpty()) {
+            return List.of();
+        }
+        checkCode(body.get());
+        return SearchHit.matching(track, hits(body.get()), TRIES);
+    }
+
+    /**
+     * NetEase answers refusals (too many requests, "cheating") with HTTP 200 and its own code; those must not read as
+     * "nothing found".
+     */
+    static void checkCode(String body) throws IOException {
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        if (root.has("code") && root.get("code").isJsonPrimitive() && root.get("code").getAsInt() != 200) {
+            throw new IOException("NetEase refused: code " + root.get("code").getAsInt());
+        }
     }
 
     static List<SearchHit> hits(String body) {
