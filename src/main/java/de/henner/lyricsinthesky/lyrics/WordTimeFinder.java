@@ -106,7 +106,7 @@ public final class WordTimeFinder {
             // Named after the service asked, which is what the player switches; LyricsPlus adds where it read them.
             String label = words.get().source().equals(source.name()) ? source.name()
                     : source.name() + " (" + words.get().source() + ")";
-            found.add(new TimedWords(label, words.get().lines()));
+            found.add(new TimedWords(label, words.get().withoutTitleLine(track.title()).lines()));
             Optional<Taken> taken = decide(base, found);
             if (taken.isPresent() && !taken.get().loose()) {
                 return new Outcome(taken, true);

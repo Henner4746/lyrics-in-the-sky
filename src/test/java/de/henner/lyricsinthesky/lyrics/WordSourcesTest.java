@@ -48,12 +48,34 @@ class WordSourcesTest {
                 """;
         String back = KugouClient.decode(pack(krc));
         assertEquals(krc, back);
-        TimedWords words = KugouClient.parseKrc(back).orElseThrow();
+        TimedWords words = KugouClient.parseKrc(back).orElseThrow().withoutTitleLine("Lanterns");
         // The "Artist - Title" line is not sung and is left out.
         assertEquals(2, words.lines().size());
         assertEquals("Light the lanterns", words.lines().get(0).text());
         assertEquals(20900, words.lines().get(0).words().get(2).startMs());
         assertEquals(24700, words.lines().get(1).words().get(1).startMs());
+    }
+
+    @Test
+    void titleLinesAreLeftOutButSungLinesWithADashStay() {
+        TimedWords words = new TimedWords("X", List.of(
+                line(0, "Lanterns (Single Version) - The Made Up Band"),
+                line(5000, "Light the lanterns - all of them"),
+                line(9000, "Winter＇s night")));
+        TimedWords kept = words.withoutTitleLine("Lanterns - 2011 Remaster");
+        assertEquals(2, kept.lines().size());
+        assertEquals("Light the lanterns - all of them", kept.lines().get(0).text());
+        // Full-width forms are made plain.
+        assertEquals("Winter's night", TimedWords.line(List.of(new TimedWords.Word(0, "Winter＇s "),
+                new TimedWords.Word(300, "night"))).text());
+    }
+
+    private static TimedWords.Line line(long start, String text) {
+        List<TimedWords.Word> words = new java.util.ArrayList<>();
+        for (String word : text.split(" ")) {
+            words.add(new TimedWords.Word(start, word));
+        }
+        return new TimedWords.Line(start, words);
     }
 
     @Test

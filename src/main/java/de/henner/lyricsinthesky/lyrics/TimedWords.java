@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.lyrics;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -26,6 +27,25 @@ public record TimedWords(String source, List<Line> lines) {
             words.forEach(word -> text.add(word.text()));
             return text.toString();
         }
+    }
+
+    /**
+     * Without a line naming the song ("Lanterns - The Band", "The Band - Lanterns (Single Version)") among the first
+     * two, which Kugou and QQ Music put before the lyrics although nobody sings it.
+     */
+    TimedWords withoutTitleLine(String title) {
+        List<String> titleWords = WordTimeTransfer.tokens(SearchHit.coreTitle(title));
+        List<Line> kept = new ArrayList<>(lines);
+        for (int i = Math.min(2, kept.size()) - 1; i >= 0; i--) {
+            for (String part : kept.get(i).text().split(" - ")) {
+                if (!titleWords.isEmpty() && part.length() < kept.get(i).text().length()
+                        && WordTimeTransfer.tokens(SearchHit.coreTitle(part)).equals(titleWords)) {
+                    kept.remove(i);
+                    break;
+                }
+            }
+        }
+        return kept.size() == lines.size() ? this : new TimedWords(source, kept);
     }
 
     /**
@@ -66,7 +86,8 @@ public record TimedWords(String source, List<Line> lines) {
     }
 
     private static void add(List<Word> words, long start, StringBuilder text) {
-        String word = text.toString().trim();
+        // Full-width forms such as "＇" (NetEase) become plain ones the game's fonts have.
+        String word = Normalizer.normalize(text.toString(), Normalizer.Form.NFKC).trim();
         text.setLength(0);
         if (start >= 0 && !word.isEmpty()) {
             // A syllable may hold several words ("The boy "), which then share its time.

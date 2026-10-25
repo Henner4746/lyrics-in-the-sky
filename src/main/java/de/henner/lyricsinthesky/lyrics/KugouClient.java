@@ -137,15 +137,8 @@ public final class KugouClient implements WordTimeSource {
 
     static Optional<TimedWords> parseKrc(String krc) {
         List<TimedWords.Line> lines = new ArrayList<>();
-        String title = null;
-        String artist = null;
         for (String raw : krc.split("\\R")) {
             String text = raw.strip();
-            if (text.startsWith("[ti:")) {
-                title = text.substring(4, text.length() - 1).strip();
-            } else if (text.startsWith("[ar:")) {
-                artist = text.substring(4, text.length() - 1).strip();
-            }
             Matcher line = LINE.matcher(text);
             if (!line.matches()) {
                 continue;
@@ -167,9 +160,7 @@ public final class KugouClient implements WordTimeSource {
                 syllables.add(new TimedWords.Word(start, body.substring(textFrom)));
             }
             TimedWords.Line timed = TimedWords.line(syllables);
-            // Kugou often opens with a line "Artist - Title", which is not sung.
-            if (timed != null && !(artist != null && title != null
-                    && WordTimeTransfer.normalize(timed.text()).equals(WordTimeTransfer.normalize(artist + title)))) {
+            if (timed != null) {
                 lines.add(timed);
             }
         }
