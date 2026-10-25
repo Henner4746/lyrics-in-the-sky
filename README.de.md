@@ -12,7 +12,7 @@
 ![Systeme](https://img.shields.io/badge/Windows%20%7C%20Linux-unterst%C3%BCtzt-4c6ef5)
 ![Lizenz](https://img.shields.io/badge/Lizenz-MIT-blue)
 
-[English version](README.md)
+**[Download auf CurseForge](https://www.curseforge.com/minecraft/mc-mods/lyrics-in-the-sky)** · [English version](README.md)
 
 <img src="preview/preview.gif" width="720" alt="Gesungene Wörter schweben in der Dämmerung um den Spieler und bleiben stehen, während die Kamera sich dreht">
 
@@ -78,7 +78,8 @@ Ganzes Vorschauvideo: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-
 
 ## Installation
 
-1. `lyrics-in-the-sky-1.2.2+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
+1. Die Mod von [CurseForge](https://www.curseforge.com/minecraft/mc-mods/lyrics-in-the-sky) laden und `lyrics-in-the-sky-1.2.2+mc26.3.jar` (oder `…+mc26.2.jar`)
+   und Fabric API in den `mods`-Ordner legen.
 2. Spiel starten, Musik starten, Welt betreten.
 3. Die Songtexte kommen von lrclib.net, das ist von Anfang an an. Beim ersten Mal sagt ein Hinweis im Chat,
    was gesendet wird, und bietet das Ausschalten an.
@@ -201,7 +202,6 @@ flowchart LR
 |---|---|
 | `src/` | gemeinsamer Code: Mediensitzungen, LRCLIB, Wortzeiten, Animationen, HUD, Befehle |
 | `versions/26.2`, `versions/26.3` | Grafik-Anbindung pro Minecraft-Version (Mojang hat die Render-API in 26.3 umgebaut) |
-| `reports/`, `research_notes/` | Recherche zu bestehenden Mods, APIs und Rechtsfragen |
 | `preview/` | Vorschauvideo und Screenshots |
 
 Regeln für Beiträge: [CONTRIBUTING.md](CONTRIBUTING.md). Versionen: [CHANGELOG.md](CHANGELOG.md).
