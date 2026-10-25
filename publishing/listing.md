@@ -39,6 +39,8 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 - In the sky behind mountains and clouds like the sun, or switched to always visible
 - Settings screen on **Right Shift**, minimal in black and white, with live preview: mode, style, colors, font, size, height, opacity, timing and more
 - Works without any login for music on your PC; an optional Spotify login also covers music on your phone, console or other Spotify Connect devices
+- Lyrics found once are kept on your PC, so a song heard before shows them at once, even when LRCLIB is busy or you are offline
+- Works with shader packs (Iris)
 
 ## How to use
 
