@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.2 – 2026-10-25
+
+- **Works with shader packs (Iris):** with a shader pack on, the lyrics are drawn on top of the pack's finished
+  image, still hidden by hills, trees and walls in front of them. Before, the shader pack painted over them and
+  nothing was visible. Tested with Complementary Reimagined on Iris 1.11 for 26.2 and 26.3; the pack's own clouds
+  do not hide the text.
+- **Lyrics found once are kept:** they are saved in `config/lyricsinthesky/lyrics` (up to 1000 songs, the least
+  recently played make room), so a song heard before shows its lyrics at once, even when LRCLIB is busy or offline.
+- **The top bar says why no line shows:** lyrics switched off, none found, or lrclib.net not answering (the mod
+  keeps trying), instead of the text simply being gone.
+- Switching "Songtexte" off and on again no longer throws away lyrics already found.
+- The gliding stack comes back when the lyrics arrive late, e.g. after LRCLIB was busy.
+
 ## 1.2.1 – 2026-10-25
 
 - **Steady sync:** the position the lyrics follow is now a clock of its own that the player's reports pull

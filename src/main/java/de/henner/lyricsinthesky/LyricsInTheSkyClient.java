@@ -9,6 +9,7 @@ import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
+import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PreferredNowPlayingSource;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
@@ -77,7 +78,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         }
         NowPlayingSource source = osSource == null ? spotifySource : new PreferredNowPlayingSource(spotifySource, osSource);
         LrclibClient lrclib = new LrclibClient(version);
-        controller = new LyricsController(source, lrclib, config);
+        controller = new LyricsController(source, lrclib, new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")),
+                config);
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the
         // helper process out of the busy resource-loading phase.

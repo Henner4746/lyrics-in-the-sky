@@ -3,6 +3,7 @@
   "package": "de.henner.lyricsinthesky.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "GameRendererMixin",
     "LevelRendererMixin"
   ],
   "injectors": {

@@ -69,7 +69,7 @@ No client secret is needed (the login uses PKCE).
 
 This mod connects to the internet. Everything it sends is listed here:
 
-- **lrclib.net** (on from the start, with a note in chat the first time; switch it off in the settings or with `/skylyrics lrclib off`): the title, artist, album and length of the song that is playing, to look up its synced lyrics. Nothing else is sent; lyrics are kept in memory only and never saved.
+- **lrclib.net** (on from the start, with a note in chat the first time; switch it off in the settings or with `/skylyrics lrclib off`): the title, artist, album and length of the song that is playing, to look up its synced lyrics. Nothing else is sent. Lyrics that were found are kept on your PC in `config/lyricsinthesky/lyrics` (up to 1000 songs) so they also work when LRCLIB is busy; delete the folder at any time.
 - **Spotify Web API** (only if you connect your Spotify account): reads which song is playing (scopes `user-read-currently-playing` and `user-read-playback-state`). Login runs through Spotify's official consent page; the tokens stay in `config/lyricsinthesky/spotify.json` on your PC and you can disconnect at any time.
 - **Your PC's media session:** on Windows a small PowerShell script bundled in the mod (`lyricsinthesky/smtc-helper.ps1`, readable inside the jar) reads the system media session – the same information Windows shows in its volume overlay. On Linux the mod asks MPRIS via `gdbus`. This stays on your PC.
 
@@ -77,7 +77,7 @@ No telemetry, no servers of our own, no cookies, no unofficial Spotify or Amazon
 
 ## Known limitations
 
-- Shader packs (Iris) are untested.
+- With a shader pack (Iris) the text is drawn on top of the pack's finished image: hills, trees and walls still hide it, the pack's own clouds do not. Tested with Complementary Reimagined.
 - Livestreams and videos without a known length get no lyrics.
 - Without login, Spotify reports its position only every few seconds; `/skylyrics offset` fixes small delays.
 
@@ -89,7 +89,14 @@ No telemetry, no servers of our own, no cookies, no unofficial Spotify or Amazon
 
 Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 
-## Changelog 1.2.1 (for the file upload)
+## Changelog 1.2.2 (for the file upload)
+
+- Works with shader packs (Iris): the lyrics are drawn on top of the pack's image, still hidden by hills and walls (before, they were invisible)
+- Lyrics found once are kept on your PC, so a song heard before shows them at once even when LRCLIB is busy or offline
+- The top bar says why no line shows: lyrics off, none found, or lrclib.net not answering (the mod keeps trying)
+- Switching lyrics off and on again no longer throws away lyrics already found
+
+## Changelog 1.2.1
 
 - Steady sync: the lyrics follow a clock of their own that never runs backwards, so words no longer flicker; skipping still shows up at once
 - Lyrics come back by themselves when LRCLIB was busy: retried after 5 s, 15 s, 45 s …, also while the song keeps playing

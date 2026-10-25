@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  * Looks up synced lyrics on <a href="https://lrclib.net/docs">LRCLIB</a>.
  *
  * <p>Order: exact {@code /api/get} with duration (LRCLIB allows about two seconds of difference),
- * then {@code /api/search} filtered by duration. Nothing is stored on disk.
+ * then {@code /api/search} filtered by duration. What it finds is kept on disk by {@link LyricsCache}.
  */
 public final class LrclibClient {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");

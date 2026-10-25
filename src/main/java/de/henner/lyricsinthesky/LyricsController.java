@@ -2,6 +2,7 @@ package de.henner.lyricsinthesky;
 
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
+import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PlaybackClock;
@@ -49,6 +50,8 @@ public final class LyricsController {
 
     private final NowPlayingSource source;
     private final LrclibClient lrclib;
+    /** Songs found before, so they still have lyrics when LRCLIB is busy or offline. */
+    private final LyricsCache saved;
     private final SkyLyricsConfig config;
     private final ExecutorService lookups = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "LyricsInTheSky-Lookup");
@@ -65,9 +68,10 @@ public final class LyricsController {
     private volatile NowPlaying simulated;
     private volatile boolean sourcesMuted;
 
-    public LyricsController(NowPlayingSource source, LrclibClient lrclib, SkyLyricsConfig config) {
+    public LyricsController(NowPlayingSource source, LrclibClient lrclib, LyricsCache saved, SkyLyricsConfig config) {
         this.source = source;
         this.lrclib = lrclib;
+        this.saved = saved;
         this.config = config;
     }
 
@@ -97,9 +101,7 @@ public final class LyricsController {
         CacheEntry cached = cache.get(key);
         trackKey = key;
         if (!Boolean.TRUE.equals(config.lrclibAllowed)) {
-            if (cached == null || cached.state() != LookupState.NOT_ALLOWED) {
-                cache.put(key, new CacheEntry(Optional.empty(), LookupState.NOT_ALLOWED, System.currentTimeMillis()));
-            }
+            // Lyrics found before stay where they are, so switching the lookup back on shows them again at once.
             return;
         }
         long nowMs = System.currentTimeMillis();
@@ -123,7 +125,6 @@ public final class LyricsController {
     static boolean lookUpAgain(LookupState state, boolean found, long ageMs, int failures) {
         return switch (state) {
             case SEARCHING -> false;
-            case NOT_ALLOWED -> true;
             case ERROR -> ageMs >= retryDelayMs(failures);
             default -> !found && ageMs >= NEGATIVE_CACHE_MS;
         };
@@ -143,18 +144,28 @@ public final class LyricsController {
     }
 
     private void lookup(String key, NowPlaying now, int failuresBefore) {
+        Optional<Lyrics> kept = saved.get(key);
+        if (kept.isPresent()) {
+            cache.put(key, new CacheEntry(kept, stateOf(kept), System.currentTimeMillis()));
+            LOGGER.info("Lyrics for '{}' by '{}': {} (saved)", now.title(), now.artist(), stateOf(kept));
+            return;
+        }
         try {
             Optional<Lyrics> lyrics = lrclib.find(now);
-            LookupState state = lyrics.map(found -> found.isInstrumental() ? LookupState.INSTRUMENTAL : LookupState.FOUND)
-                    .orElse(LookupState.NOT_FOUND);
-            cache.put(key, new CacheEntry(lyrics, state, System.currentTimeMillis()));
-            LOGGER.info("Lyrics for '{}' by '{}': {}", now.title(), now.artist(), state);
+            lyrics.ifPresent(found -> saved.put(key, found));
+            cache.put(key, new CacheEntry(lyrics, stateOf(lyrics), System.currentTimeMillis()));
+            LOGGER.info("Lyrics for '{}' by '{}': {}", now.title(), now.artist(), stateOf(lyrics));
         } catch (Exception e) {
             int failures = failuresBefore + 1;
             cache.put(key, new CacheEntry(Optional.empty(), LookupState.ERROR, System.currentTimeMillis(), failures));
             LOGGER.warn("Lyrics lookup for '{}' failed ({}. time, next try in {} s): {}", now.title(), failures,
                     retryDelayMs(failures) / 1000, e.toString());
         }
+    }
+
+    private static LookupState stateOf(Optional<Lyrics> lyrics) {
+        return lyrics.map(found -> found.isInstrumental() ? LookupState.INSTRUMENTAL : LookupState.FOUND)
+                .orElse(LookupState.NOT_FOUND);
     }
 
     /** Plays the built-in demo text for one loop, independent of any media app. */
@@ -180,15 +191,16 @@ public final class LyricsController {
             return null;
         }
         String key = key(now);
-        CacheEntry entry = cache.get(key);
-        LookupState state = entry == null ? LookupState.IDLE : entry.state();
+        CacheEntry entry = Boolean.TRUE.equals(config.lrclibAllowed) ? cache.get(key) : null;
+        LookupState state = !Boolean.TRUE.equals(config.lrclibAllowed) ? LookupState.NOT_ALLOWED
+                : entry == null ? LookupState.IDLE : entry.state();
         Lyrics lyrics = entry == null ? null : entry.lyrics().filter(found -> !found.isInstrumental()).orElse(null);
         long position = clock.at(key, nowMs, now.estimatePositionMs(nowMs), now.playing());
         return new Timeline(key, now.title(), now.artist(), lyrics, state, position + config.offsetMs, now.durationMs(),
                 now.playing());
     }
 
-    /** Forgets cached "not found"/"not allowed" results, e.g. after the player allowed LRCLIB. */
+    /** Forgets cached "not found" and failed lookups, e.g. after the player allowed LRCLIB. */
     public void retryLookups() {
         cache.values().removeIf(entry -> entry.lyrics().isEmpty() && entry.state() != LookupState.SEARCHING);
         trackKey = null;
@@ -200,7 +212,8 @@ public final class LyricsController {
             return "Keine Mediensitzung gefunden. Läuft Spotify, Amazon Music oder ein Browser-Player?";
         }
         CacheEntry entry = cache.get(key(now));
-        String state = entry == null ? LookupState.IDLE.name() : entry.state().name();
+        String state = !Boolean.TRUE.equals(config.lrclibAllowed) ? LookupState.NOT_ALLOWED.name()
+                : entry == null ? LookupState.IDLE.name() : entry.state().name();
         return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms",
                 now.artist(), now.title(), now.app(), now.playing() ? "spielt" : "pausiert",
                 now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs);

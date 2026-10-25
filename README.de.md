@@ -78,7 +78,7 @@ Ganzes Vorschauvideo: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-
 
 ## Installation
 
-1. `lyrics-in-the-sky-1.2.1+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
+1. `lyrics-in-the-sky-1.2.2+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
 2. Spiel starten, Musik starten, Welt betreten.
 3. Die Songtexte kommen von lrclib.net, das ist von Anfang an an. Beim ersten Mal sagt ein Hinweis im Chat,
    was gesendet wird, und bietet das Ausschalten an.
@@ -153,7 +153,9 @@ flowchart LR
   Windows-Mediensitzung, unter Linux fragt die Mod MPRIS über `gdbus` ab. Zwischen den Meldungen des Players
   rechnet die Mod die Position selbst weiter, damit die Wörter im Takt bleiben.
 - **Songtexte** kommen von [LRCLIB](https://lrclib.net), einer freien Datenbank für synchrone Lyrics.
-  Gesendet werden nur Titel, Künstler, Album und Länge; gespeichert wird nichts.
+  Gesendet werden nur Titel, Künstler, Album und Länge. Gefundene Songtexte bleiben in
+  `config/lyricsinthesky/lyrics` (bis zu 1000 Songs), damit ein schon gehörter Song sie auch hat, wenn
+  LRCLIB gerade nicht antwortet.
 - **Optionaler Spotify-Login** über Spotifys offizielle Web API mit Authorization Code + PKCE: kein
   Client-Secret, der Browser kehrt zu einer kleinen Seite zurück, die die Mod auf `127.0.0.1:43217` ausliefert,
   und die Tokens liegen in `config/lyricsinthesky/spotify.json` auf deinem PC.
@@ -168,8 +170,8 @@ flowchart LR
 - Keine Cookies, keine inoffiziellen oder internen Schnittstellen.
 - Abfragen sind von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten in den Einstellungen oder
   mit `/skylyrics lrclib off`.
-- Lyrics werden beim Abspielen geholt und nur im Speicher gehalten. Das Projekt liefert oder hostet keine
-  Songtexte.
+- Lyrics werden beim Abspielen geholt; gefundene bleiben auf deinem PC in `config/lyricsinthesky/lyrics`,
+  den Ordner kannst du jederzeit löschen. Das Projekt liefert oder hostet keine Songtexte.
 - Nicht verbunden mit Mojang, Microsoft, Spotify, Amazon oder LRCLIB.
 
 ## Bekannte Grenzen
@@ -182,7 +184,8 @@ flowchart LR
 - Die eingebaute Spotify-App ist im Entwicklungsmodus: Außer ihrem Besitzer können sich nur fünf eingetragene
   Personen verbinden. Alle anderen brauchen ihre eigene Spotify-Entwickler-App (siehe oben).
 - Livestreams und Videos ohne bekannte Länge bekommen keine Lyrics.
-- Mit Shaderpacks (Iris) ungetestet.
+- Mit Shaderpack (Iris) wird der Text über das fertige Bild des Packs gezeichnet: Hügel, Bäume und Wände
+  verdecken ihn weiter, die eigenen Wolken des Packs nicht. Getestet mit Complementary Reimagined.
 
 ## Selbst bauen
 

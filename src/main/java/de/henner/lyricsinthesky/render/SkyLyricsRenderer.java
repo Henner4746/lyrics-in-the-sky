@@ -1,6 +1,7 @@
 package de.henner.lyricsinthesky.render;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.systems.RenderSystem;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
@@ -16,6 +17,8 @@ import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fStack;
 
 /**
  * Decides which lines are in the sky and draws them: the sky text right after the vanilla sky, the words around
@@ -86,6 +89,9 @@ public final class SkyLyricsRenderer {
     private boolean skyPassRan;
     /** Text that stays in front of the world ("around you"), laid out in the sky pass, drawn after the world. */
     private List<SkyGlyph> inFront = List.of();
+    /** With a shader pack: this frame's text and the world's view, kept for after the pack's final image. */
+    private List<SkyGlyph> afterShaderPack = List.of();
+    private final Matrix4f shaderPackView = new Matrix4f();
 
     private SkyLyricsRenderer() {}
 
@@ -96,6 +102,10 @@ public final class SkyLyricsRenderer {
      * @param skyLuminance brightness of the sky color this frame, 0 (night) to 1 (bright day)
      */
     public void renderSky(RenderTarget target, float skyLuminance) {
+        if (IrisCompat.shadersInUse()) {
+            // The shader pack would paint over it; everything is drawn in renderAfterLevel instead.
+            return;
+        }
         List<SkyGlyph> glyphs = collect(skyLuminance);
         skyPassRan = true;
         boolean behind = behindTerrain();
@@ -121,6 +131,17 @@ public final class SkyLyricsRenderer {
      * snow, blindness) everything is drawn here, the sky text then only hidden by what is closer than it.
      */
     public void renderInFront(RenderTarget target, float skyLuminance) {
+        if (IrisCompat.shadersInUse()) {
+            // Laid out now, while the world's view is set, and drawn once the shader pack has finished the frame.
+            boolean behind = behindTerrain();
+            afterShaderPack = collect(skyLuminance).stream()
+                    .map(glyph -> glyph.overlay() || behind ? glyph : onTop(glyph))
+                    .toList();
+            shaderPackView.set(RenderSystem.getModelViewMatrixCopy());
+            skyPassRan = false;
+            inFront = List.of();
+            return;
+        }
         List<SkyGlyph> glyphs = skyPassRan ? inFront : collect(skyLuminance);
         if (!skyPassRan && !behindTerrain()) {
             glyphs = glyphs.stream().map(glyph -> glyph.overlay() ? glyph : onTop(glyph)).toList();
@@ -129,6 +150,27 @@ public final class SkyLyricsRenderer {
         inFront = List.of();
         if (!glyphs.isEmpty()) {
             GlyphDrawer.draw(target, glyphs, GlyphDrawer.FRONT_SLOT);
+        }
+    }
+
+    /**
+     * Called once the world is finished, before the hand. Only with a shader pack: its final image now covers the
+     * whole frame, so the text kept by {@link #renderInFront} goes on top of it, still hidden by terrain in front
+     * of it as far as the world's depth tells.
+     */
+    public void renderAfterLevel(RenderTarget target) {
+        if (afterShaderPack.isEmpty()) {
+            return;
+        }
+        List<SkyGlyph> glyphs = afterShaderPack;
+        afterShaderPack = List.of();
+        Matrix4fStack view = RenderSystem.getModelViewStack();
+        view.pushMatrix();
+        view.set(shaderPackView);
+        try {
+            GlyphDrawer.draw(target, glyphs, GlyphDrawer.FRONT_SLOT);
+        } finally {
+            view.popMatrix();
         }
     }
 
@@ -320,7 +362,11 @@ public final class SkyLyricsRenderer {
             leaveFlow(now);
         }
         if (key.equals(flowDoneKey)) {
-            return;
+            if (timeline.lyrics() == null) {
+                return;
+            }
+            // The lyrics came after all, e.g. on a retry after LRCLIB was busy: the stack comes back.
+            flowDoneKey = null;
         }
         if (flow == null) {
             boolean around = "around".equals(config.mode);
@@ -442,14 +488,20 @@ public final class SkyLyricsRenderer {
         flowElevation.step(elevation, dt);
     }
 
-    private static String subtitle(LyricsController.Timeline timeline) {
-        String hint = switch (timeline.state()) {
-            case NOT_ALLOWED -> " · Lyrics: /skylyrics lrclib on";
-            case NOT_FOUND, INSTRUMENTAL -> " · keine Lyrics gefunden";
-            case ERROR -> " · Lyrics-Dienst nicht erreichbar";
+    static String subtitle(LyricsController.Timeline timeline) {
+        String hint = hint(timeline.state());
+        return timeline.artist().isBlank() || hint.isEmpty() ? timeline.artist() + hint
+                : timeline.artist() + " · " + hint;
+    }
+
+    /** Why a song shows no lyrics, or empty while they are on their way or shown. */
+    static String hint(LyricsController.LookupState state) {
+        return switch (state) {
+            case NOT_ALLOWED -> "Songtexte aus: /skylyrics lrclib on";
+            case NOT_FOUND, INSTRUMENTAL -> "keine Lyrics gefunden";
+            case ERROR -> "lrclib.net antwortet nicht, versuche weiter";
             default -> "";
         };
-        return timeline.artist() + hint;
     }
 
     private long nextSeed() {
@@ -482,6 +534,7 @@ public final class SkyLyricsRenderer {
         flow = null;
         leavingFlows.clear();
         flowDoneKey = null;
+        afterShaderPack = List.of();
         flowYaw.reset();
         flowElevation.reset();
         trackKey = null;

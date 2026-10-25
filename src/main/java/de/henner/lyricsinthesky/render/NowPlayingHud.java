@@ -118,10 +118,14 @@ public final class NowPlayingHud implements HudElement {
                 return;
             }
         }
-        key = timeline.trackKey() + "#title";
+        // The song; when lyrics are off, not found or LRCLIB does not answer, first why no line shows, so the pill's
+        // width limit cuts the title rather than the reason.
+        key = timeline.trackKey() + "#title#" + timeline.state();
         if (!key.equals(contentKey)) {
-            String artist = timeline.artist().isBlank() ? "" : " · " + timeline.artist();
-            words = (timeline.title() + artist).trim().split("\\s+");
+            String hint = SkyLyricsRenderer.hint(timeline.state());
+            String song = timeline.artist().isBlank() || !hint.isEmpty() ? timeline.title()
+                    : timeline.title() + " · " + timeline.artist();
+            words = ((hint.isEmpty() ? "" : hint + " · ") + song).trim().split("\\s+");
             wordTimes = new long[0];
             lyricLine = false;
             changed(key, now);

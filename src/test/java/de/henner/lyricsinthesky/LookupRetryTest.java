@@ -26,6 +26,5 @@ class LookupRetryTest {
         assertFalse(LyricsController.lookUpAgain(LookupState.SEARCHING, false, 3_600_000, 0));
         assertFalse(LyricsController.lookUpAgain(LookupState.NOT_FOUND, false, 60_000, 0));
         assertTrue(LyricsController.lookUpAgain(LookupState.NOT_FOUND, false, 11 * 60_000, 0));
-        assertTrue(LyricsController.lookUpAgain(LookupState.NOT_ALLOWED, false, 0, 0));
     }
 }

@@ -35,11 +35,14 @@ public final class Lyrics {
     private final boolean instrumental;
     /** How fast this song is sung, for spreading words over a line that has no word timing. */
     private final long msPerChar;
+    /** The LRC text these lyrics were parsed from, empty for an instrumental. */
+    private final String lrc;
 
-    private Lyrics(List<Line> lines, boolean instrumental) {
+    private Lyrics(List<Line> lines, boolean instrumental, String lrc) {
         this.lines = List.copyOf(lines);
         this.instrumental = instrumental;
         this.msPerChar = measurePace(this.lines);
+        this.lrc = lrc;
     }
 
     /**
@@ -64,7 +67,7 @@ public final class Lyrics {
     }
 
     public static Lyrics instrumental() {
-        return new Lyrics(List.of(), true);
+        return new Lyrics(List.of(), true, "");
     }
 
     public static Lyrics parseLrc(String lrc) {
@@ -105,7 +108,12 @@ public final class Lyrics {
             shifted.add(new Line(Math.max(0, line.startMs() - offsetMs), line.text(), words));
         }
         shifted.sort((a, b) -> Long.compare(a.startMs(), b.startMs()));
-        return new Lyrics(shifted, false);
+        return new Lyrics(shifted, false, lrc);
+    }
+
+    /** The LRC text these lyrics were parsed from, empty for an instrumental. */
+    public String lrc() {
+        return lrc;
     }
 
     /** Word times from enhanced LRC tags, or {@code null} when the line has none. */

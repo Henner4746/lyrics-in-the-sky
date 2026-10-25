@@ -76,7 +76,7 @@ Full preview video: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-th
 
 ## Installation
 
-1. Put `lyrics-in-the-sky-1.2.1+mc26.3.jar` (or `…+mc26.2.jar`) and Fabric API into your `mods` folder.
+1. Put `lyrics-in-the-sky-1.2.2+mc26.3.jar` (or `…+mc26.2.jar`) and Fabric API into your `mods` folder.
 2. Start the game, start some music, join a world.
 3. Lyrics come from lrclib.net, which is on from the start; the first time, a note in chat says what is sent
    and offers to switch it off.
@@ -150,7 +150,8 @@ flowchart LR
   session; on Linux the mod asks MPRIS through `gdbus`. Between updates from the player the mod advances
   the position on its own, so words stay on the beat.
 - **Lyrics** come from [LRCLIB](https://lrclib.net), a free database of synced lyrics. Only title, artist,
-  album and length are sent; nothing is stored on disk.
+  album and length are sent. Lyrics that were found are kept in `config/lyricsinthesky/lyrics`
+  (up to 1000 songs), so a song heard before still has them when LRCLIB is busy or offline.
 - **Optional Spotify login** uses Spotify's official Web API with Authorization Code + PKCE: no client
   secret, the browser returns to a tiny page served by the mod on `127.0.0.1:43217`, and the tokens are kept in
   `config/lyricsinthesky/spotify.json` on your PC.
@@ -165,7 +166,8 @@ flowchart LR
 - No cookies, no unofficial or internal APIs.
 - Lookups are on from the start, with a note in chat the first time; switch them off in the settings or
   with `/skylyrics lrclib off`.
-- Lyrics are fetched while playing and kept in memory only. This project does not ship or host any lyrics.
+- Lyrics are fetched while playing; the ones found stay on your PC in `config/lyricsinthesky/lyrics`, which
+  you can delete at any time. This project does not ship or host any lyrics.
 - Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 
 ## Known limitations
@@ -177,7 +179,8 @@ flowchart LR
 - The built-in Spotify app is in development mode: besides its owner only five added people can connect.
   Everyone else needs their own Spotify developer app (see above).
 - Livestreams and videos without a known length get no lyrics.
-- Shader packs (Iris) are untested.
+- With a shader pack (Iris) the text is drawn on top of the pack's finished image: hills, trees and walls
+  still hide it, the pack's own clouds do not. Tested with Complementary Reimagined.
 - In-game messages and command feedback are in German for now.
 
 ## Building
