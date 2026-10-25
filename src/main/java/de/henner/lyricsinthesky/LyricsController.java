@@ -168,14 +168,62 @@ public final class LyricsController {
         try {
             Optional<Lyrics> lyrics = lrclib.find(now);
             lyrics.ifPresent(found -> saved.put(key, found));
+            if (lyrics.isEmpty()) {
+                Optional<Lyrics> standIn = standIn(key, now);
+                if (standIn.isPresent()) {
+                    cache.put(key, new CacheEntry(standIn, LookupState.FOUND, System.currentTimeMillis()));
+                    LOGGER.info("Lyrics for '{}' by '{}': FOUND (LyricsPlus, LRCLIB has none)", now.title(), now.artist());
+                    return;
+                }
+            }
             cache.put(key, new CacheEntry(lyrics, stateOf(lyrics), System.currentTimeMillis()));
             LOGGER.info("Lyrics for '{}' by '{}': {}", now.title(), now.artist(), stateOf(lyrics));
             lyrics.ifPresent(found -> refine(key, now, found));
         } catch (Exception e) {
             int failures = failuresBefore + 1;
+            // LRCLIB busy or unreachable: with LyricsPlus on, its lyrics show right away instead of after the retry.
+            Optional<Lyrics> standIn = standIn(key, now);
+            if (standIn.isPresent()) {
+                cache.put(key, new CacheEntry(standIn, LookupState.FOUND, System.currentTimeMillis()));
+                LOGGER.warn("Lyrics lookup for '{}' failed ({}), LyricsPlus stands in", now.title(), e.toString());
+                return;
+            }
             cache.put(key, new CacheEntry(Optional.empty(), LookupState.ERROR, System.currentTimeMillis(), failures));
             LOGGER.warn("Lyrics lookup for '{}' failed ({}. time, next try in {} s): {}", now.title(), failures,
                     retryDelayMs(failures) / 1000, e.toString());
+        }
+    }
+
+    /**
+     * With LyricsPlus switched on, its lyrics stand in when LRCLIB has none or cannot be reached: with word times
+     * where it has them, else line by line. They are kept apart from LRCLIB's, so switching LyricsPlus off brings
+     * back the old way, and LRCLIB is still asked first next time.
+     */
+    private Optional<Lyrics> standIn(String key, NowPlaying now) {
+        if (!config.lyricsPlus || now.durationMs() <= 0) {
+            return Optional.empty();
+        }
+        String savedKey = key + "\u0000lyricsplus-standin";
+        Optional<String> known = saved.read(savedKey);
+        if (known.isPresent()) {
+            if (WordTimeTransfer.recentlyNone(known.get(), LocalDate.now())) {
+                return Optional.empty();
+            }
+            Lyrics lyrics = Lyrics.parseLrc(known.get());
+            if (!lyrics.isEmpty()) {
+                return Optional.of(lyrics);
+            }
+        }
+        try {
+            Optional<String> lrc = lyricsPlus.findLrc(now);
+            Optional<Lyrics> lyrics = lrc.map(Lyrics::parseLrc).filter(found -> !found.isEmpty());
+            saved.write(savedKey, lyrics.isPresent() ? lrc.get() : WordTimeTransfer.noneMarker(LocalDate.now()));
+            LOGGER.info("LyricsPlus stand-in for '{}' by '{}': {}", now.title(), now.artist(), lyrics
+                    .map(found -> found.hasWordTiming() ? "word times" : "line times").orElse("none"));
+            return lyrics;
+        } catch (Exception e) {
+            LOGGER.info("LyricsPlus stand-in for '{}' failed: {}", now.title(), e.toString());
+            return Optional.empty();
         }
     }
 

@@ -32,6 +32,8 @@ public final class WordTimeTransfer {
     static final double MIN_AGREEING_SHARE = 0.75;
     /** Kept on disk with word times that were taken, so they are not asked for again. */
     public static final String MARK = "[re:LyricsPlus]";
+    /** Kept on disk with LyricsPlus lyrics that stood in because LRCLIB had none. */
+    static final String STAND_IN_MARK = "[re:LyricsPlus stand-in]";
     private static final String NONE_PREFIX = "[re:lyricsplus-none:";
     /** After LyricsPlus had nothing fitting, it is asked again after this many days. */
     static final int NONE_DAYS = 14;
@@ -75,20 +77,26 @@ public final class WordTimeTransfer {
             return Optional.empty();
         }
         long shift = Math.abs(offset) >= SHIFT_FROM_MS ? -offset : 0;
-        StringBuilder lrc = new StringBuilder(MARK).append('\n');
-        for (LyricsPlusClient.Line line : timed.lines()) {
-            lrc.append('[').append(stamp(line.startMs() + shift)).append(']');
-            for (int w = 0; w < line.words().size(); w++) {
-                LyricsPlusClient.Word word = line.words().get(w);
-                lrc.append(w > 0 ? " " : "").append('<').append(stamp(word.startMs() + shift)).append('>').append(word.text());
-            }
-            lrc.append('\n');
-        }
-        Lyrics lyrics = Lyrics.parseLrc(lrc.toString());
+        String lrc = lrc(timed.lines(), shift, MARK);
+        Lyrics lyrics = Lyrics.parseLrc(lrc);
         if (lyrics.isEmpty() || !lyrics.hasWordTiming()) {
             return Optional.empty();
         }
-        return Optional.of(new Result(lyrics, lrc.toString(), offset, shift, chosen.size()));
+        return Optional.of(new Result(lyrics, lrc, offset, shift, chosen.size()));
+    }
+
+    /** Word-timed lines as enhanced LRC, every time moved by {@code shiftMs}, under a first line {@code mark}. */
+    static String lrc(List<LyricsPlusClient.Line> lines, long shiftMs, String mark) {
+        StringBuilder lrc = new StringBuilder(mark).append('\n');
+        for (LyricsPlusClient.Line line : lines) {
+            lrc.append('[').append(stamp(line.startMs() + shiftMs)).append(']');
+            for (int w = 0; w < line.words().size(); w++) {
+                LyricsPlusClient.Word word = line.words().get(w);
+                lrc.append(w > 0 ? " " : "").append('<').append(stamp(word.startMs() + shiftMs)).append('>').append(word.text());
+            }
+            lrc.append('\n');
+        }
+        return lrc.toString();
     }
 
     /** What is kept on disk when LyricsPlus had nothing fitting, so it is not asked on every play. */
@@ -119,7 +127,7 @@ public final class WordTimeTransfer {
         return sorted.get(sorted.size() / 2);
     }
 
-    private static String stamp(long ms) {
+    static String stamp(long ms) {
         long clamped = Math.max(0, ms);
         return String.format(Locale.ROOT, "%02d:%02d.%03d", clamped / 60_000, clamped / 1000 % 60, clamped % 1000);
     }

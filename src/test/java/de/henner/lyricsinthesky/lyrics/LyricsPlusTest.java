@@ -39,6 +39,35 @@ class LyricsPlusTest {
     }
 
     @Test
+    void standsInWithWordTimesWhereItHasThem() {
+        Lyrics lyrics = Lyrics.parseLrc(LyricsPlusClient.lrc(WORD_RESPONSE).orElseThrow());
+        assertTrue(lyrics.hasWordTiming());
+        assertEquals(2, lyrics.lines().size());
+        assertEquals("She watches the ships", lyrics.lines().get(0).text());
+        assertEquals(1200, lyrics.wordTimes(0, 60_000)[1]);
+    }
+
+    @Test
+    void standsInLineByLineWhenItHasOnlyLines() {
+        String lines = """
+                {"type":"Line","metadata":{"source":"Musixmatch"},"lyrics":[
+                  {"time":2500,"text":"I can't sleep until I feel your touch"},
+                  {"time":6100,"text":""},
+                  {"time":7300,"text":"I said, ooh"}]}
+                """;
+        Lyrics lyrics = Lyrics.parseLrc(LyricsPlusClient.lrc(lines).orElseThrow());
+        assertFalse(lyrics.hasWordTiming());
+        assertEquals(2, lyrics.lines().size());
+        assertEquals(2500, lyrics.lines().get(0).startMs());
+        assertEquals(7300, lyrics.lines().get(1).startMs());
+    }
+
+    @Test
+    void unsyncedLyricsDoNotStandIn() {
+        assertTrue(LyricsPlusClient.lrc("{\"type\":\"None\",\"lyrics\":[{\"text\":\"plain words\"}]}").isEmpty());
+    }
+
+    @Test
     void takesWordTimesWhenTheLinesLineUp() {
         Lyrics base = Lyrics.parseLrc(lrcAt(0));
         LyricsPlusClient.Timed timed = timedAt(0);

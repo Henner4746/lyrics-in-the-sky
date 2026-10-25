@@ -55,6 +55,19 @@ public final class LyricsPlusClient {
 
     /** Empty when LyricsPlus has no word times for the song: only line times, none, or no lyrics at all. */
     public Optional<Timed> find(NowPlaying track) throws IOException, InterruptedException {
+        return request(track).flatMap(LyricsPlusClient::parse);
+    }
+
+    /**
+     * The whole lyrics as LRC, for standing in when LRCLIB has none: with word times where LyricsPlus has them,
+     * else line by line; empty when it has no synced lyrics.
+     */
+    public Optional<String> findLrc(NowPlaying track) throws IOException, InterruptedException {
+        return request(track).flatMap(LyricsPlusClient::lrc);
+    }
+
+    /** The answer for the song, or empty when LyricsPlus does not know it. */
+    private Optional<String> request(NowPlaying track) throws IOException, InterruptedException {
         Map<String, String> query = new LinkedHashMap<>();
         query.put("title", TrackNames.cleanTitle(track.title()));
         query.put("artist", track.artist());
@@ -79,7 +92,31 @@ public final class LyricsPlusClient {
         if (response.statusCode() != 200) {
             throw new IOException("LyricsPlus answered HTTP " + response.statusCode());
         }
-        return parse(response.body());
+        return Optional.of(response.body());
+    }
+
+    /** LRC of an answer: word-timed when it has syllables, line-timed when it has only lines, else empty. */
+    static Optional<String> lrc(String body) {
+        Optional<Timed> timed = parse(body);
+        if (timed.isPresent()) {
+            return Optional.of(WordTimeTransfer.lrc(timed.get().lines(), 0, WordTimeTransfer.STAND_IN_MARK));
+        }
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        if (!"Line".equalsIgnoreCase(string(root, "type")) || !root.has("lyrics") || !root.get("lyrics").isJsonArray()) {
+            return Optional.empty();
+        }
+        StringBuilder lrc = new StringBuilder(WordTimeTransfer.STAND_IN_MARK).append('\n');
+        int lines = 0;
+        for (JsonElement element : root.getAsJsonArray("lyrics")) {
+            JsonObject line = element.getAsJsonObject();
+            String text = string(line, "text").trim();
+            if (text.isEmpty() || !line.has("time") || line.get("time").isJsonNull()) {
+                continue;
+            }
+            lrc.append('[').append(WordTimeTransfer.stamp(line.get("time").getAsLong())).append(']').append(text).append('\n');
+            lines++;
+        }
+        return lines == 0 ? Optional.empty() : Optional.of(lrc.toString());
     }
 
     static Optional<Timed> parse(String body) {
