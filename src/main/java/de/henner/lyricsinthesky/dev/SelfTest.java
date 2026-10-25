@@ -72,6 +72,11 @@ public final class SelfTest {
         }
         if (ticksInWorld == DEMO_START_TICK) {
             controller.startDemo();
+            if (Boolean.getBoolean("lyricsinthesky.selftest.record")) {
+                // Keep the preview clean: no command feedback or advancement toasts in the frames.
+                minecraft.gui.hud.getChat().clearMessages(false);
+                minecraft.gui.toastManager().clear();
+            }
         }
         if (atSecond(NIGHT_FROM)) {
             minecraft.player.connection.sendCommand("time set midnight");

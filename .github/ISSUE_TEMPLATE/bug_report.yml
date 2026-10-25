@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Minecraft, Lyrics in the Sky, Fabric Loader and Fabric API
+      placeholder: "Minecraft 26.3, Lyrics in the Sky 1.0.0, Loader 0.20.1, Fabric API 0.165.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows 11, Windows 10, Linux, Other]
+    validations:
+      required: true
+  - type: input
+    id: player
+    attributes:
+      label: Music player
+      placeholder: "Spotify desktop app, Amazon Music, YouTube Music in Firefox, …"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of /skylyrics status
+      render: text
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (logs/latest.log, lines containing "lyricsinthesky")
+      render: text
