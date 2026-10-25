@@ -1,5 +1,7 @@
 package de.henner.lyricsinthesky.nowplaying;
 
+import java.util.Locale;
+
 /**
  * One snapshot of the OS media session.
  *
@@ -22,6 +24,19 @@ public record NowPlaying(
                 && title.equals(other.title)
                 && artist.equals(other.artist)
                 && album.equals(other.album);
+    }
+
+    /**
+     * The same song as reported by a different source, which may list fewer artists or spell the case
+     * differently: same title, and one artist list starts with the other.
+     */
+    public boolean sameSong(NowPlaying other) {
+        if (other == null || !title.equalsIgnoreCase(other.title)) {
+            return false;
+        }
+        String a = artist.toLowerCase(Locale.ROOT);
+        String b = other.artist.toLowerCase(Locale.ROOT);
+        return !a.isEmpty() && !b.isEmpty() && (a.startsWith(b) || b.startsWith(a));
     }
 
     /**

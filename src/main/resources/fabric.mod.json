@@ -13,7 +13,7 @@
   },
   "mixins": ["lyricsinthesky.mixins.json"],
   "depends": {
-    "fabricloader": ">=0.20.1",
+    "fabricloader": "${loader_range}",
     "minecraft": "${mc_range}",
     "java": ">=25",
     "fabric-api": "*"

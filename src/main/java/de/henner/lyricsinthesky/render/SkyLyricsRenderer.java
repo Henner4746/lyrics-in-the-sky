@@ -18,10 +18,11 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
 /**
- * Decides which lines are in the sky and draws them right after the vanilla sky.
+ * Decides which lines are in the sky and draws them: the sky text right after the vanilla sky, the words around
+ * the player after the world.
  *
- * <p>The sky pass runs with a rotation-only model-view matrix, so everything drawn here is camera-relative
- * and behaves like the sun: it never comes closer, never clips into walls, and terrain drawn later covers it.
+ * <p>Positions are camera-relative, so the sky text behaves like the sun: it never comes closer, never clips into
+ * walls, and everything drawn later – terrain, clouds, entities – covers it.
  */
 public final class SkyLyricsRenderer {
     public static final SkyLyricsRenderer INSTANCE = new SkyLyricsRenderer();
@@ -71,15 +72,52 @@ public final class SkyLyricsRenderer {
     private long lastFrameNanos;
     private float pauseDim = 1f;
     private long lastSongPositionMs;
+    /** Set by the sky pass; the world pass after it then only draws {@link #inFront}. */
+    private boolean skyPassRan;
+    /** Text that stays in front of the world ("around you"), laid out in the sky pass, drawn after the world. */
+    private List<SkyGlyph> inFront = List.of();
 
     private SkyLyricsRenderer() {}
 
-    /** @param skyLuminance brightness of the sky color this frame, 0 (night) to 1 (bright day) */
-    public void render(RenderTarget target, float skyLuminance) {
+    /**
+     * Called right after the vanilla sky: draws the text that belongs in the sky, so terrain, clouds and entities
+     * drawn later all stand in front of it, and keeps the rest for {@link #renderInFront}.
+     *
+     * @param skyLuminance brightness of the sky color this frame, 0 (night) to 1 (bright day)
+     */
+    public void renderSky(RenderTarget target, float skyLuminance) {
+        List<SkyGlyph> glyphs = collect(skyLuminance);
+        skyPassRan = true;
+        List<SkyGlyph> sky = new ArrayList<>(glyphs.size());
+        List<SkyGlyph> front = new ArrayList<>();
+        for (SkyGlyph glyph : glyphs) {
+            (glyph.overlay() ? front : sky).add(glyph);
+        }
+        inFront = front;
+        if (!sky.isEmpty()) {
+            GlyphDrawer.draw(target, sky, GlyphDrawer.SKY_SLOT);
+        }
+    }
+
+    /**
+     * Called after the world: draws the text that stays in front of it. Without a sky this frame (lava, powder
+     * snow, blindness) everything is drawn here, the sky text then only hidden by what is closer than it.
+     */
+    public void renderInFront(RenderTarget target, float skyLuminance) {
+        List<SkyGlyph> glyphs = skyPassRan ? inFront : collect(skyLuminance);
+        skyPassRan = false;
+        inFront = List.of();
+        if (!glyphs.isEmpty()) {
+            GlyphDrawer.draw(target, glyphs, GlyphDrawer.FRONT_SLOT);
+        }
+    }
+
+    /** Advances all lines to this frame and lays out their glyphs. */
+    private List<SkyGlyph> collect(float skyLuminance) {
         LyricsController controller = LyricsInTheSkyClient.controller();
         Minecraft minecraft = Minecraft.getInstance();
         if (controller == null || minecraft.level == null) {
-            return;
+            return List.of();
         }
         long now = System.nanoTime();
         float dt = lastFrameNanos == 0 ? 0f : Math.min(0.25f, (now - lastFrameNanos) / 1e9f);
@@ -90,7 +128,7 @@ public final class SkyLyricsRenderer {
         // xRot is negative when looking up.
         viewElevation = config.followView ? -camera.xRot : 0f;
         boolean around = "around".equals(config.mode);
-        boolean video = "video".equals(config.style);
+        boolean elegant = "elegant".equals(config.style);
         boolean flowStyle = "flow".equals(config.style);
         aimFlow(camera.yRot, -camera.xRot, config, dt);
 
@@ -99,10 +137,10 @@ public final class SkyLyricsRenderer {
         Set<String> wantedArcs = new HashSet<>();
         float pauseTarget = 1f;
         if (timeline != null) {
-            if (video && around) {
+            if (elegant && around) {
                 updateFloating(timeline, config, minecraft, camera.pos.x, camera.pos.y, camera.pos.z, camera.yRot,
                         -camera.xRot, now);
-            } else if (video) {
+            } else if (elegant) {
                 updateArcs(timeline, config, minecraft, now, wantedArcs);
             } else if (flowStyle) {
                 updateFlow(timeline, config, minecraft, now);
@@ -115,7 +153,7 @@ public final class SkyLyricsRenderer {
         if (timeline == null || !flowStyle) {
             leaveFlow(now);
         }
-        if (timeline == null || !(video && around)) {
+        if (timeline == null || !(elegant && around)) {
             leaveFloating(now);
         }
         for (SkyLine line : lines.values()) {
@@ -134,7 +172,7 @@ public final class SkyLyricsRenderer {
         leavingFloating.removeIf(FloatingWords::isFinished);
         if (lines.isEmpty() && arcs.isEmpty() && flow == null && leavingFlows.isEmpty() && floating == null
                 && leavingFloating.isEmpty()) {
-            return;
+            return List.of();
         }
         pauseDim += (pauseTarget - pauseDim) * (1f - (float) Math.exp(-dt / 0.35f));
 
@@ -160,9 +198,7 @@ public final class SkyLyricsRenderer {
         if (floating != null) {
             floating.render(frame, camera.pos.x, camera.pos.y, camera.pos.z, glyphs);
         }
-        if (!glyphs.isEmpty()) {
-            GlyphDrawer.draw(target, glyphs);
-        }
+        return glyphs;
     }
 
     private void updateWanted(LyricsController.Timeline timeline, SkyLyricsConfig config, Minecraft minecraft,
@@ -189,7 +225,9 @@ public final class SkyLyricsRenderer {
                     String key = trackKey + "#" + index + config.mode;
                     wanted.add(key);
                     lyricShown = true;
-                    if (!lines.containsKey(key)) {
+                    // Skipped back to a line that is still fading out: it starts over.
+                    SkyLine existing = lines.get(key);
+                    if (existing == null || existing.isExiting()) {
                         Placements.Placement placement = around
                                 ? placements.nextAround(anchorYaw, viewElevation)
                                 : placements.next(anchorYaw, config.elevationDeg);
@@ -271,7 +309,9 @@ public final class SkyLyricsRenderer {
         }
         String key = trackKey + "#" + index + "#arc#" + config.font + "#" + config.palette;
         wanted.add(key);
-        if (!arcs.containsKey(key)) {
+        // Skipped back to a line that is still fading out: it starts over.
+        ArcLine existing = arcs.get(key);
+        if (existing == null || existing.isExiting()) {
             arcs.put(key, ArcLine.create(key, line.text(), lyrics.wordTimes(index, timeline.durationMs()),
                     placements.nextLow(anchorYaw, config.elevationDeg), SkyLine.SKY,
                     Palette.pick(config.palette, trackKey, false), nextSeed(), minecraft.font, boldStyle(config.font, false)));

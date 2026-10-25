@@ -47,6 +47,23 @@ class PreferredSourceTest {
     }
 
     @Test
+    void aSkipSeenFirstByTheMediaSessionMovesThePositionAtOnce() {
+        NowPlaying account = new NowPlaying("Spotify (Konto)", "Song", "Artist, Guest", "Album", true, 40_000, 200_000, 1_000);
+        // The media session saw the skip to 1:30 half a second after the account's last poll.
+        NowPlaying os = new NowPlaying("Spotify", "song", "Artist", "Album", true, 90_000, 199_000, 1_500);
+        NowPlaying picked = pick(account, os);
+        assertEquals(90_000, picked.positionMs());
+        assertEquals(1_500, picked.updatedAtMs());
+        // Names and length stay the account's, so the song does not look like a new one.
+        assertEquals("Song", picked.title());
+        assertEquals("Artist, Guest", picked.artist());
+        assertEquals(200_000, picked.durationMs());
+        // Older reports from the media session, or another song, leave the account alone.
+        assertEquals(account, pick(account, new NowPlaying("Spotify", "Song", "Artist", "Album", true, 30_000, 200_000, 500)));
+        assertEquals(account, pick(account, new NowPlaying("Amazon", "Other", "Artist", "Album", true, 90_000, 200_000, 1_500)));
+    }
+
+    @Test
     void fallsBackWhenOneIsMissing() {
         assertEquals(AMAZON_PAUSED, pick(null, AMAZON_PAUSED));
         assertNull(pick(null, null));

@@ -30,8 +30,11 @@ import net.minecraft.client.renderer.rendertype.PreparedRenderType;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
 
-/** Minecraft 26.3: uploads the glyph quads and draws them in one render pass after the main world pass. */
+/** Minecraft 26.3: uploads the glyph quads and draws them in one render pass, once after the sky, once after the world. */
 final class GlyphDrawer {
+    /** Each draw of a frame has buffers of its own, so the second upload never overwrites what the first draws. */
+    static final int SKY_SLOT = 0;
+    static final int FRONT_SLOT = 1;
     /**
      * Text without fog, tested against the world's depth but never writing it, blended with premultiplied
      * alpha as fed by {@link TintingVertexConsumer}. Vanilla's grayscale see-through variant does not blend at
@@ -49,8 +52,8 @@ final class GlyphDrawer {
     private record Draw(PreparedRenderType renderType, int baseVertex, int indexCount) {}
 
     private static final TintingVertexConsumer TINT = new TintingVertexConsumer();
-    private static GpuBuffer vertexBuffer;
-    private static ByteBuffer upload;
+    private static final GpuBuffer[] vertexBuffers = new GpuBuffer[2];
+    private static final ByteBuffer[] uploads = new ByteBuffer[2];
 
     private GlyphDrawer() {}
 
@@ -68,7 +71,7 @@ final class GlyphDrawer {
         return builder.build();
     }
 
-    static void draw(RenderTarget target, List<SkyGlyph> glyphs) {
+    static void draw(RenderTarget target, List<SkyGlyph> glyphs, int slot) {
         // Glyphs from different atlas pages need separate draws; glow and blur layers go below the text.
         Map<Group, List<SkyGlyph>> groups = new LinkedHashMap<>();
         for (SkyGlyph glyph : glyphs) {
@@ -111,15 +114,15 @@ final class GlyphDrawer {
                 if (draws.isEmpty()) {
                     return;
                 }
-                ByteBuffer data = uploadBuffer(size);
+                ByteBuffer data = uploadBuffer(slot, size);
                 for (int i = 0; i < meshes.size(); i++) {
                     data.position(offsets.get(i));
                     data.put(meshes.get(i).vertexBuffer());
                 }
                 data.position(0).limit(size);
                 GpuDevice device = RenderSystem.getDevice();
-                ensureVertexBuffer(device, size);
-                device.createCommandEncoder().writeToBuffer(vertexBuffer.slice(0, size), data);
+                ensureVertexBuffer(device, slot, size);
+                device.createCommandEncoder().writeToBuffer(vertexBuffers[slot].slice(0, size), data);
             } finally {
                 meshes.forEach(MeshData::close);
             }
@@ -132,7 +135,7 @@ final class GlyphDrawer {
                 target.getDepthTextureView(), OptionalDouble.empty())) {
             for (Draw draw : draws) {
                 draw.renderType().drawFromBuffer(new StagedVertexBuffer.ExecuteInfo(
-                        vertexBuffer, indexBuffer, quadIndices.type(), draw.baseVertex(), 0, draw.indexCount(),
+                        vertexBuffers[slot], indexBuffer, quadIndices.type(), draw.baseVertex(), 0, draw.indexCount(),
                         PrimitiveTopology.QUADS), pass);
             }
         }
@@ -149,22 +152,22 @@ final class GlyphDrawer {
                 prepared.scissorState(), prepared.textures());
     }
 
-    private static ByteBuffer uploadBuffer(int size) {
-        if (upload == null || upload.capacity() < size) {
-            upload = ByteBuffer.allocateDirect(Integer.highestOneBit(Math.max(1024, size - 1)) << 1)
+    private static ByteBuffer uploadBuffer(int slot, int size) {
+        if (uploads[slot] == null || uploads[slot].capacity() < size) {
+            uploads[slot] = ByteBuffer.allocateDirect(Integer.highestOneBit(Math.max(1024, size - 1)) << 1)
                     .order(ByteOrder.nativeOrder());
         }
-        upload.clear();
-        return upload;
+        uploads[slot].clear();
+        return uploads[slot];
     }
 
-    private static void ensureVertexBuffer(GpuDevice device, int size) {
-        if (vertexBuffer == null || vertexBuffer.size() < size) {
-            if (vertexBuffer != null) {
-                vertexBuffer.close();
+    private static void ensureVertexBuffer(GpuDevice device, int slot, int size) {
+        if (vertexBuffers[slot] == null || vertexBuffers[slot].size() < size) {
+            if (vertexBuffers[slot] != null) {
+                vertexBuffers[slot].close();
             }
             int capacity = Integer.highestOneBit(Math.max(1024, size - 1)) << 1;
-            vertexBuffer = device.createBuffer(() -> "Lyrics in the sky vertices",
+            vertexBuffers[slot] = device.createBuffer(() -> "Lyrics in the sky vertices",
                     GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST, capacity);
         }
     }

@@ -73,6 +73,35 @@ class LyricsTest {
     }
 
     @Test
+    void measuresHowFastTheSongIsSung() {
+        // Twenty characters every second: 50 ms per character, with one slow line that must not count.
+        Lyrics lyrics = Lyrics.parseLrc("""
+                [00:10.00]aaaa bbbb cccc ddddd
+                [00:11.00]aaaa bbbb cccc ddddd
+                [00:12.00]aaaa bbbb cccc ddddd
+                [00:13.00]aaaa bbbb cccc ddddd
+                [00:14.00]aaaa bbbb cccc ddddd
+                [00:15.00]aaaa bbbb cccc ddddd
+                [00:25.00]end""");
+        assertEquals(50, lyrics.msPerChar());
+        assertEquals(Lyrics.DEFAULT_MS_PER_CHAR, Lyrics.parseLrc("[00:01.00]too few lines").msPerChar());
+    }
+
+    @Test
+    void aBreakAfterALineDoesNotDelayItsWords() {
+        // Sung fast, then a break of nine seconds: the last word still comes at the song's pace, not late.
+        Lyrics lyrics = Lyrics.parseLrc("""
+                [00:10.00]one two three four five six
+                [00:11.30]one two three four five six
+                [00:12.60]one two three four five six
+                [00:13.90]one two three four five six
+                [00:15.20]one two three four five six
+                [00:24.20]after the break""");
+        long[] times = lyrics.wordTimes(4, 200_000);
+        assertTrue(times[times.length - 1] - 15_200 < 1_500, "last word " + (times[times.length - 1] - 15_200) + " ms in");
+    }
+
+    @Test
     void longBreaksDoNotKeepALineForever() {
         Lyrics lyrics = Lyrics.parseLrc("[00:10.00]short\n[01:30.00]after solo");
         assertTrue(lyrics.endOf(0, 200_000) < 20_000);

@@ -1,16 +1,18 @@
 package de.henner.lyricsinthesky.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
 import com.mojang.blaze3d.framegraph.FramePass;
+import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
-import net.minecraft.client.renderer.chunk.ChunkSectionsToRender;
-import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.profiling.ProfilerFiller;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,9 +21,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Adds a frame pass right after the main world pass. At that point terrain, entities and clouds are in the
- * depth buffer, so the lyrics (48 blocks away, camera-relative) hide behind nearby trees and buildings but
- * stay in front of clouds and the sky.
+ * Adds two frame passes. One right after the sky pass, before anything else is drawn: the sky text goes there, so
+ * terrain, clouds and entities drawn later all stand in front of it, like in front of the sun. One at the very end,
+ * for the words around the player that stay in front of the world.
  */
 @Mixin(LevelRenderer.class)
 abstract class LevelRendererMixin {
@@ -29,15 +31,31 @@ abstract class LevelRendererMixin {
     @Final
     private LevelTargetBundle targets;
 
-    @Inject(method = "addMainPass", at = @At("TAIL"))
-    private void lyricsinthesky$addLyricsPass(FrameGraphBuilder frame, FeatureRenderDispatcher.PreparedFrame featureFrame,
-            GpuBufferSlice terrainFog, LevelRenderState levelRenderState, ProfilerFiller profiler,
-            ChunkSectionsToRender chunkSectionsToRender, CallbackInfo ci) {
-        int sky = levelRenderState.skyRenderState.skyColor;
-        float luminance = (0.299f * ARGB.red(sky) + 0.587f * ARGB.green(sky) + 0.114f * ARGB.blue(sky)) / 255f;
+    @Inject(method = "addSkyPass", at = @At("TAIL"))
+    private void lyricsinthesky$addSkyLyricsPass(FrameGraphBuilder frame, CameraRenderState camera, GpuBufferSlice skyFog,
+            CallbackInfo ci) {
+        float luminance = luminance(Minecraft.getInstance().gameRenderer.gameRenderState().levelRenderState);
+        FramePass pass = frame.addPass("lyricsinthesky_sky");
+        targets.main = pass.readsAndWrites(targets.main);
+        var main = targets.main;
+        pass.executes(() -> SkyLyricsRenderer.INSTANCE.renderSky(main.get(), luminance));
+    }
+
+    /** The last pass of the frame, after clouds and weather, so nothing of the world covers these words. */
+    @WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder;"
+            + "execute(Lcom/mojang/blaze3d/resource/GraphicsResourceAllocator;Lcom/mojang/blaze3d/framegraph/FrameGraphBuilder$Inspector;)V"))
+    private void lyricsinthesky$addLyricsPass(FrameGraphBuilder frame, GraphicsResourceAllocator allocator,
+            FrameGraphBuilder.Inspector inspector, Operation<Void> original) {
+        float luminance = luminance(Minecraft.getInstance().gameRenderer.gameRenderState().levelRenderState);
         FramePass pass = frame.addPass("lyricsinthesky");
         targets.main = pass.readsAndWrites(targets.main);
         var main = targets.main;
-        pass.executes(() -> SkyLyricsRenderer.INSTANCE.render(main.get(), luminance));
+        pass.executes(() -> SkyLyricsRenderer.INSTANCE.renderInFront(main.get(), luminance));
+        original.call(frame, allocator, inspector);
+    }
+
+    private static float luminance(LevelRenderState levelRenderState) {
+        int sky = levelRenderState.skyRenderState.skyColor;
+        return (0.299f * ARGB.red(sky) + 0.587f * ARGB.green(sky) + 0.114f * ARGB.blue(sky)) / 255f;
     }
 }

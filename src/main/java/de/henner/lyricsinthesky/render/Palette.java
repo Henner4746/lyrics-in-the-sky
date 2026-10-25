@@ -41,11 +41,11 @@ enum Palette {
     }
 
     /**
-     * @param configured one of the config's palettes: "video" picks the color of the look the mode is modelled
-     *                   on, "auto" a different palette per song
+     * @param configured one of the config's palettes: "standard" is rose in the sky and lavender around the
+     *                   player, "auto" a different palette per song
      */
     static Palette pick(String configured, String trackKey, boolean around) {
-        if ("video".equals(configured)) {
+        if ("standard".equals(configured)) {
             return around ? LAVENDER : ROSE;
         }
         if (!"auto".equals(configured)) {

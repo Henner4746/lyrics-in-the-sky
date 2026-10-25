@@ -86,9 +86,9 @@ public final class Showcase {
             minecraft.player.connection.sendCommand("time set 12900");
             minecraft.player.connection.sendCommand("weather clear");
             // The defaults a new player sees.
-            config.style = "video";
+            config.style = "elegant";
             config.mode = "sky";
-            config.palette = "video";
+            config.palette = "standard";
             config.font = "sans";
             config.opacity = 0.82f;
             config.scale = 1f;

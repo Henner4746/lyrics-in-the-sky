@@ -18,6 +18,8 @@ import org.joml.Matrix4f;
  */
 final class ArcLine {
     private static final long FADE_IN_MS = 260;
+    /** Words start fading in this much before they are sung, so they are readable right on the beat. */
+    private static final long LEAD_MS = 80;
     static final long EXIT_MS = 520;
     private static final float ROW_WIDTH_PX = 104f;
     private static final float ROW_INDENT_PX = 20f;
@@ -26,6 +28,8 @@ final class ArcLine {
     private static final float RISE_PX = 3.5f;
     /** How far the line is turned away from the viewer, degrees, at most. */
     private static final float MAX_TWIST = 34f;
+    /** The lowest row keeps at least this many degrees above the horizon, so the ground does not cover it. */
+    private static final float HORIZON_MARGIN_DEG = 2.5f;
 
     private static final class Piece {
         final FormattedCharSequence text;
@@ -54,17 +58,28 @@ final class ArcLine {
     private final float twist;
     private final float slope;
     private final List<Piece> pieces;
+    /** Half the size of the laid-out line in font pixels. */
+    private final float halfWidth;
+    private final float halfHeight;
     private final List<TextRenderable> glyphs = new ArrayList<>();
     private long exitStartNanos = -1;
     private long frozenSongMs;
 
     private ArcLine(String key, Placements.Placement placement, SkyLine.Look look, Palette palette, long seed,
-            List<Piece> pieces) {
+            List<Piece> pieces, float lineHeight) {
         this.key = key;
         this.placement = placement;
         this.look = look;
         this.palette = palette;
         this.pieces = pieces;
+        float w = 0f;
+        float h = 0f;
+        for (Piece piece : pieces) {
+            w = Math.max(w, Math.max(Math.abs(piece.x), Math.abs(piece.x + piece.width * piece.scale)));
+            h = Math.max(h, Math.max(Math.abs(piece.y), Math.abs(piece.y + lineHeight * piece.scale)));
+        }
+        this.halfWidth = w;
+        this.halfHeight = h;
         // Turned to the left or right by a different amount every line, rows rising slightly to the right.
         float side = Easing.hash(seed, 21) < 0.5f ? -1f : 1f;
         this.twist = side * (MAX_TWIST * (0.55f + 0.45f * Easing.hash(seed, 22)));
@@ -88,7 +103,7 @@ final class ArcLine {
                     (Easing.hash(seed, 300 + index) - 0.5f) * 2.4f, (Easing.hash(seed, 400 + index) - 0.5f) * 5f));
         }
         layout(pieces, font.lineHeight);
-        return new ArcLine(key, placement, look, palette, seed, pieces);
+        return new ArcLine(key, placement, look, palette, seed, pieces, font.lineHeight);
     }
 
     /** Fills rows left to right, each row indented a little more, groups standing on a common baseline. */
@@ -143,6 +158,10 @@ final class ArcLine {
         }
     }
 
+    boolean isExiting() {
+        return exitStartNanos >= 0;
+    }
+
     boolean isFinished(long nowNanos) {
         return exitStartNanos >= 0 && (nowNanos - exitStartNanos) / 1_000_000L > EXIT_MS;
     }
@@ -156,13 +175,18 @@ final class ArcLine {
         // A touch lighter at night, so the rose still reads against a dark sky.
         int top = ARGB.srgbLerp(0.22f * frame.nightness(), palette.text, 0xFFFFFF);
         int bottom = ARGB.srgbLerp(0.22f * frame.nightness(), palette.textBottom, 0xFFFFFF);
-        Matrix4f base = SkyLine.bannerBasis(placement.yaw(), placement.elevation(), look.distance())
+        // The line stands behind everything, so a row dipping below the horizon would vanish behind the ground.
+        // Its lowest point: the rotated half extents, a little more for the nearer, bigger end of the turned line.
+        double tilt = Math.toRadians(Math.abs(slope + placement.roll()));
+        float drop = (float) (halfWidth * Math.sin(tilt) + halfHeight * Math.cos(tilt)) * blocksPerPixel * 1.15f;
+        float lowest = (float) Math.toDegrees(Math.atan2(drop, look.distance())) + HORIZON_MARGIN_DEG;
+        Matrix4f base = SkyLine.bannerBasis(placement.yaw(), Math.max(placement.elevation(), lowest), look.distance())
                 .rotateY((float) Math.toRadians(twist))
                 .rotateZ((float) Math.toRadians(slope + placement.roll()))
                 .scale(blocksPerPixel)
                 .translate(0f, -6f * leave, 0f);
         for (Piece piece : pieces) {
-            float t = song - piece.appearMs;
+            float t = song + LEAD_MS - piece.appearMs;
             if (t < 0f) {
                 continue;
             }

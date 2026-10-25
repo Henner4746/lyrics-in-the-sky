@@ -2,6 +2,7 @@ package de.henner.lyricsinthesky.lyrics;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -13,6 +14,11 @@ public final class Lyrics {
     /** Enhanced LRC word timestamp such as {@code <01:23.45>}. */
     private static final Pattern WORD_TAG = Pattern.compile("<(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?>");
     private static final Pattern OFFSET_TAG = Pattern.compile("\\[offset:\\s*([+-]?\\d+)\\s*]", Pattern.CASE_INSENSITIVE);
+    /**
+     * Singing pace when a song has too few lines to measure its own: the middle of what LRCLIB lyrics show, from
+     * about 50 ms per character (rap) to 130 (ballads).
+     */
+    static final long DEFAULT_MS_PER_CHAR = 70;
 
     /**
      * @param wordStartsMs start time per whitespace-separated word of {@code text}, or {@code null} when the
@@ -27,10 +33,34 @@ public final class Lyrics {
 
     private final List<Line> lines;
     private final boolean instrumental;
+    /** How fast this song is sung, for spreading words over a line that has no word timing. */
+    private final long msPerChar;
 
     private Lyrics(List<Line> lines, boolean instrumental) {
         this.lines = List.copyOf(lines);
         this.instrumental = instrumental;
+        this.msPerChar = measurePace(this.lines);
+    }
+
+    /**
+     * Milliseconds per character of this song's singing. A line sung right before the next one shows the pace in
+     * its gap; the gaps after other lines also hold breaks, so the pace is a low quantile of all gaps.
+     */
+    static long measurePace(List<Line> lines) {
+        List<Double> perChar = new ArrayList<>();
+        for (int i = 0; i + 1 < lines.size(); i++) {
+            int chars = lines.get(i).text().length();
+            long gap = lines.get(i + 1).startMs() - lines.get(i).startMs();
+            if (chars >= 8 && gap > 0) {
+                perChar.add(gap / (double) chars);
+            }
+        }
+        if (perChar.size() < 4) {
+            return DEFAULT_MS_PER_CHAR;
+        }
+        Collections.sort(perChar);
+        double pace = perChar.get(perChar.size() / 4);
+        return Math.round(Math.max(40, Math.min(140, pace)));
     }
 
     public static Lyrics instrumental() {
@@ -127,6 +157,10 @@ public final class Lyrics {
         return (minutes * 60 + seconds) * 1000 + millis;
     }
 
+    long msPerChar() {
+        return msPerChar;
+    }
+
     public boolean isInstrumental() {
         return instrumental;
     }
@@ -169,7 +203,7 @@ public final class Lyrics {
 
     /**
      * Start time of every word: exact for enhanced LRC, otherwise spread over the sung part of the line
-     * in proportion to word length.
+     * in proportion to word length, at the pace this song is sung.
      */
     public long[] wordTimes(int index, long durationMs) {
         Line line = lines.get(index);
@@ -179,8 +213,8 @@ public final class Lyrics {
             return times;
         }
         long end = endOf(index, durationMs);
-        // Singers usually finish before the next line starts; long gaps are capped by character count.
-        long sung = Math.min((long) ((end - line.startMs()) * 0.8), Math.max(600, line.text().length() * 160L));
+        // A line is sung at the song's pace; a break before the next line does not stretch it.
+        long sung = Math.min((long) ((end - line.startMs()) * 0.92), Math.max(400, line.text().length() * msPerChar));
         int totalWeight = 0;
         for (String word : words) {
             totalWeight += word.length() + 1;

@@ -7,7 +7,7 @@
 **The song you are listening to, sung across the Minecraft sky – word by word.**
 
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.2%20%7C%2026.3-5b8731)
-![Fabric](https://img.shields.io/badge/Fabric-Loader%200.20.1%2B-dbb98a)
+![Fabric](https://img.shields.io/badge/Fabric-Loader%200.18.4%2B-dbb98a)
 ![Java](https://img.shields.io/badge/Java-25-e76f00)
 ![Platforms](https://img.shields.io/badge/Windows%20%7C%20Linux-supported-4c6ef5)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -24,17 +24,17 @@ you.
 
 ## Features
 
-- **Synced word by word.** Exact word timing when the lyrics have it, otherwise the words are spread over
-  the line by length.
+- **Synced word by word.** Exact word timing when the lyrics have it, otherwise the words follow the pace
+  the song is sung at. Skipping within a song shows up at once.
 - **In the sky:** word groups of different sizes build up each line close above the horizon, on staggered,
   gently rising rows turned slightly away from you, so the line reads with depth. Every group fades in as it
-  is sung, the line fades out when the next one starts somewhere else. Nearby trees and houses cover it, like
-  the sun.
+  is sung, the line fades out when the next one starts somewhere else. Like the sun, it stands behind
+  everything: mountains, trees, houses and clouds are in front of it.
 - **Around you:** every sung word floats on its own at a fixed spot near you – big, slanted, slightly
   turned – and stays there while you walk or fight, until it fades out a couple of seconds later. A "now
   playing" card hangs in front of you when a song starts.
 - **Colors of your choice:** gradient text in rose, lavender or six more palettes, or a different one per song.
-- **Three styles:** *Wie im Video* (the two looks above), *Stapel* (the current line in the middle, the next
+- **Three styles:** *Elegant* (the two looks above), *Stapel* (the current line in the middle, the next
   one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and more, with sparkles).
 - **Now-playing pill** at the top of the screen with the current line, the sung word highlighted and a
   little equalizer.
@@ -45,7 +45,7 @@ you.
 
 <table>
 <tr>
-<td><img src="preview/am-himmel.png" alt="A lyric line building up in the night sky"></td>
+<td><img src="preview/am-himmel.png" alt="A lyric line in the dusk sky, partly behind a cloud, the sun setting behind a tree"></td>
 <td><img src="preview/um-dich-herum.png" alt="Lyrics floating around the player"></td>
 <td><img src="preview/einstellungen.png" alt="Settings screen on Right Shift"></td>
 </tr>
@@ -63,7 +63,7 @@ Full preview video: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-th
 | | |
 |---|---|
 | Minecraft | Java Edition 26.2 or 26.3 |
-| Mod loader | [Fabric Loader](https://fabricmc.net) 0.20.1+ and [Fabric API](https://modrinth.com/mod/fabric-api) |
+| Mod loader | [Fabric Loader](https://fabricmc.net) 0.18.4+ (26.2) or 0.19.3+ (26.3) and [Fabric API](https://modrinth.com/mod/fabric-api) |
 | System | Windows 10/11, or Linux with `gdbus` (part of GLib, installed on practically every desktop) |
 | Java | 25 (ships with the Minecraft launcher) |
 
@@ -104,12 +104,12 @@ working automatically through the media session on your PC.
 | `/skylyrics demo` | 37-second demo with built-in text |
 | `/skylyrics on` · `off` | Show or hide the lyrics |
 | `/skylyrics mode <sky\|around>` | In the sky or around you |
-| `/skylyrics style <video\|flow\|classic>` | Look: as in the videos, gliding stack, or playful |
+| `/skylyrics style <elegant\|flow\|classic>` | Look: elegant, gliding stack, or playful |
 | `/skylyrics offset <ms>` | Fix delay; positive shows lyrics earlier |
 | `/skylyrics opacity <0.1–1>` | Transparency (default 0.82) |
 | `/skylyrics scale <0.3–3>` | Text size |
 | `/skylyrics height <10–70>` | Height above the horizon in degrees |
-| `/skylyrics palette <name>` | `video`, `rose`, `lavender`, `auto` (per song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
+| `/skylyrics palette <name>` | `standard`, `rose`, `lavender`, `auto` (per song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
 | `/skylyrics font <sans\|script\|minecraft>` | Modern, handwriting or the Minecraft font |
 | `/skylyrics follow <on\|off>` | New lines appear where you are looking |
 | `/skylyrics title <on\|off>` | Song title in the sky when a song starts |
@@ -142,9 +142,9 @@ flowchart LR
 - **Optional Spotify login** uses Spotify's official Web API with Authorization Code + PKCE: no client
   secret, the browser returns to a tiny page served by the mod on `127.0.0.1:43217`, and the tokens are kept in
   `config/lyricsinthesky/spotify.json` on your PC.
-- **Drawing:** the text is rendered after the world and before your hand, with its own transparent text
-  pipelines and a color gradient per letter – in the sky 48 blocks out with depth test, around you as words
-  anchored in the world 5 to 9 blocks away, drawn on top of everything.
+- **Drawing:** own transparent text pipelines with a color gradient per letter. The sky text is drawn right
+  after the sky, camera-relative like the sun, so everything drawn later stands in front of it; the words
+  around you are anchored in the world 5 to 9 blocks away and drawn last, on top of everything.
 
 ## Privacy and fair use
 

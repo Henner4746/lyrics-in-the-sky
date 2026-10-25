@@ -2,20 +2,27 @@
 
 ## 1.2.0 – 2026-10-25
 
-- **New look in both modes, modelled on two well-known lyrics-mod videos** (style *Wie im Video*, the new
-  default):
+- **New look in both modes** (style *Elegant*, the new default):
   - **In the sky:** word groups of different sizes build up line by line close above the horizon, on
     staggered, gently rising rows turned slightly away from you, so each line reads with depth. Every group
     fades in as it is sung; the line fades out softly when the next one starts somewhere else.
   - **Around you:** every sung word floats on its own at a fixed spot near you, big, slanted and slightly
     turned. Words stay where they are while you walk or fight, and fade out after a couple of seconds. A
     "now playing" card hangs in front of you when a song starts.
-- **Gradient text colors**, changeable in the settings: *Wie im Video* (rose in the sky, white to lavender
+- **The sky text now stands behind everything**, like the sun: mountains, trees, houses, clouds and other
+  players all stand in front of it, at any distance. A line never dips below the horizon. The words around you
+  stay in front of everything, clouds included.
+- **Better sync:** words of lines without word timing follow the pace this song is sung at, measured from its
+  own lyrics, instead of a fixed slow guess that let the last words of a line lag behind by up to seconds.
+  Skipping within a song shows up at once, also with the Spotify login, and a line you skip back to starts over.
+- **Gradient text colors**, changeable in the settings: *Standard* (rose in the sky, white to lavender
   around you), rose, lavender, per-song colors and the previous palettes.
 - **New font *Modern*** (Poppins, SIL Open Font License) as default, also in the now-playing pill. Handwriting
   and the Minecraft font remain selectable.
 - **Two more styles:** *Stapel* (the current line in the middle, the next one faintly below, gliding up from
-  line to line) and *Verspielt* (the varied animations of 1.0). `/skylyrics style <video|flow|classic>`.
+  line to line) and *Verspielt* (the varied animations of 1.0). `/skylyrics style <elegant|flow|classic>`.
+- **Runs on older Fabric Loaders:** 0.18.4 or newer for 26.2 and 0.19.3 or newer for 26.3, the same as Fabric API
+  itself needs (was 0.20.1).
 
 ## 1.1.0 – 2026-10-25
 

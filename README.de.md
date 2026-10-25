@@ -7,7 +7,7 @@
 **Der Song, den du gerade hörst, Wort für Wort am Minecraft-Himmel.**
 
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.2%20%7C%2026.3-5b8731)
-![Fabric](https://img.shields.io/badge/Fabric-Loader%200.20.1%2B-dbb98a)
+![Fabric](https://img.shields.io/badge/Fabric-Loader%200.18.4%2B-dbb98a)
 ![Java](https://img.shields.io/badge/Java-25-e76f00)
 ![Systeme](https://img.shields.io/badge/Windows%20%7C%20Linux-unterst%C3%BCtzt-4c6ef5)
 ![Lizenz](https://img.shields.io/badge/Lizenz-MIT-blue)
@@ -24,18 +24,18 @@ als einzelne Wörter, die rund um dich schweben.
 
 ## Funktionen
 
-- **Wort für Wort synchron.** Genaue Wortzeiten, wenn die Lyrics sie haben; sonst verteilt die Mod die
-  Wörter nach Länge über die Zeile.
+- **Wort für Wort synchron.** Genaue Wortzeiten, wenn die Lyrics sie haben; sonst folgen die Wörter dem
+  Tempo, in dem der Song gesungen wird. Spulen im Lied zeigt sich sofort.
 - **Am Himmel:** Wortgruppen in unterschiedlichen Größen bauen jede Zeile knapp über dem Horizont auf, auf
   versetzten, leicht ansteigenden Reihen, etwas von dir weggedreht, sodass die Zeile räumlich wirkt. Jede
-  Gruppe blendet im Takt ein, die Zeile blendet weich aus, wenn die nächste woanders beginnt. Nahe Bäume und
-  Häuser verdecken sie wie die Sonne.
+  Gruppe blendet im Takt ein, die Zeile blendet weich aus, wenn die nächste woanders beginnt. Wie die Sonne
+  steht sie hinter allem: Berge, Bäume, Häuser und Wolken sind davor.
 - **Um dich herum:** Jedes gesungene Wort schwebt einzeln an einem festen Platz in deiner Nähe – groß,
   kursiv, leicht gedreht – und bleibt dort, während du läufst oder kämpfst, bis es nach ein paar Sekunden
   verblasst. Zum Songstart hängt eine „Now Playing“-Karte vor dir.
 - **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder sechs weiteren Paletten, oder je Song
   anders.
-- **Drei Stile:** *Wie im Video* (die beiden Looks oben), *Stapel* (aktuelle Zeile in der Mitte, die nächste
+- **Drei Stile:** *Elegant* (die beiden Looks oben), *Stapel* (aktuelle Zeile in der Mitte, die nächste
   schwach darunter, alles gleitet weich nach oben) und *Verspielt* (Aufploppen, Zoom, Wirbel und mehr, mit
   Funken).
 - **Now-Playing-Pille** oben mit aktueller Zeile, markiertem Wort und kleinem Equalizer.
@@ -46,7 +46,7 @@ als einzelne Wörter, die rund um dich schweben.
 
 <table>
 <tr>
-<td><img src="preview/am-himmel.png" alt="Eine Songzeile baut sich am Nachthimmel auf"></td>
+<td><img src="preview/am-himmel.png" alt="Eine Songzeile am Abendhimmel, teils hinter einer Wolke, die Sonne geht hinter einem Baum unter"></td>
 <td><img src="preview/um-dich-herum.png" alt="Lyrics schweben um den Spieler herum"></td>
 <td><img src="preview/einstellungen.png" alt="Einstellungen auf der rechten Umschalttaste"></td>
 </tr>
@@ -64,7 +64,7 @@ Ganzes Vorschauvideo: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-
 | | |
 |---|---|
 | Minecraft | Java Edition 26.2 oder 26.3 |
-| Mod-Loader | [Fabric Loader](https://fabricmc.net) 0.20.1+ und [Fabric API](https://modrinth.com/mod/fabric-api) |
+| Mod-Loader | [Fabric Loader](https://fabricmc.net) 0.18.4+ (26.2) oder 0.19.3+ (26.3) und [Fabric API](https://modrinth.com/mod/fabric-api) |
 | System | Windows 10/11 oder Linux mit `gdbus` (Teil von GLib, auf praktisch jedem Desktop installiert) |
 | Java | 25 (bringt der Minecraft-Launcher mit) |
 
@@ -110,9 +110,9 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics opacity <0.1–1>` | Deckkraft (Standard 0.82) |
 | `/skylyrics scale <0.3–3>` | Textgröße |
 | `/skylyrics height <10–70>` | Höhe über dem Horizont in Grad |
-| `/skylyrics palette <name>` | `video`, `rose`, `lavender`, `auto` (je Song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
+| `/skylyrics palette <name>` | `standard`, `rose`, `lavender`, `auto` (je Song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
 | `/skylyrics font <sans\|script\|minecraft>` | moderne Schrift, Handschrift oder Minecraft-Schrift |
-| `/skylyrics style <video\|flow\|classic>` | Look: wie im Video, Stapel oder verspielt |
+| `/skylyrics style <elegant\|flow\|classic>` | Look: elegant, Stapel oder verspielt |
 | `/skylyrics follow <on\|off>` | neue Zeilen erscheinen dort, wo du hinschaust |
 | `/skylyrics title <on\|off>` | Songtitel am Himmel beim Songwechsel |
 | `/skylyrics hud <on\|off>` | Now-Playing-Pille oben |
@@ -144,9 +144,9 @@ flowchart LR
 - **Optionaler Spotify-Login** über Spotifys offizielle Web API mit Authorization Code + PKCE: kein
   Client-Secret, der Browser kehrt zu einer kleinen Seite zurück, die die Mod auf `127.0.0.1:43217` ausliefert,
   und die Tokens liegen in `config/lyricsinthesky/spotify.json` auf deinem PC.
-- **Darstellung:** Der Text wird nach der Welt und vor der Hand gezeichnet, mit eigenen transparenten
-  Text-Pipelines und Farbverlauf je Buchstabe – am Himmel 48 Blöcke entfernt mit Tiefentest, um dich herum als
-  Wörter, die 5 bis 9 Blöcke entfernt fest in der Welt stehen und über allem gezeichnet werden.
+- **Darstellung:** Eigene transparente Text-Pipelines mit Farbverlauf je Buchstabe. Der Himmelstext wird direkt
+  nach dem Himmel gezeichnet, kamerarelativ wie die Sonne, sodass alles später Gezeichnete davor steht; die
+  Wörter um dich herum stehen 5 bis 9 Blöcke entfernt fest in der Welt und werden zuletzt über allem gezeichnet.
 
 ## Datenschutz und faire Nutzung
 

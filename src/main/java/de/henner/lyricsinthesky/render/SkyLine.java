@@ -43,17 +43,14 @@ final class SkyLine {
     /**
      * Where and how a line lives.
      *
-     * @param distance  blocks from the camera; with depth testing only things closer than this cover the text
-     * @param overlay   draw on top of the world without depth test
+     * @param distance  blocks from the camera; sets the perspective of the turned lines
+     * @param overlay   in front of the world, drawn last; otherwise behind it, drawn right after the sky
      * @param size      size factor on top of the configured scale
      * @param orbitDegS slow drift around the player, degrees per second
      */
     record Look(float distance, boolean overlay, float size, float orbitDegS) {}
 
-    /**
-     * In the sky: 48 blocks out, so nearby trees and houses cover it but clouds (farther away unless the player
-     * flies up to them) do not.
-     */
+    /** In the sky: behind everything, like the sun; 48 blocks out for the perspective of turned lines. */
     static final Look SKY = new Look(48f, false, 1f, 0f);
     /** Around the player: close, always visible like a hologram, slowly circling. */
     static final Look AROUND = new Look(6f, true, 1.15f, 1.0f);

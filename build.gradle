@@ -71,9 +71,10 @@ subprojects {
     processResources {
         inputs.property "version", project.version
         inputs.property "mc_range", project.mc_range
+        inputs.property "loader_range", project.loader_range
         inputs.property "spotify_client_id", rootProject.spotify_client_id
         filesMatching("fabric.mod.json") {
-            expand "version": project.version, "mc_range": project.mc_range
+            expand "version": project.version, "mc_range": project.mc_range, "loader_range": project.loader_range
         }
         filesMatching("lyricsinthesky/defaults.properties") {
             expand "spotify_client_id": rootProject.spotify_client_id
