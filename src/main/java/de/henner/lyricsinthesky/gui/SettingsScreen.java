@@ -35,9 +35,13 @@ import net.minecraft.util.FormattedCharSequence;
  * Hovering an option explains it in the line above the buttons.
  */
 public final class SettingsScreen extends Screen {
-    /** Height of an option row; {@link #COMPACT_ROW} when the screen is too short for the panel. */
+    /**
+     * Height of an option row; {@link #COMPACT_ROW} when the screen is too short for the panel, {@link #TIGHT_ROW}
+     * on the shortest ones (240 GUI pixels, e.g. 720p at the automatic GUI scale).
+     */
     private static final int ROW = 15;
     private static final int COMPACT_ROW = 12;
+    private static final int TIGHT_ROW = 11;
     private static final int LABEL_WIDTH = 74;
     private static final int COLUMN_GAP = 18;
     private static final int PANEL_PADDING = 14;
@@ -109,7 +113,8 @@ public final class SettingsScreen extends Screen {
         // Title, four choices, the switches and sliders, the Spotify block and the hint line must fit the screen;
         // on short screens the rows move closer together.
         int optionRows = 5 + (twoColumns ? 8 : 16);
-        row = 10 + 18 + optionRows * ROW + 16 + 16 + 16 + 12 + 6 <= height ? ROW : COMPACT_ROW;
+        int fixed = 10 + 18 + 16 + 16 + 16 + 12 + 6;
+        row = fixed + optionRows * ROW <= height ? ROW : fixed + optionRows * COMPACT_ROW <= height ? COMPACT_ROW : TIGHT_ROW;
         int y = 10;
         titleY = y;
         int small = 46;
@@ -489,7 +494,9 @@ public final class SettingsScreen extends Screen {
                 int color = selected ? WHITE : value.equals(hovered) ? HOVER : DIM;
                 draw(graphics, name, x, color);
                 if (selected) {
-                    graphics.fill(x, getY() + 12, x + w, getY() + 13, WHITE);
+                    // Right under the letters, which on the tightest rows is the last pixel of the row.
+                    int underline = getY() + Math.min(12, row);
+                    graphics.fill(x, underline, x + w, underline + 1, WHITE);
                 }
                 x += w + SPACING;
             }
