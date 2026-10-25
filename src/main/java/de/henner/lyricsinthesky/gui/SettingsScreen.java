@@ -103,7 +103,7 @@ public final class SettingsScreen extends Screen {
         int columnWidth = twoColumns ? (contentWidth - COLUMN_GAP) / 2 : contentWidth;
         // Title, four choices, the switches and sliders, the Spotify block and the hint line must fit the screen;
         // on short screens the rows move closer together.
-        int optionRows = 5 + (twoColumns ? 7 : 13);
+        int optionRows = 5 + (twoColumns ? 7 : 14);
         row = 10 + 18 + optionRows * ROW + 16 + 16 + 16 + 12 + 6 <= height ? ROW : COMPACT_ROW;
         int y = 10;
         titleY = y;
@@ -168,6 +168,10 @@ public final class SettingsScreen extends Screen {
             config.lrclibAllowed = value;
             controller.retryLookups();
         }, "Songtexte von lrclib.net. Gesendet werden nur Titel, Künstler, Album und Länge des Songs."));
+        leftY = row("Wortgenau", left, leftY, new Toggle(control, () -> config.lyricsPlus, value -> {
+            config.lyricsPlus = value;
+            controller.refreshWordTimes();
+        }, "Wortzeiten aus Apple/QQ Music über LyricsPlus (inoffiziell). Sendet Titel, Künstler, Album, Länge."));
         int rightX = twoColumns ? left + columnWidth + COLUMN_GAP : left;
         int rightY = twoColumns ? y : leftY;
         rightY = row("Lyrics", rightX, rightY, new Toggle(control, () -> config.enabled, value -> config.enabled = value,

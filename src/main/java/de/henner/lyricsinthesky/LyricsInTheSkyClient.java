@@ -10,6 +10,7 @@ import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
+import de.henner.lyricsinthesky.lyrics.LyricsPlusClient;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PreferredNowPlayingSource;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
@@ -78,8 +79,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         }
         NowPlayingSource source = osSource == null ? spotifySource : new PreferredNowPlayingSource(spotifySource, osSource);
         LrclibClient lrclib = new LrclibClient(version);
-        controller = new LyricsController(source, lrclib, new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")),
-                config);
+        controller = new LyricsController(source, lrclib, new LyricsPlusClient(version),
+                new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")), config);
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the
         // helper process out of the busy resource-loading phase.
@@ -183,7 +184,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                             + "offset <ms>, opacity <0.1-1>, scale <0.3-3>, height <10-70>, palette <name>, "
                             + "font <sans|script|minecraft>, follow <on|off>, title <on|off>, hud <on|off>, "
                             + "behind <on|off>, beat <on|off>, along <on|off>, preset <standard|sky|around|party|calm>, "
-                            + "lrclib <on|off>, spotify <connect|disconnect>"))
+                            + "lrclib <on|off>, lyricsplus <on|off>, spotify <connect|disconnect>"))
                     .then(ClientCommands.literal("status").executes(context ->
                             reply(context, controller.status() + " | " + spotify.statusText())))
                     .then(ClientCommands.literal("settings").executes(context -> {
@@ -241,7 +242,11 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(toggle("lrclib", (c, value) -> {
                         c.lrclibAllowed = value;
                         controller.retryLookups();
-                    }, "Songtexte von lrclib.net"));
+                    }, "Songtexte von lrclib.net"))
+                    .then(toggle("lyricsplus", (c, value) -> {
+                        c.lyricsPlus = value;
+                        controller.refreshWordTimes();
+                    }, "Wortzeiten von LyricsPlus"));
             dispatcher.register(root);
         });
     }

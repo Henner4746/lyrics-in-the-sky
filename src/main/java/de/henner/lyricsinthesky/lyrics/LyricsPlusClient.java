@@ -1,0 +1,148 @@
+package de.henner.lyricsinthesky.lyrics;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import de.henner.lyricsinthesky.nowplaying.NowPlaying;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.StringJoiner;
+
+/**
+ * Word times from LyricsPlus, the backend of the YouLy+ browser extension: an unofficial service that reads them from
+ * Apple Music and QQ Music. Optional and off by default; when on, the playing song's title, artist, album and length
+ * go to lyricsplus.prjktla.my.id. What comes back is only used after {@link WordTimeTransfer} has checked that it was
+ * timed for the same recording as the LRCLIB lyrics.
+ */
+public final class LyricsPlusClient {
+    private static final String BASE = "https://lyricsplus.prjktla.my.id/v2/lyrics/get";
+
+    /** A sung word and when it starts, in ms of the song as LyricsPlus timed it. */
+    public record Word(long startMs, String text) {}
+
+    public record Line(long startMs, List<Word> words) {
+        public String text() {
+            StringJoiner text = new StringJoiner(" ");
+            words.forEach(word -> text.add(word.text()));
+            return text.toString();
+        }
+    }
+
+    /** @param source where LyricsPlus took the words from, e.g. "Apple" or "QQ Music" */
+    public record Timed(String source, List<Line> lines) {}
+
+    private final HttpClient http = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
+    private final String userAgent;
+
+    public LyricsPlusClient(String modVersion) {
+        this.userAgent = "LyricsInTheSky/" + modVersion + " (Minecraft mod; optional word times)";
+    }
+
+    /** Empty when LyricsPlus has no word times for the song: only line times, none, or no lyrics at all. */
+    public Optional<Timed> find(NowPlaying track) throws IOException, InterruptedException {
+        Map<String, String> query = new LinkedHashMap<>();
+        query.put("title", TrackNames.cleanTitle(track.title()));
+        query.put("artist", track.artist());
+        if (!track.album().isBlank()) {
+            query.put("album", track.album());
+        }
+        if (track.durationMs() > 0) {
+            query.put("duration", Long.toString(Math.round(track.durationMs() / 1000.0)));
+        }
+        StringJoiner params = new StringJoiner("&");
+        query.forEach((key, value) -> params.add(key + "=" + URLEncoder.encode(value, StandardCharsets.UTF_8)));
+        // A song LyricsPlus has not cached yet is looked up at Apple and QQ first, which takes a while.
+        HttpRequest request = HttpRequest.newBuilder(URI.create(BASE + "?" + params))
+                .timeout(Duration.ofSeconds(30))
+                .header("User-Agent", userAgent)
+                .GET()
+                .build();
+        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (response.statusCode() == 404) {
+            return Optional.empty();
+        }
+        if (response.statusCode() != 200) {
+            throw new IOException("LyricsPlus answered HTTP " + response.statusCode());
+        }
+        return parse(response.body());
+    }
+
+    static Optional<Timed> parse(String body) {
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        String type = string(root, "type");
+        if (!"Word".equalsIgnoreCase(type) && !"Syllable".equalsIgnoreCase(type)) {
+            return Optional.empty();
+        }
+        String source = root.has("metadata") && root.get("metadata").isJsonObject()
+                ? string(root.getAsJsonObject("metadata"), "source") : "";
+        List<Line> lines = new ArrayList<>();
+        if (root.has("lyrics") && root.get("lyrics").isJsonArray()) {
+            for (JsonElement element : root.getAsJsonArray("lyrics")) {
+                JsonObject line = element.getAsJsonObject();
+                if (!line.has("syllabus") || !line.get("syllabus").isJsonArray()) {
+                    continue;
+                }
+                List<Word> words = words(line.getAsJsonArray("syllabus"));
+                if (!words.isEmpty()) {
+                    lines.add(new Line(words.get(0).startMs(), words));
+                }
+            }
+        }
+        return lines.isEmpty() ? Optional.empty() : Optional.of(new Timed(source, lines));
+    }
+
+    /** Syllables joined into words: a syllable ending in a space ends its word. Backing vocals are left out. */
+    static List<Word> words(JsonArray syllables) {
+        List<Word> words = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        long start = -1;
+        for (JsonElement element : syllables) {
+            JsonObject syllable = element.getAsJsonObject();
+            if (flag(syllable, "isBackground") || !syllable.has("time") || syllable.get("time").isJsonNull()) {
+                continue;
+            }
+            String text = string(syllable, "text");
+            if (start < 0) {
+                start = syllable.get("time").getAsLong();
+            }
+            current.append(text);
+            if (!text.isEmpty() && Character.isWhitespace(text.charAt(text.length() - 1))) {
+                add(words, start, current);
+                start = -1;
+            }
+        }
+        add(words, start, current);
+        return words;
+    }
+
+    private static void add(List<Word> words, long start, StringBuilder text) {
+        String word = text.toString().trim();
+        text.setLength(0);
+        if (start >= 0 && !word.isEmpty()) {
+            words.add(new Word(start, word));
+        }
+    }
+
+    private static boolean flag(JsonObject object, String key) {
+        return object.has(key) && !object.get(key).isJsonNull() && object.get(key).getAsBoolean();
+    }
+
+    private static String string(JsonObject object, String key) {
+        return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : "";
+    }
+}

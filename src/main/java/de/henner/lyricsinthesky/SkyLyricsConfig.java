@@ -53,6 +53,8 @@ public final class SkyLyricsConfig {
     public Boolean lrclibAllowed = true;
     /** The one-time chat note on what is sent to lrclib.net has been shown. */
     public boolean lrclibNoticeShown = false;
+    /** Word times from LyricsPlus, an unofficial service that reads them from Apple Music and QQ Music; off unless switched on. */
+    public boolean lyricsPlus = false;
     /** Base height of the lyrics above the horizon, in degrees. */
     public float elevationDeg = DEFAULT_ELEVATION;
     /** Size multiplier for the text. */

@@ -3,9 +3,13 @@ package de.henner.lyricsinthesky;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
+import de.henner.lyricsinthesky.lyrics.LyricsPlusClient;
+import de.henner.lyricsinthesky.lyrics.WordTimeTransfer;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PlaybackClock;
+import java.io.IOException;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,11 +54,19 @@ public final class LyricsController {
 
     private final NowPlayingSource source;
     private final LrclibClient lrclib;
+    /** Optional word times, only asked when the player switched LyricsPlus on. */
+    private final LyricsPlusClient lyricsPlus;
     /** Songs found before, so they still have lyrics when LRCLIB is busy or offline. */
     private final LyricsCache saved;
     private final SkyLyricsConfig config;
     private final ExecutorService lookups = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "LyricsInTheSky-Lookup");
+        thread.setDaemon(true);
+        return thread;
+    });
+    /** Word times come in afterwards on a thread of their own, so a slow answer never holds up the next song. */
+    private final ExecutorService wordTimes = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "LyricsInTheSky-WordTimes");
         thread.setDaemon(true);
         return thread;
     });
@@ -68,9 +80,11 @@ public final class LyricsController {
     private volatile NowPlaying simulated;
     private volatile boolean sourcesMuted;
 
-    public LyricsController(NowPlayingSource source, LrclibClient lrclib, LyricsCache saved, SkyLyricsConfig config) {
+    public LyricsController(NowPlayingSource source, LrclibClient lrclib, LyricsPlusClient lyricsPlus, LyricsCache saved,
+            SkyLyricsConfig config) {
         this.source = source;
         this.lrclib = lrclib;
+        this.lyricsPlus = lyricsPlus;
         this.saved = saved;
         this.config = config;
     }
@@ -148,6 +162,7 @@ public final class LyricsController {
         if (kept.isPresent()) {
             cache.put(key, new CacheEntry(kept, stateOf(kept), System.currentTimeMillis()));
             LOGGER.info("Lyrics for '{}' by '{}': {} (saved)", now.title(), now.artist(), stateOf(kept));
+            refine(key, now, kept.get());
             return;
         }
         try {
@@ -155,12 +170,67 @@ public final class LyricsController {
             lyrics.ifPresent(found -> saved.put(key, found));
             cache.put(key, new CacheEntry(lyrics, stateOf(lyrics), System.currentTimeMillis()));
             LOGGER.info("Lyrics for '{}' by '{}': {}", now.title(), now.artist(), stateOf(lyrics));
+            lyrics.ifPresent(found -> refine(key, now, found));
         } catch (Exception e) {
             int failures = failuresBefore + 1;
             cache.put(key, new CacheEntry(Optional.empty(), LookupState.ERROR, System.currentTimeMillis(), failures));
             LOGGER.warn("Lyrics lookup for '{}' failed ({}. time, next try in {} s): {}", now.title(), failures,
                     retryDelayMs(failures) / 1000, e.toString());
         }
+    }
+
+    /**
+     * With LyricsPlus switched on: looks for word times of the same recording in the background and swaps them in
+     * while the song plays. The lyrics shown meanwhile are LRCLIB's, with estimated word times.
+     */
+    private void refine(String key, NowPlaying now, Lyrics found) {
+        if (!config.lyricsPlus || found.isInstrumental() || found.hasWordTiming()) {
+            return;
+        }
+        wordTimes.submit(() -> {
+            try {
+                wordTimed(key, now, found).ifPresent(better -> cache.computeIfPresent(key, (k, entry) ->
+                        entry.lyrics().orElse(null) == found
+                                ? new CacheEntry(Optional.of(better), LookupState.FOUND, entry.createdAtMs())
+                                : entry));
+            } catch (Exception e) {
+                // Not kept as "nothing fitting": a busy or unreachable service is asked again next time.
+                LOGGER.info("LyricsPlus for '{}' failed: {}", now.title(), e.toString());
+            }
+        });
+    }
+
+    private Optional<Lyrics> wordTimed(String key, NowPlaying now, Lyrics found) throws IOException, InterruptedException {
+        String savedKey = key + "\u0000lyricsplus";
+        Optional<String> known = saved.read(savedKey);
+        if (known.isPresent() && WordTimeTransfer.recentlyNone(known.get(), LocalDate.now())) {
+            return Optional.empty();
+        }
+        if (known.isPresent() && known.get().startsWith(WordTimeTransfer.MARK)) {
+            Lyrics lyrics = Lyrics.parseLrc(known.get());
+            if (lyrics.hasWordTiming()) {
+                return Optional.of(lyrics);
+            }
+        }
+        Optional<LyricsPlusClient.Timed> timed = lyricsPlus.find(now);
+        Optional<WordTimeTransfer.Result> result = timed.flatMap(words -> WordTimeTransfer.transfer(found, words));
+        if (result.isEmpty()) {
+            saved.write(savedKey, WordTimeTransfer.noneMarker(LocalDate.now()));
+            LOGGER.info("LyricsPlus for '{}' by '{}': {}", now.title(), now.artist(),
+                    timed.isPresent() ? "word times of another version, estimating instead" : "no word times");
+            return Optional.empty();
+        }
+        WordTimeTransfer.Result taken = result.get();
+        saved.write(savedKey, taken.lrc());
+        LOGGER.info("LyricsPlus for '{}' by '{}': word times from {}, {} lines matched, {} ms from LRCLIB, shifted {} ms",
+                now.title(), now.artist(), timed.get().source(), taken.matched(), taken.offsetMs(), taken.shiftMs());
+        return Optional.of(taken.lyrics());
+    }
+
+    /** After LyricsPlus was switched on or off: found songs are looked up again, from the saved copies. */
+    public void refreshWordTimes() {
+        cache.values().removeIf(entry -> entry.state() == LookupState.FOUND);
+        trackKey = null;
     }
 
     private static LookupState stateOf(Optional<Lyrics> lyrics) {
@@ -214,6 +284,9 @@ public final class LyricsController {
         CacheEntry entry = cache.get(key(now));
         String state = !Boolean.TRUE.equals(config.lrclibAllowed) ? LookupState.NOT_ALLOWED.name()
                 : entry == null ? LookupState.IDLE.name() : entry.state().name();
+        if (entry != null && entry.lyrics().map(Lyrics::hasWordTiming).orElse(false)) {
+            state += " (wortgenau)";
+        }
         return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms",
                 now.artist(), now.title(), now.app(), now.playing() ? "spielt" : "pausiert",
                 now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs);

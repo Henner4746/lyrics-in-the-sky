@@ -40,20 +40,15 @@ public final class LyricsCache {
 
     /** Empty when the song was never found or its file cannot be read. */
     public Optional<Lyrics> get(String key) {
-        Path file = dir.resolve(fileName(key));
-        if (!Files.isRegularFile(file)) {
-            return Optional.empty();
-        }
         try {
-            String text = Files.readString(file, StandardCharsets.UTF_8);
-            // Played again: it is the last to make room.
-            Files.setLastModifiedTime(file, FileTime.fromMillis(System.currentTimeMillis()));
-            if (text.strip().equals(INSTRUMENTAL)) {
-                return Optional.of(Lyrics.instrumental());
-            }
-            Lyrics lyrics = Lyrics.parseLrc(text);
-            return lyrics.isEmpty() ? Optional.empty() : Optional.of(lyrics);
-        } catch (IOException | RuntimeException e) {
+            return read(key).flatMap(text -> {
+                if (text.strip().equals(INSTRUMENTAL)) {
+                    return Optional.of(Lyrics.instrumental());
+                }
+                Lyrics lyrics = Lyrics.parseLrc(text);
+                return lyrics.isEmpty() ? Optional.empty() : Optional.of(lyrics);
+            });
+        } catch (RuntimeException e) {
             LOGGER.debug("Cached lyrics unreadable: {}", e.toString());
             return Optional.empty();
         }
@@ -63,12 +58,33 @@ public final class LyricsCache {
         if (!lyrics.isInstrumental() && lyrics.lrc().isBlank()) {
             return;
         }
+        write(key, lyrics.isInstrumental() ? INSTRUMENTAL : lyrics.lrc());
+    }
+
+    /** The text kept for a key as it was written, or empty. */
+    public Optional<String> read(String key) {
+        Path file = dir.resolve(fileName(key));
+        if (!Files.isRegularFile(file)) {
+            return Optional.empty();
+        }
+        try {
+            String text = Files.readString(file, StandardCharsets.UTF_8);
+            // Played again: it is the last to make room.
+            Files.setLastModifiedTime(file, FileTime.fromMillis(System.currentTimeMillis()));
+            return Optional.of(text);
+        } catch (IOException e) {
+            LOGGER.debug("Cached lyrics unreadable: {}", e.toString());
+            return Optional.empty();
+        }
+    }
+
+    public void write(String key, String text) {
         try {
             Files.createDirectories(dir);
             Path file = dir.resolve(fileName(key));
             // Written next to it first, so a crash never leaves half a file behind.
             Path partial = dir.resolve(fileName(key) + ".part");
-            Files.writeString(partial, lyrics.isInstrumental() ? INSTRUMENTAL : lyrics.lrc(), StandardCharsets.UTF_8);
+            Files.writeString(partial, text, StandardCharsets.UTF_8);
             Files.move(partial, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             prune();
         } catch (IOException e) {
