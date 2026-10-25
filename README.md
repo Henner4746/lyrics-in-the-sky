@@ -202,7 +202,8 @@ all at once with "Wortgenau" (or "Grauzone" on the page *Quellen*), or one by on
 Word times are only shown when they belong to the recording you hear: each LRCLIB line's first words have to be
 sung when the line starts, give or take one steady shift (a longer intro of another mastering), or two services
 that timed the song independently have to agree with each other (hand-made LRCLIB lines sometimes drift by a
-second). Otherwise the words are estimated as before. Results, and "nothing found" for two weeks, are kept in
+second). Where LRCLIB's lines only scatter a little around the service's, in the same order, the service's times
+are taken unless another service fits closely. Otherwise the words are estimated as before. Results, and "nothing found" for two weeks, are kept in
 `config/lyricsinthesky/lyrics`; a service that fails is left alone for five minutes, so nothing hangs. Without
 LRCLIB lyrics, the first service that has the song stands in.
 

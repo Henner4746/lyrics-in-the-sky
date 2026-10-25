@@ -39,6 +39,24 @@ class WordTimeFinderTest {
     }
 
     @Test
+    void scatteredLrclibLinesStillTakeTheServicesTimes() throws Exception {
+        // Hand-made LRCLIB lines, every one 300 to 600 ms off one way or the other.
+        StringBuilder scattered = new StringBuilder();
+        for (int i = 0; i < 16; i++) {
+            long t = i * 6000L + (i % 2 == 0 ? 1 : -1) * (300 + i % 3 * 150);
+            t = Math.max(0, t);
+            scattered.append(String.format(Locale.ROOT, "[%02d:%02d.%03d]light the lantern number %d%n", t / 60000,
+                    t / 1000 % 60, t % 1000, i));
+        }
+        WordTimeFinder finder = new WordTimeFinder(List.of(fixed("One", timed("One", 0))));
+        WordTimeFinder.Taken taken = finder.find(TRACK, Lyrics.parseLrc(scattered.toString()), Set.of("one")).taken()
+                .orElseThrow();
+        assertEquals("LRCLIB, loosely", taken.how());
+        // Taken as the service timed it, not moved onto LRCLIB.
+        assertEquals(6000, taken.lyrics().lines().get(1).startMs());
+    }
+
+    @Test
     void servicesSwitchedOffAreNotAsked() throws Exception {
         WordTimeFinder finder = new WordTimeFinder(List.of(fixed("One", timed("One", 0))));
         assertTrue(finder.find(TRACK, Lyrics.parseLrc(lrc(0, 0)), Set.of()).taken().isEmpty());
@@ -46,8 +64,8 @@ class WordTimeFinderTest {
 
     @Test
     void twoServicesAgreeingBeatDriftingLrclib() throws Exception {
-        // LRCLIB drifts by up to 1.8 s over the song; two services timed it alike on their own.
-        Lyrics drifting = Lyrics.parseLrc(lrc(0, 120));
+        // LRCLIB drifts by up to 3.75 s over the song; two services timed it alike on their own.
+        Lyrics drifting = Lyrics.parseLrc(lrc(0, 250));
         WordTimeFinder finder = new WordTimeFinder(List.of(fixed("One", timed("One", 0)), fixed("Two", timed("Two", 80))));
         WordTimeFinder.Taken taken = finder.find(TRACK, drifting, Set.of("one", "two")).taken().orElseThrow();
         assertEquals("One", taken.source());
@@ -56,7 +74,7 @@ class WordTimeFinderTest {
 
     @Test
     void oneServiceRepeatingAnothersDataConfirmsNothing() throws Exception {
-        Lyrics drifting = Lyrics.parseLrc(lrc(0, 120));
+        Lyrics drifting = Lyrics.parseLrc(lrc(0, 250));
         WordTimeFinder finder = new WordTimeFinder(List.of(fixed("One", timed("One", 0)), fixed("Copy", timed("Copy", 0))));
         assertTrue(finder.find(TRACK, drifting, Set.of("one", "copy")).taken().isEmpty());
     }

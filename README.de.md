@@ -207,7 +207,8 @@ einschaltest – alle auf einmal mit „Wortgenau“ (oder „Grauzone“ auf de
 Wortzeiten werden nur gezeigt, wenn sie zu der Aufnahme gehören, die du hörst: Die ersten Wörter jeder LRCLIB-Zeile
 müssen gesungen werden, wenn die Zeile beginnt, bis auf eine gleichbleibende Verschiebung (ein längeres Intro einer
 anderen Abmischung) – oder zwei Dienste, die den Song unabhängig getimt haben, müssen übereinstimmen (von Hand
-gesetzte LRCLIB-Zeilen driften manchmal um eine Sekunde). Sonst werden die Wörter wie bisher geschätzt. Ergebnisse,
+gesetzte LRCLIB-Zeilen driften manchmal um eine Sekunde). Streuen LRCLIBs Zeilen nur etwas um die des Dienstes,
+in derselben Reihenfolge, gelten dessen Zeiten, außer ein anderer Dienst passt genauer. Sonst werden die Wörter wie bisher geschätzt. Ergebnisse,
 und „nichts gefunden“ für zwei Wochen, bleiben in `config/lyricsinthesky/lyrics`; ein Dienst, der nicht antwortet,
 hat fünf Minuten Pause, sodass nichts hängt. Ohne LRCLIB-Songtext springt der erste Dienst ein, der den Song hat.
 

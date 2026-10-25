@@ -37,6 +37,13 @@ public final class WordTimeTransfer {
     static final int MIN_MATCHES = 8;
     static final double MIN_MATCHED_SHARE = 0.3;
     static final double MIN_AGREEING_SHARE = 0.75;
+    /**
+     * The looser check for imprecise LRCLIB lines: this share of the matches within {@link #LOOSE_AGREE_MS} of their
+     * common offset, which itself stays below {@link #SHIFT_FROM_MS}.
+     */
+    static final long LOOSE_AGREE_MS = 800;
+    static final double LOOSE_SHARE = 0.6;
+    static final double IN_ORDER_SHARE = 0.9;
     /** Marked word times taken by 1.3.0-dev.1 to dev.3, all from LyricsPlus; still read from the disk. */
     public static final String MARK = "[re:LyricsPlus]";
     /** Kept on disk with LyricsPlus lyrics that stood in because LRCLIB had none. */
@@ -46,8 +53,23 @@ public final class WordTimeTransfer {
      * @param offsetMs how much later LyricsPlus' lines start than LRCLIB's
      * @param shiftMs  what was added to every LyricsPlus time
      * @param matched  LRCLIB lines found in the timed words
+     * @param loose    LRCLIB's lines were too imprecise for the strict check; the looser one held
      */
-    public record Result(Lyrics lyrics, String lrc, long offsetMs, long shiftMs, int matched) {}
+    public record Result(Lyrics lyrics, String lrc, long offsetMs, long shiftMs, int matched, boolean loose) {}
+
+    /** Whether the matched lines come in the service's words in the same order as in LRCLIB, nearly all of them. */
+    private static boolean inOrder(List<Lyrics.Line> lines, Map<Integer, Long> chosen) {
+        List<Integer> matched = chosen.keySet().stream().sorted().toList();
+        int ordered = 0;
+        for (int i = 1; i < matched.size(); i++) {
+            long before = lines.get(matched.get(i - 1)).startMs() + chosen.get(matched.get(i - 1));
+            long after = lines.get(matched.get(i)).startMs() + chosen.get(matched.get(i));
+            if (after > before) {
+                ordered++;
+            }
+        }
+        return ordered >= IN_ORDER_SHARE * (matched.size() - 1);
+    }
 
     private WordTimeTransfer() {}
 
@@ -110,8 +132,19 @@ public final class WordTimeTransfer {
         long offset = median(chosen.values());
         long agreeing = chosen.values().stream().filter(diff -> Math.abs(diff - offset) <= AGREE_MS).count();
         if (chosen.size() < MIN_MATCHES || chosen.size() < MIN_MATCHED_SHARE * lines.size()
-                || agreeing < MIN_AGREEING_SHARE * chosen.size() || Math.abs(offset) > MAX_OFFSET_MS) {
+                || Math.abs(offset) > MAX_OFFSET_MS) {
             return Optional.empty();
+        }
+        boolean loose = false;
+        if (agreeing < MIN_AGREEING_SHARE * chosen.size()) {
+            // Hand-timed LRCLIB lines are often a few hundred ms off either way. When the service's lines still fall
+            // around LRCLIB's, in the same order and without a shift, it is the same recording, timed better.
+            long near = chosen.values().stream().filter(diff -> Math.abs(diff - offset) <= LOOSE_AGREE_MS).count();
+            if (Math.abs(offset) >= SHIFT_FROM_MS || near < LOOSE_SHARE * chosen.size()
+                    || !inOrder(lines, chosen)) {
+                return Optional.empty();
+            }
+            loose = true;
         }
         long shift = Math.abs(offset) >= SHIFT_FROM_MS ? -offset : 0;
         String lrc = lrc(timed.lines(), shift, mark);
@@ -119,7 +152,7 @@ public final class WordTimeTransfer {
         if (lyrics.isEmpty() || !lyrics.hasWordTiming()) {
             return Optional.empty();
         }
-        return Optional.of(new Result(lyrics, lrc, offset, shift, chosen.size()));
+        return Optional.of(new Result(lyrics, lrc, offset, shift, chosen.size(), loose));
     }
 
     /** Word-timed lines as enhanced LRC, every time moved by {@code shiftMs}, under a first line {@code mark}. */

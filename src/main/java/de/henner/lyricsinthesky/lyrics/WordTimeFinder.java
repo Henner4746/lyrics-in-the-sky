@@ -19,7 +19,8 @@ import org.slf4j.LoggerFactory;
  * measurements, until one has word times for the song that can be trusted:
  *
  * <ul>
- *   <li>they line up with LRCLIB's lines ({@link WordTimeTransfer}), or
+ *   <li>they line up with LRCLIB's lines ({@link WordTimeTransfer}), closely or, where LRCLIB's hand-made lines
+ *       scatter, at least around them in the same order, or
  *   <li>two services that timed the song on their own agree with each other. Hand-made LRCLIB lines sometimes drift
  *       by a second over a song while the services, timed by their editors, still agree to a tenth of a second; then
  *       the services are right and LRCLIB is not.
@@ -46,7 +47,12 @@ public final class WordTimeFinder {
      * @param how    "LRCLIB" when checked against LRCLIB's lines, "confirmed by …" when another service confirmed it,
      *               "stand-in" when LRCLIB had no lyrics
      */
-    public record Taken(Lyrics lyrics, String source, String how) {}
+    public record Taken(Lyrics lyrics, String source, String how) {
+        /** Only roughly checked; another service that fits closely, or confirms it, is still asked for. */
+        boolean loose() {
+            return how.endsWith("loosely");
+        }
+    }
 
     /** @param complete false when a service could not be asked, so "nothing found" must not be kept */
     public record Outcome(Optional<Taken> taken, boolean complete) {}
@@ -70,6 +76,7 @@ public final class WordTimeFinder {
      */
     public Outcome find(NowPlaying track, Lyrics base, Set<String> enabled) throws InterruptedException {
         List<TimedWords> found = new ArrayList<>();
+        Taken roughly = null;
         boolean complete = true;
         for (WordTimeSource source : sources) {
             if (!enabled.contains(key(source.name()))) {
@@ -101,11 +108,15 @@ public final class WordTimeFinder {
                     : source.name() + " (" + words.get().source() + ")";
             found.add(new TimedWords(label, words.get().lines()));
             Optional<Taken> taken = decide(base, found);
-            if (taken.isPresent()) {
+            if (taken.isPresent() && !taken.get().loose()) {
                 return new Outcome(taken, true);
             }
+            if (roughly == null && taken.isPresent()) {
+                roughly = taken.get();
+            }
         }
-        return new Outcome(Optional.empty(), complete);
+        // Nothing fitted closely: what fitted roughly is still better than words estimated from LRCLIB's lines.
+        return roughly != null ? new Outcome(Optional.of(roughly), true) : new Outcome(Optional.empty(), complete);
     }
 
     /** The trusted word times among the answers so far, the latest of which just came in. */
@@ -115,7 +126,7 @@ public final class WordTimeFinder {
             return Optional.of(taken(latest, 0, "stand-in"));
         }
         Optional<WordTimeTransfer.Result> fits = WordTimeTransfer.transfer(base, latest, mark(latest.source()));
-        if (fits.isPresent()) {
+        if (fits.isPresent() && !fits.get().loose()) {
             return Optional.of(new Taken(fits.get().lyrics(), latest.source(), "LRCLIB"));
         }
         for (TimedWords earlier : found.subList(0, found.size() - 1)) {
@@ -124,12 +135,12 @@ public final class WordTimeFinder {
             }
             Lyrics reference = Lyrics.parseLrc(WordTimeTransfer.lrc(earlier.lines(), 0, mark(earlier.source())));
             Optional<WordTimeTransfer.Result> agree = WordTimeTransfer.transfer(reference, latest, mark(latest.source()));
-            if (agree.isPresent() && Math.abs(agree.get().offsetMs()) < CROSS_AGREE_MS) {
+            if (agree.isPresent() && !agree.get().loose() && Math.abs(agree.get().offsetMs()) < CROSS_AGREE_MS) {
                 // The service asked first is the one that fitted more songs; its times are shown.
                 return Optional.of(taken(earlier, 0, "confirmed by " + latest.source()));
             }
         }
-        return Optional.empty();
+        return fits.map(rough -> new Taken(rough.lyrics(), latest.source(), "LRCLIB, loosely"));
     }
 
     private static Taken taken(TimedWords words, long shift, String how) {
