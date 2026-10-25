@@ -24,22 +24,39 @@ final class SkyLine {
 
     enum Exit { DISSOLVE, RISE, SCATTER, SHATTER }
 
-    /** Per-frame values shared by all lines. */
+    /**
+     * Per-frame values shared by all lines.
+     *
+     * @param blocksPerPixelAt100 text size as blocks per font pixel if the text were 100 blocks away
+     * @param maxWidthAt100       widest line, in blocks at 100 blocks distance
+     */
     record Frame(
             long nowNanos,
             long songPositionMs,
-            float blocksPerPixel,
-            float maxWidthBlocks,
+            float blocksPerPixelAt100,
+            float maxWidthAt100,
             float opacity,
             float nightness,
             Font font,
             Style sparkleStyle) {}
 
     /**
-     * How far away the text is drawn. Only things closer than this cover it, so it hides behind nearby
-     * trees and houses but not behind clouds, which are farther away unless the player flies up to them.
+     * Where and how a line lives.
+     *
+     * @param distance  blocks from the camera; with depth testing only things closer than this cover the text
+     * @param overlay   draw on top of the world without depth test
+     * @param size      size factor on top of the configured scale
+     * @param orbitDegS slow drift around the player, degrees per second
      */
-    static final float DISTANCE = 48f;
+    record Look(float distance, boolean overlay, float size, float orbitDegS) {}
+
+    /**
+     * In the sky: 48 blocks out, so nearby trees and houses cover it but clouds (farther away unless the player
+     * flies up to them) do not.
+     */
+    static final Look SKY = new Look(48f, false, 1f, 0f);
+    /** Around the player: close, always visible like a hologram, slowly circling. */
+    static final Look AROUND = new Look(6f, true, 1.15f, 1.0f);
     static final long EXIT_MS = 1_100;
     private static final long ENTRY_MS = 520;
     private static final long GLYPH_STAGGER_MS = 16;
@@ -117,6 +134,7 @@ final class SkyLine {
 
     final String key;
     private final Placements.Placement placement;
+    private final Look look;
     private final Palette palette;
     private final Entry entry;
     private final Exit exit;
@@ -132,10 +150,11 @@ final class SkyLine {
     private long frozenSongPositionMs;
     private long nextShimmerNanos;
 
-    private SkyLine(String key, Placements.Placement placement, Palette palette, long seed, boolean wallClock,
+    private SkyLine(String key, Placements.Placement placement, Look look, Palette palette, long seed, boolean wallClock,
             List<Word> words, boolean staggerRows) {
         this.key = key;
         this.placement = placement;
+        this.look = look;
         this.palette = palette;
         this.seed = seed;
         this.wallClock = wallClock;
@@ -147,8 +166,8 @@ final class SkyLine {
         this.width = layout(words, seed, staggerRows);
     }
 
-    static SkyLine lyric(String key, String text, long[] wordTimes, Placements.Placement placement, Palette palette,
-            long seed, Font font, Style regular, Style bold) {
+    static SkyLine lyric(String key, String text, long[] wordTimes, Placements.Placement placement, Look look,
+            Palette palette, long seed, Font font, Style regular, Style bold) {
         String[] parts = text.trim().split("\\s+");
         int[] emphasized = chooseEmphasis(parts, seed);
         List<Word> words = new ArrayList<>(parts.length);
@@ -169,11 +188,11 @@ final class SkyLine {
             words.add(new Word(component.getVisualOrderText(), wordWidth, scale, emphasis, row, appear,
                     Easing.hash(seed, 300 + i) * 6.28f));
         }
-        return new SkyLine(key, placement, palette, seed, false, words, true);
+        return new SkyLine(key, placement, look, palette, seed, false, words, true);
     }
 
-    static SkyLine title(String key, String title, String subtitle, Placements.Placement placement, Palette palette,
-            long seed, Font font, Style regular, Style bold) {
+    static SkyLine title(String key, String title, String subtitle, Placements.Placement placement, Look look,
+            Palette palette, long seed, Font font, Style regular, Style bold) {
         List<Word> words = new ArrayList<>();
         int index = 0;
         for (String part : ("♪ " + title).trim().split("\\s+")) {
@@ -188,7 +207,7 @@ final class SkyLine {
                         Easing.hash(seed, 300 + index++) * 6.28f));
             }
         }
-        return new SkyLine(key, placement, palette, seed, true, words, false);
+        return new SkyLine(key, placement, look, palette, seed, true, words, false);
     }
 
     /** Index of up to two words to make bigger: usually the last word of the line, like a stressed note. */
@@ -291,15 +310,19 @@ final class SkyLine {
         float exitU = exitStartNanos < 0 ? 0f : Easing.clamp01((frame.nowNanos() - exitStartNanos) / 1e6f / EXIT_MS);
         long songPosition = exitStartNanos >= 0 ? frozenSongPositionMs : frame.songPositionMs();
 
-        float blocksPerPixel = frame.blocksPerPixel();
-        if (width * blocksPerPixel > frame.maxWidthBlocks()) {
-            blocksPerPixel = frame.maxWidthBlocks() / width;
+        // Sizes are angular: the same on screen whatever the distance.
+        float atDistance = look.distance() / 100f;
+        float blocksPerPixel = frame.blocksPerPixelAt100() * look.size() * atDistance;
+        float maxWidth = frame.maxWidthAt100() * atDistance;
+        if (width * blocksPerPixel > maxWidth) {
+            blocksPerPixel = maxWidth / width;
         }
         float bob = (float) Math.sin(life * 0.0011 + seed % 97) * 0.5f;
         float drift = Math.min(life / 1000f * 0.12f, 1.2f);
-        Matrix4f base = bannerBasis(placement.yaw(), placement.elevation(), DISTANCE)
+        float orbit = (Easing.hash(seed, 13) < 0.5f ? -1f : 1f) * look.orbitDegS() * life / 1000f;
+        Matrix4f base = bannerBasis(placement.yaw() + orbit, placement.elevation(), look.distance())
                 .rotateZ((float) Math.toRadians(placement.roll()))
-                .translate(0f, (bob - drift) * DISTANCE / 100f, 0f)
+                .translate(0f, (bob - drift) * atDistance, 0f)
                 .scale(blocksPerPixel);
         if (exit == Exit.RISE && exitU > 0f) {
             base.translate(0f, -Easing.inCubic(exitU) * 26f, 0f).scale(1f + 0.12f * exitU);
@@ -367,17 +390,18 @@ final class SkyLine {
 
     private void emit(TextRenderable glyph, Matrix4f pose, int color, float alpha, int glowColor, float glowAlpha,
             float dayness, float blur, List<SkyGlyph> out) {
+        boolean overlay = look.overlay();
         if (dayness > 0.05f) {
             // Soft drop shadow by day, so light text stays readable in front of white clouds.
             int shadow = ARGB.color(alpha * 0.38f * dayness, DAY_HALO);
-            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.55f, 0.75f, 0f), shadow, SkyGlyph.LAYER_GLOW));
+            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.55f, 0.75f, 0f), shadow, SkyGlyph.LAYER_GLOW, overlay));
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(1.0f, 1.3f, 0f), ARGB.color(alpha * 0.2f * dayness,
-                    DAY_HALO), SkyGlyph.LAYER_GLOW));
+                    DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
         }
         int glow = ARGB.color(alpha * glowAlpha, glowColor);
         for (int i = 0; i < GLOW_COPIES; i++) {
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(GLOW_COS[i] * GLOW_PX, GLOW_SIN[i] * GLOW_PX, 0f),
-                    glow, SkyGlyph.LAYER_GLOW));
+                    glow, SkyGlyph.LAYER_GLOW, overlay));
         }
         if (blur > 0.05f) {
             // Cheap blur: a ring of faint copies that collapses onto the glyph as it settles.
@@ -385,10 +409,10 @@ final class SkyLine {
             for (int i = 0; i < BLUR_COPIES; i++) {
                 double angle = i * Math.PI * 2 / BLUR_COPIES + 0.4;
                 out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate((float) Math.cos(angle) * blur,
-                        (float) Math.sin(angle) * blur, 0f), ghost, SkyGlyph.LAYER_BLUR));
+                        (float) Math.sin(angle) * blur, 0f), ghost, SkyGlyph.LAYER_BLUR, overlay));
             }
         }
-        out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, color), SkyGlyph.LAYER_TEXT));
+        out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, color), SkyGlyph.LAYER_TEXT, overlay));
     }
 
     private void entryAnim(float u, int index) {
@@ -505,7 +529,7 @@ final class SkyLine {
                     .rotateZ((float) Math.toRadians(sparkle.spin() * u))
                     .scale(size)
                     .translate(-cx, -cy, 0f);
-            out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, sparkle.color()), SkyGlyph.LAYER_TEXT));
+            out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, sparkle.color()), SkyGlyph.LAYER_TEXT, look.overlay()));
         }
     }
 

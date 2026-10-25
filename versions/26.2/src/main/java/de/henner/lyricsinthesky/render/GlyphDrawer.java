@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.PreparedRenderType;
@@ -36,11 +37,14 @@ final class GlyphDrawer {
      * alpha as fed by {@link TintingVertexConsumer}. Vanilla's grayscale see-through variant does not blend,
      * which would make the TrueType font opaque.
      */
-    private static final RenderPipeline SKY_TEXT = skyPipeline("sky_text", false);
-    private static final RenderPipeline SKY_TEXT_GRAYSCALE = skyPipeline("sky_text_grayscale", true);
+    private static final RenderPipeline SKY_TEXT = skyPipeline("sky_text", false, true);
+    private static final RenderPipeline SKY_TEXT_GRAYSCALE = skyPipeline("sky_text_grayscale", true, true);
+    /** Same without depth test, for the "around you" mode that stays visible in front of blocks. */
+    private static final RenderPipeline OVERLAY_TEXT = skyPipeline("overlay_text", false, false);
+    private static final RenderPipeline OVERLAY_TEXT_GRAYSCALE = skyPipeline("overlay_text_grayscale", true, false);
     private static final int FULL_BRIGHT = 0xF000F0;
 
-    private record Group(RenderType type, int layer) {}
+    private record Group(RenderType type, int layer, boolean overlay) {}
 
     private record Draw(PreparedRenderType renderType, int baseVertex, int indexCount) {}
 
@@ -50,14 +54,16 @@ final class GlyphDrawer {
 
     private GlyphDrawer() {}
 
-    private static RenderPipeline skyPipeline(String name, boolean grayscale) {
+    private static RenderPipeline skyPipeline(String name, boolean grayscale, boolean depthTest) {
         RenderPipeline.Builder builder = RenderPipeline.builder(RenderPipelines.TEXT_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath("lyricsinthesky", "pipeline/" + name))
                 .withVertexShader("core/text")
                 .withFragmentShader("core/text")
                 .withShaderDefine("IS_SEE_THROUGH")
                 .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
-                .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false));
+                .withDepthStencilState(depthTest
+                        ? Optional.of(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
+                        : Optional.empty());
         if (grayscale) {
             builder.withShaderDefine("IS_GRAYSCALE");
         }
@@ -69,10 +75,12 @@ final class GlyphDrawer {
         Map<Group, List<SkyGlyph>> groups = new LinkedHashMap<>();
         for (SkyGlyph glyph : glyphs) {
             RenderType type = glyph.renderable().renderType(Font.DisplayMode.SEE_THROUGH);
-            groups.computeIfAbsent(new Group(type, glyph.layer()), key -> new ArrayList<>()).add(glyph);
+            groups.computeIfAbsent(new Group(type, glyph.layer(), glyph.overlay()), key -> new ArrayList<>()).add(glyph);
         }
         List<Map.Entry<Group, List<SkyGlyph>>> ordered = new ArrayList<>(groups.entrySet());
-        ordered.sort(Comparator.comparingInt(entry -> entry.getKey().layer()));
+        // Depth-tested sky text first, overlay text last so it ends up on top; within each, glow before text.
+        ordered.sort(Comparator.<Map.Entry<Group, List<SkyGlyph>>>comparingInt(entry -> entry.getKey().overlay() ? 1 : 0)
+                .thenComparingInt(entry -> entry.getKey().layer()));
 
         List<Draw> draws = new ArrayList<>(ordered.size());
         int size = 0;
@@ -97,7 +105,7 @@ final class GlyphDrawer {
                     size = (size + vertexSize - 1) / vertexSize * vertexSize;
                     offsets.add(size);
                     int indexCount = mesh.drawState().indexCount();
-                    draws.add(new Draw(skyRenderType(type), size / vertexSize, indexCount));
+                    draws.add(new Draw(skyRenderType(type, group.getKey().overlay()), size / vertexSize, indexCount));
                     maxIndexCount = Math.max(maxIndexCount, indexCount);
                     size += mesh.vertexBuffer().remaining();
                 }
@@ -127,9 +135,12 @@ final class GlyphDrawer {
     }
 
     /** Vanilla glyph render type with its texture and transforms, but drawn through our pipeline. */
-    private static PreparedRenderType skyRenderType(RenderType type) {
+    private static PreparedRenderType skyRenderType(RenderType type, boolean overlay) {
         PreparedRenderType prepared = type.prepare();
-        RenderPipeline pipeline = type.pipeline() == RenderPipelines.TEXT_GRAYSCALE_SEE_THROUGH ? SKY_TEXT_GRAYSCALE : SKY_TEXT;
+        boolean grayscale = type.pipeline() == RenderPipelines.TEXT_GRAYSCALE_SEE_THROUGH;
+        RenderPipeline pipeline = overlay
+                ? (grayscale ? OVERLAY_TEXT_GRAYSCALE : OVERLAY_TEXT)
+                : (grayscale ? SKY_TEXT_GRAYSCALE : SKY_TEXT);
         return new PreparedRenderType(pipeline, prepared.outputTarget(), prepared.dynamicTransforms(),
                 prepared.scissorState(), prepared.textures());
     }

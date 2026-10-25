@@ -6,10 +6,15 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import de.henner.lyricsinthesky.dev.SelfTest;
+import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
+import de.henner.lyricsinthesky.nowplaying.PreferredNowPlayingSource;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
+import de.henner.lyricsinthesky.spotify.SpotifyAccount;
+import de.henner.lyricsinthesky.spotify.SpotifyNowPlayingSource;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 import net.fabricmc.api.ClientModInitializer;
@@ -40,26 +45,36 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
 
     private static LyricsController controller;
     private static SkyLyricsConfig config;
+    private static SpotifyAccount spotify;
+    private static KeyMapping settingsKey;
     private static KeyMapping toggleKey;
     private static KeyMapping earlierKey;
     private static KeyMapping laterKey;
+    /** Ticks until the settings open; set by the command, which runs while the chat screen is still closing. */
+    private static int openSettingsIn = -1;
 
-    /** {@code null} until the client is initialized or on unsupported systems. */
+    /** {@code null} until the client is initialized. */
     public static LyricsController controller() {
         return controller;
     }
 
     @Override
     public void onInitializeClient() {
-        NowPlayingSource source = NowPlayingSource.forCurrentOs(FabricLoader.getInstance().getConfigDir().resolve(MOD_ID));
-        if (source == null) {
-            LOGGER.warn("Lyrics in the Sky reads the media session of Windows or Linux; disabled on this OS.");
-            return;
-        }
+        Path configDir = FabricLoader.getInstance().getConfigDir();
         String version = FabricLoader.getInstance().getModContainer(MOD_ID)
                 .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
                 .orElse("dev");
-        config = SkyLyricsConfig.load(FabricLoader.getInstance().getConfigDir().resolve(MOD_ID + ".json"));
+        config = SkyLyricsConfig.load(configDir.resolve(MOD_ID + ".json"));
+
+        // Without login: the OS media session (Spotify, Amazon Music, browsers on this PC). Optional login: the
+        // Spotify account, which also covers music playing on a phone or console.
+        spotify = new SpotifyAccount(configDir.resolve(MOD_ID).resolve("spotify.json"), () -> config.spotifyClientId);
+        NowPlayingSource spotifySource = new SpotifyNowPlayingSource(spotify);
+        NowPlayingSource osSource = NowPlayingSource.forCurrentOs(configDir.resolve(MOD_ID));
+        if (osSource == null) {
+            LOGGER.warn("No media session support on this OS; only a connected Spotify account will work.");
+        }
+        NowPlayingSource source = osSource == null ? spotifySource : new PreferredNowPlayingSource(spotifySource, osSource);
         LrclibClient lrclib = new LrclibClient(version);
         controller = new LyricsController(source, lrclib, config);
 
@@ -85,12 +100,25 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     private static void registerKeys() {
         KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
         int unbound = InputConstants.UNKNOWN.getValue();
+        settingsKey = KeyMappingHelper.registerKeyMapping(
+                new KeyMapping("key.lyricsinthesky.settings", InputConstants.KEY_RSHIFT, category));
         toggleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.lyricsinthesky.toggle", unbound, category));
         earlierKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.lyricsinthesky.earlier", unbound, category));
         laterKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.lyricsinthesky.later", unbound, category));
     }
 
+    /** Opens the settings screen on top of whatever is shown now. */
+    public static void openSettings(Minecraft client) {
+        client.gui.setScreen(new SettingsScreen(client.gui.screen(), controller, spotify));
+    }
+
     private static void handleKeys(Minecraft client) {
+        if (openSettingsIn >= 0 && openSettingsIn-- == 0 && client.gui.screen() == null) {
+            openSettings(client);
+        }
+        while (settingsKey.consumeClick()) {
+            openSettings(client);
+        }
         while (toggleKey.consumeClick()) {
             config.enabled = !config.enabled;
             config.save();
@@ -141,14 +169,33 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     private static void registerCommands() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             LiteralArgumentBuilder<FabricClientCommandSource> root = ClientCommands.literal("skylyrics")
-                    .executes(context -> reply(context, "Befehle: status, demo, on, off, offset <ms>, opacity <0.1-1>, "
+                    .executes(context -> reply(context, "Einstellungen: Rechte Umschalttaste oder /skylyrics settings. "
+                            + "Befehle: status, demo, on, off, mode <sky|around>, offset <ms>, opacity <0.1-1>, "
                             + "scale <0.3-3>, height <10-70>, palette <name>, font <script|minecraft>, "
-                            + "follow <on|off>, title <on|off>, hud <on|off>, lrclib <on|off>"))
-                    .then(ClientCommands.literal("status").executes(context -> reply(context, controller.status())))
+                            + "follow <on|off>, title <on|off>, hud <on|off>, lrclib <on|off>, spotify <connect|disconnect>"))
+                    .then(ClientCommands.literal("status").executes(context ->
+                            reply(context, controller.status() + " | " + spotify.statusText())))
+                    .then(ClientCommands.literal("settings").executes(context -> {
+                        openSettingsIn = 1;
+                        return 1;
+                    }))
                     .then(ClientCommands.literal("demo").executes(context -> {
                         controller.startDemo();
-                        return reply(context, "Demo läuft 34 Sekunden – schau in den Himmel.");
+                        return reply(context, "Demo läuft 37 Sekunden – schau in den Himmel.");
                     }))
+                    .then(choice("mode", SkyLyricsConfig.MODES, (c, value) -> c.mode = value, "Anzeige "))
+                    .then(ClientCommands.literal("spotify")
+                            .then(ClientCommands.literal("connect").executes(context -> {
+                                if (config.spotifyClientId.isBlank()) {
+                                    return reply(context, "Erst die Client-ID deiner Spotify-App eintragen (Rechte Umschalttaste).");
+                                }
+                                spotify.connect();
+                                return reply(context, "Spotify öffnet sich im Browser – dort anmelden und zustimmen.");
+                            }))
+                            .then(ClientCommands.literal("disconnect").executes(context -> {
+                                spotify.disconnect();
+                                return reply(context, "Spotify getrennt.");
+                            })))
                     .then(ClientCommands.literal("on").executes(context -> set(context, c -> c.enabled = true, "an")))
                     .then(ClientCommands.literal("off").executes(context -> set(context, c -> c.enabled = false, "aus")))
                     .then(ClientCommands.literal("offset")

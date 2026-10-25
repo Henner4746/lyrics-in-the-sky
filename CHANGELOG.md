@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 – 2026-10-25
+
+- **Settings screen** on Right Shift (or `/skylyrics settings`): every option with live preview, the world
+  stays visible behind the panel.
+- **"Around you" mode:** lines float close around the player at eye level, slowly circling, always visible like
+  a hologram. Switch with the settings screen or `/skylyrics mode around`.
+- **Optional Spotify login** for music that does not play on this PC (phone, console, Spotify Connect): click
+  "Connect with Spotify", log in and agree in the browser. Uses your own Spotify app's client ID with PKCE, no
+  secret. Without login everything keeps working through the media session as before.
+- More tests: PKCE, the local login callback, Spotify responses, source priority; the in-game self test now
+  opens the settings screen and switches modes.
+
 ## 1.0.0 – 2026-10-25
 
 First release, for Minecraft 26.2 and 26.3 (Fabric).

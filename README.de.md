@@ -33,10 +33,25 @@ Handschrift auf, jede Zeile an einer anderen Stelle, und wenn sie vorbei ist, ve
   und Schatten am Tag.
 - **Jede Zeile woanders,** verteilt um deine Blickrichtung; lange Zeilen brechen versetzt auf zwei Reihen
   um, ein betontes Wort wird größer.
+- **Zwei Anzeigemodi:** *am Himmel* (weit weg, nahe Blöcke verdecken die Zeilen) oder *um dich herum* (nah
+  auf Augenhöhe, kreist langsam, immer sichtbar wie ein Hologramm).
 - **Titelkarte** am Himmel, wenn ein neuer Song beginnt.
 - **Now-Playing-Pille** oben mit aktueller Zeile, markiertem Wort und kleinem Equalizer.
-- **Sechs Farbpaletten,** Handschrift oder Minecraft-Schrift, einstellbare Größe, Höhe, Deckkraft und
-  Verzögerung.
+- **Einstellungen mit der rechten Umschalttaste** und Live-Vorschau: sechs Farbpaletten, Handschrift oder
+  Minecraft-Schrift, Größe, Höhe, Deckkraft, Timing und mehr.
+- **Keine Anmeldung nötig** für Musik auf dem PC. **Optional Spotify-Login** für Musik vom Handy, von der
+  Konsole oder einem anderen Spotify-Connect-Gerät.
+
+<table>
+<tr>
+<td><img src="preview/einstellungen.png" alt="Einstellungen auf der rechten Umschalttaste"></td>
+<td><img src="preview/um-dich-herum.png" alt="Lyrics schweben um den Spieler herum"></td>
+</tr>
+<tr>
+<td align="center">Einstellungen (rechte Umschalttaste)</td>
+<td align="center">Modus „um dich herum“</td>
+</tr>
+</table>
 
 ## Voraussetzungen
 
@@ -49,19 +64,38 @@ Handschrift auf, jede Zeile an einer anderen Stelle, und wenn sie vorbei ist, ve
 
 ## Installation
 
-1. `lyrics-in-the-sky-1.0.0+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
+1. `lyrics-in-the-sky-1.1.0+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
 2. Spiel starten, Musik starten, Welt betreten.
 3. Beim ersten Mal fragt die Mod im Chat, ob sie lrclib.net nach Songtexten fragen darf. **[Erlauben]**
    klicken.
-4. Ohne Musik ausprobieren: `/skylyrics demo`
+4. **Rechte Umschalttaste** öffnet die Einstellungen. Ohne Musik ausprobieren: dort *Demo abspielen* oder
+   `/skylyrics demo`.
+
+## Optional: Spotify verbinden
+
+Musik auf diesem PC – Spotify, Amazon Music, Browser – läuft ohne Anmeldung. Wenn du auf dem Handy, der
+Konsole oder einem anderen Gerät hörst, verbinde stattdessen dein Spotify-Konto:
+
+1. Das [Spotify-Entwickler-Dashboard](https://developer.spotify.com/dashboard) öffnen (der Knopf *Spotify-App
+   anlegen …* in den Einstellungen tut das) und eine App anlegen. Name egal. Als Redirect-URI
+   `http://127.0.0.1:43217/callback` eintragen und *Web API* ankreuzen.
+2. Die **Client ID** der App in das Feld *Client-ID deiner Spotify-App* kopieren.
+3. **Mit Spotify verbinden** klicken. Im Browser öffnet sich Spotifys Zustimmungsseite: falls nötig anmelden
+   und **Zustimmen** klicken. Danach zeigt der Browser „Verbunden!“ und kann geschlossen werden.
+
+Eine Spotify-App im Entwicklungsmodus darf nur ihr Besitzer plus bis zu fünf Personen nutzen, die du unter
+*User Management* einträgst, und der Besitzer braucht Spotify Premium. Amazon Music bietet keine vergleichbare
+Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung auf dem PC.
 
 ## Befehle
 
 | Befehl | Wirkung |
 |---|---|
-| `/skylyrics status` | Song, Player, Position, Lyrics-Status und Offset |
+| `/skylyrics settings` | Einstellungen öffnen (wie die rechte Umschalttaste) |
+| `/skylyrics status` | Song, Player, Position, Lyrics-Status, Offset und Spotify-Login |
 | `/skylyrics demo` | 37 Sekunden Demo mit eigenem Text |
 | `/skylyrics on` · `off` | Lyrics ein- oder ausschalten |
+| `/skylyrics mode <sky\|around>` | am Himmel oder um dich herum |
 | `/skylyrics offset <ms>` | Verzögerung ausgleichen; positiv = Lyrics früher |
 | `/skylyrics opacity <0.1–1>` | Deckkraft (Standard 0.82) |
 | `/skylyrics scale <0.3–3>` | Textgröße |
@@ -72,16 +106,20 @@ Handschrift auf, jede Zeile an einer anderen Stelle, und wenn sie vorbei ist, ve
 | `/skylyrics title <on\|off>` | Songtitel am Himmel beim Songwechsel |
 | `/skylyrics hud <on\|off>` | Now-Playing-Pille oben |
 | `/skylyrics lrclib <on\|off>` | Abfrage bei lrclib.net erlauben oder verbieten |
+| `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
 
-**Tasten** (standardmäßig unbelegt, unter *Steuerung → Lyrics in the Sky*): Lyrics ein/aus, Lyrics 100 ms
-früher, Lyrics 100 ms später. Alle Einstellungen stehen auch in `config/lyricsinthesky.json`.
+**Tasten** (unter *Steuerung → Lyrics in the Sky*): Einstellungen (**rechte Umschalttaste**), dazu
+standardmäßig unbelegt: Lyrics ein/aus, Lyrics 100 ms früher, Lyrics 100 ms später. Alle Einstellungen stehen
+auch in `config/lyricsinthesky.json`.
 
 ## So funktioniert es
 
 ```mermaid
 flowchart LR
-    A["Musik-Player<br/>Spotify · Amazon Music · Browser"] --> B["Mediensitzung des Systems<br/>Windows SMTC · Linux MPRIS"]
+    A["Musik-Player auf diesem PC<br/>Spotify · Amazon Music · Browser"] --> B["Mediensitzung des Systems<br/>Windows SMTC · Linux MPRIS"]
     B --> C["Lyrics in the Sky<br/>Titel, Künstler, Position"]
+    G["Spotify auf beliebigem Gerät<br/>(optionaler Login)"] --> H["Spotify Web API"]
+    H --> C
     C <-->|"Titel, Künstler, Album, Länge"| D[("LRCLIB<br/>synchrone Lyrics")]
     C --> E["Himmels-Renderer<br/>Wortzeiten, Animationen"]
     C --> F["Now-Playing-Pille"]
@@ -92,12 +130,18 @@ flowchart LR
   rechnet die Mod die Position selbst weiter, damit die Wörter im Takt bleiben.
 - **Songtexte** kommen von [LRCLIB](https://lrclib.net), einer freien Datenbank für synchrone Lyrics.
   Gesendet werden nur Titel, Künstler, Album und Länge; gespeichert wird nichts.
-- **Darstellung:** Der Text wird 48 Blöcke entfernt, aber relativ zur Kamera gezeichnet, nach der Welt und
-  vor der Hand, mit eigenen transparenten Text-Pipelines.
+- **Optionaler Spotify-Login** über Spotifys offizielle Web API mit Authorization Code + PKCE: kein
+  Client-Secret, der Browser kehrt zu einer kleinen Seite zurück, die die Mod auf `127.0.0.1:43217` ausliefert,
+  und die Tokens liegen in `config/lyricsinthesky/spotify.json` auf deinem PC.
+- **Darstellung:** Der Text wird relativ zur Kamera gezeichnet, nach der Welt und vor der Hand, mit eigenen
+  transparenten Text-Pipelines – im Himmelsmodus 48 Blöcke entfernt mit Tiefentest, im Modus „um dich herum“
+  6 Blöcke entfernt ohne Tiefentest.
 
 ## Datenschutz und faire Nutzung
 
-- Kein Spotify- oder Amazon-Login, keine Cookies, keine inoffiziellen oder internen Schnittstellen.
+- Keine Anmeldung nötig. Der optionale Spotify-Login liest nur, was gerade läuft
+  (`user-read-currently-playing`, `user-read-playback-state`), und lässt sich jederzeit trennen.
+- Keine Cookies, keine inoffiziellen oder internen Schnittstellen.
 - Abfragen erst nach deiner Erlaubnis; abschalten mit `/skylyrics lrclib off`.
 - Lyrics werden beim Abspielen geholt und nur im Speicher gehalten. Das Projekt liefert oder hostet keine
   Songtexte.
@@ -107,9 +151,11 @@ flowchart LR
 
 - macOS wird noch nicht unterstützt. Der Linux-Weg ist mit Beispieldaten getestet, aber noch nicht auf
   einem echten Desktop.
-- Spotify meldet seine Position nur alle paar Sekunden; `/skylyrics offset` gleicht kleine Verzögerungen
-  aus. Der Spotify-Client unter Linux meldet gar keine Position, nach dem Vorspulen ist die Zeit deshalb bis
-  zum nächsten Song ungenau.
+- Ohne Login meldet Spotify seine Position nur alle paar Sekunden; `/skylyrics offset` gleicht kleine
+  Verzögerungen aus. Der Spotify-Client unter Linux meldet gar keine Position, nach dem Vorspulen ist die Zeit
+  deshalb bis zum nächsten Song ungenau. Mit dem optionalen Spotify-Login ist die Position genau.
+- Der Spotify-Login braucht eine eigene Spotify-Entwickler-App (siehe oben); deren Entwicklungsmodus ist auf
+  fünf weitere Personen begrenzt.
 - Livestreams und Videos ohne bekannte Länge bekommen keine Lyrics.
 - Mit Shaderpacks (Iris) ungetestet.
 

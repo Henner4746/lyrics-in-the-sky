@@ -3,6 +3,7 @@ package de.henner.lyricsinthesky.render;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
@@ -42,7 +43,8 @@ public final class NowPlayingHud implements HudElement {
     public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         Minecraft minecraft = Minecraft.getInstance();
         LyricsController controller = LyricsInTheSkyClient.controller();
-        if (controller == null) {
+        if (controller == null || minecraft.gui.screen() instanceof SettingsScreen) {
+            // The settings panel covers the top of the screen; the pill would shine through it.
             return;
         }
         long now = System.nanoTime();

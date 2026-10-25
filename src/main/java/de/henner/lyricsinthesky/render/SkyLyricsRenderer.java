@@ -32,8 +32,8 @@ public final class SkyLyricsRenderer {
     /** The title card waits this long for the lyrics lookup, so it can say whether lyrics were found. */
     private static final long TITLE_DELAY_MS = 900;
     /** Text size and maximum line width, as blocks at 100 blocks distance (about 4.5° tall, 44° wide). */
-    private static final float BLOCKS_PER_PIXEL = 0.74f * SkyLine.DISTANCE / 100f;
-    private static final float MAX_WIDTH_BLOCKS = 80f * SkyLine.DISTANCE / 100f;
+    private static final float BLOCKS_PER_PIXEL_AT_100 = 0.74f;
+    private static final float MAX_WIDTH_AT_100 = 80f;
     private static final float FOLLOW_TIME_CONSTANT_S = 0.25f;
     private static final FontDescription SCRIPT = new FontDescription.Resource(
             Identifier.fromNamespaceAndPath(LyricsInTheSkyClient.MOD_ID, "script"));
@@ -46,6 +46,7 @@ public final class SkyLyricsRenderer {
     private long trackStartNanos;
     private long lineCounter;
     private float anchorYaw = Float.NaN;
+    private float viewElevation;
     private float fixedYaw = Float.NaN;
     private long lastFrameNanos;
     private float pauseDim = 1f;
@@ -64,7 +65,10 @@ public final class SkyLyricsRenderer {
         float dt = lastFrameNanos == 0 ? 0f : Math.min(0.25f, (now - lastFrameNanos) / 1e9f);
         lastFrameNanos = now;
         SkyLyricsConfig config = controller.config();
-        updateAnchor(minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.yRot, dt, config.followView);
+        var camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        updateAnchor(camera.yRot, dt, config.followView);
+        // xRot is negative when looking up.
+        viewElevation = config.followView ? -camera.xRot : 0f;
 
         LyricsController.Timeline timeline = controller.timeline(System.currentTimeMillis());
         Set<String> wanted = new HashSet<>();
@@ -86,8 +90,8 @@ public final class SkyLyricsRenderer {
         pauseDim += (pauseTarget - pauseDim) * (1f - (float) Math.exp(-dt / 0.35f));
 
         float nightness = 1f - Easing.smoothstep(0.12f, 0.45f, skyLuminance);
-        SkyLine.Frame frame = new SkyLine.Frame(now, lastSongPositionMs, BLOCKS_PER_PIXEL * config.scale,
-                MAX_WIDTH_BLOCKS * config.scale, config.opacity * pauseDim, nightness, minecraft.font, Style.EMPTY);
+        SkyLine.Frame frame = new SkyLine.Frame(now, lastSongPositionMs, BLOCKS_PER_PIXEL_AT_100 * config.scale,
+                MAX_WIDTH_AT_100 * config.scale, config.opacity * pauseDim, nightness, minecraft.font, Style.EMPTY);
         List<SkyGlyph> glyphs = new ArrayList<>(2048);
         for (SkyLine line : lines.values()) {
             line.render(frame, glyphs);
@@ -105,6 +109,8 @@ public final class SkyLyricsRenderer {
             placements.reset(trackKey.hashCode());
         }
         Palette palette = Palette.pick(config.palette, trackKey);
+        boolean around = "around".equals(config.mode);
+        SkyLine.Look look = around ? SkyLine.AROUND : SkyLine.SKY;
         boolean script = "script".equals(config.font);
         Style regular = script ? Style.EMPTY.withFont(SCRIPT) : Style.EMPTY;
         Style bold = script ? Style.EMPTY.withFont(SCRIPT_BOLD) : Style.EMPTY.withBold(true);
@@ -116,13 +122,16 @@ public final class SkyLyricsRenderer {
             if (index >= 0) {
                 Lyrics.Line line = lyrics.lines().get(index);
                 if (!line.text().isBlank() && timeline.positionMs() < lyrics.endOf(index, timeline.durationMs())) {
-                    String key = trackKey + "#" + index;
+                    // The mode is part of the key, so switching modes lets the old line leave and a new one arrive.
+                    String key = trackKey + "#" + index + config.mode;
                     wanted.add(key);
                     lyricShown = true;
                     if (!lines.containsKey(key)) {
+                        Placements.Placement placement = around
+                                ? placements.nextAround(anchorYaw, viewElevation)
+                                : placements.next(anchorYaw, config.elevationDeg);
                         lines.put(key, SkyLine.lyric(key, line.text(), lyrics.wordTimes(index, timeline.durationMs()),
-                                placements.next(anchorYaw, config.elevationDeg), palette, nextSeed(),
-                                minecraft.font, regular, bold));
+                                placement, look, palette, nextSeed(), minecraft.font, regular, bold));
                     }
                 }
             }
@@ -131,14 +140,16 @@ public final class SkyLyricsRenderer {
         long sinceTrackStart = (now - trackStartNanos) / 1_000_000L;
         boolean lookupSettled = timeline.state() != LyricsController.LookupState.SEARCHING
                 && timeline.state() != LyricsController.LookupState.IDLE;
-        String titleKey = trackKey + "#title";
+        String titleKey = trackKey + "#title" + config.mode;
         boolean titleExists = lines.containsKey(titleKey);
         if (config.showTitleCard && !lyricShown && sinceTrackStart < TITLE_MS + TITLE_DELAY_MS
                 && (titleExists || lookupSettled || sinceTrackStart > TITLE_DELAY_MS)) {
             wanted.add(titleKey);
             if (!titleExists) {
-                lines.put(titleKey, SkyLine.title(titleKey, timeline.title(), subtitle(timeline),
-                        placements.title(anchorYaw, config.elevationDeg), palette, nextSeed(), minecraft.font, regular, bold));
+                Placements.Placement placement = around
+                        ? placements.titleAround(anchorYaw, viewElevation) : placements.title(anchorYaw, config.elevationDeg);
+                lines.put(titleKey, SkyLine.title(titleKey, timeline.title(), subtitle(timeline), placement, look,
+                        palette, nextSeed(), minecraft.font, regular, bold));
             }
         }
     }

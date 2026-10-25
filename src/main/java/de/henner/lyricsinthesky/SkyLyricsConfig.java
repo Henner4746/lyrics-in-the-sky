@@ -17,8 +17,12 @@ public final class SkyLyricsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final List<String> PALETTES = List.of("auto", "aurora", "sunset", "gold", "sakura", "ocean", "white");
     public static final List<String> FONTS = List.of("script", "minecraft");
+    /** "sky": far away in the sky, hidden by nearby blocks. "around": close around the player, always visible. */
+    public static final List<String> MODES = List.of("sky", "around");
 
     public boolean enabled = true;
+    /** One of {@link #MODES}. */
+    public String mode = "sky";
     /** Positive values show lyrics earlier, negative values later. */
     public long offsetMs = 0;
     /** {@code null} until the player answered the first-start question about lrclib.net. */
@@ -39,6 +43,11 @@ public final class SkyLyricsConfig {
     public boolean showTitleCard = true;
     /** Show the "now playing" pill at the top of the screen. */
     public boolean showHud = true;
+    /**
+     * Client ID of the player's own Spotify developer app, needed for "Connect with Spotify". Not a secret:
+     * the login uses PKCE, so no client secret is involved.
+     */
+    public String spotifyClientId = "";
 
     private transient Path file;
 
@@ -80,5 +89,9 @@ public final class SkyLyricsConfig {
         if (font == null || !FONTS.contains(font)) {
             font = "script";
         }
+        if (mode == null || !MODES.contains(mode)) {
+            mode = "sky";
+        }
+        spotifyClientId = spotifyClientId == null ? "" : spotifyClientId.trim();
     }
 }

@@ -1,6 +1,7 @@
 package de.henner.lyricsinthesky.dev;
 
 import de.henner.lyricsinthesky.LyricsController;
+import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
@@ -21,8 +22,13 @@ public final class SelfTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky-selftest");
     private static final int DEMO_START_TICK = 60;
     /** Demo times (seconds) to photograph; from {@link #NIGHT_FROM} on it is midnight. */
-    private static final double[] SHOTS = {0.6, 2.0, 3.7, 4.6, 7.6, 9.6, 12.6, 16.2, 21.4, 24.9, 26.4, 29.0, 33.3, 35.6};
+    private static final double[] SHOTS = {0.6, 2.0, 3.7, 5.2, 7.6, 9.6, 13.4, 16.2, 19.0, 21.4, 24.9, 26.4, 29.0, 33.3, 35.6};
     private static final double NIGHT_FROM = 21.0;
+    /** The settings screen is open in between, and lines show "around you" in between. */
+    private static final double SETTINGS_OPEN = 4.0;
+    private static final double SETTINGS_CLOSE = 6.0;
+    private static final double AROUND_FROM = 12.0;
+    private static final double AROUND_TO = 20.5;
     /** With {@code -Dlyricsinthesky.selftest.record=true}: demo seconds captured every tick. */
     private static final double RECORD_FROM = 1.5;
     private static final double RECORD_TO = 20.5;
@@ -80,6 +86,22 @@ public final class SelfTest {
         }
         if (atSecond(NIGHT_FROM)) {
             minecraft.player.connection.sendCommand("time set midnight");
+        }
+        if (!Boolean.getBoolean("lyricsinthesky.selftest.record")) {
+            if (atSecond(SETTINGS_OPEN)) {
+                LyricsInTheSkyClient.openSettings(minecraft);
+                LOGGER.info("SELFTEST settings screen: {}", minecraft.gui.screen() == null ? "NOT open"
+                        : minecraft.gui.screen().getClass().getSimpleName());
+            }
+            if (atSecond(SETTINGS_CLOSE)) {
+                minecraft.gui.screen().onClose();
+            }
+            if (atSecond(AROUND_FROM)) {
+                controller.config().mode = "around";
+            }
+            if (atSecond(AROUND_TO)) {
+                controller.config().mode = "sky";
+            }
         }
         if (atSecond(SIMULATION_FROM)) {
             minecraft.player.connection.sendCommand("time set 23000");
