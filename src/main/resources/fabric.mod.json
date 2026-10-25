@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "lyricsinthesky",
+  "version": "${version}",
+  "name": "Lyrics in the Sky",
+  "description": "Shows synced lyrics of the song playing on your PC (Spotify, Amazon Music, browser players) word by word in the Minecraft sky. Reads the Windows media session and fetches lyrics from LRCLIB (lrclib.net) after you allow it. Not affiliated with Mojang, Spotify or Amazon.",
+  "authors": ["Henner4746"],
+  "license": "MIT",
+  "icon": "assets/lyricsinthesky/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["de.henner.lyricsinthesky.LyricsInTheSkyClient"]
+  },
+  "mixins": ["lyricsinthesky.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "${mc_range}",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

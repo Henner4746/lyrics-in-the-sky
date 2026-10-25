@@ -1,0 +1,160 @@
+package de.henner.lyricsinthesky.render;
+
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
+import com.mojang.renderpearl.api.pipeline.DepthStencilState;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.StagedVertexBuffer;
+import net.minecraft.client.renderer.rendertype.PreparedRenderType;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.resources.Identifier;
+
+/** Minecraft 26.3: uploads the glyph quads and draws them in one render pass after the main world pass. */
+final class GlyphDrawer {
+    /**
+     * Text without fog, tested against the world's depth but never writing it, blended with premultiplied
+     * alpha as fed by {@link TintingVertexConsumer}. Vanilla's grayscale see-through variant does not blend at
+     * all, which would make the TrueType font opaque.
+     */
+    private static final RenderPipeline SKY_TEXT = skyPipeline("sky_text", false);
+    private static final RenderPipeline SKY_TEXT_GRAYSCALE = skyPipeline("sky_text_grayscale", true);
+    private static final int FULL_BRIGHT = 0xF000F0;
+
+    private record Group(RenderType type, int layer) {}
+
+    private record Draw(PreparedRenderType renderType, int baseVertex, int indexCount) {}
+
+    private static final TintingVertexConsumer TINT = new TintingVertexConsumer();
+    private static GpuBuffer vertexBuffer;
+    private static ByteBuffer upload;
+
+    private GlyphDrawer() {}
+
+    private static RenderPipeline skyPipeline(String name, boolean grayscale) {
+        RenderPipeline.Builder builder = RenderPipeline.builder(RenderPipelines.TEXT_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath("lyricsinthesky", "pipeline/" + name))
+                .withShaderDefine("IS_SEE_THROUGH")
+                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
+                .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false));
+        if (grayscale) {
+            builder.withShaderDefine("IS_GRAYSCALE");
+        }
+        return builder.build();
+    }
+
+    static void draw(RenderTarget target, List<SkyGlyph> glyphs) {
+        // Glyphs from different atlas pages need separate draws; glow and blur layers go below the text.
+        Map<Group, List<SkyGlyph>> groups = new LinkedHashMap<>();
+        for (SkyGlyph glyph : glyphs) {
+            RenderType type = glyph.renderable().renderType(Font.DisplayMode.SEE_THROUGH);
+            groups.computeIfAbsent(new Group(type, glyph.layer()), key -> new ArrayList<>()).add(glyph);
+        }
+        List<Map.Entry<Group, List<SkyGlyph>>> ordered = new ArrayList<>(groups.entrySet());
+        ordered.sort(Comparator.comparingInt(entry -> entry.getKey().layer()));
+
+        List<Draw> draws = new ArrayList<>(ordered.size());
+        int size = 0;
+        int maxIndexCount = 0;
+        try (ByteBufferBuilder bytes = new ByteBufferBuilder(64 * 1024)) {
+            List<MeshData> meshes = new ArrayList<>(ordered.size());
+            List<Integer> offsets = new ArrayList<>(ordered.size());
+            try {
+                for (Map.Entry<Group, List<SkyGlyph>> group : ordered) {
+                    RenderType type = group.getKey().type();
+                    BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, type.format());
+                    for (SkyGlyph glyph : group.getValue()) {
+                        glyph.renderable().render(glyph.pose(), TINT.wrap(builder, glyph.argb()), FULL_BRIGHT, false);
+                    }
+                    MeshData mesh = builder.build();
+                    if (mesh == null) {
+                        continue;
+                    }
+                    meshes.add(mesh);
+                    int vertexSize = type.format().getVertexSize();
+                    // Each group starts on a vertex boundary of its own format so baseVertex lines up.
+                    size = (size + vertexSize - 1) / vertexSize * vertexSize;
+                    offsets.add(size);
+                    int indexCount = mesh.drawState().indexCount();
+                    draws.add(new Draw(skyRenderType(type), size / vertexSize, indexCount));
+                    maxIndexCount = Math.max(maxIndexCount, indexCount);
+                    size += mesh.vertexBuffer().remaining();
+                }
+                if (draws.isEmpty()) {
+                    return;
+                }
+                ByteBuffer data = uploadBuffer(size);
+                for (int i = 0; i < meshes.size(); i++) {
+                    data.position(offsets.get(i));
+                    data.put(meshes.get(i).vertexBuffer());
+                }
+                data.position(0).limit(size);
+                GpuDevice device = RenderSystem.getDevice();
+                ensureVertexBuffer(device, size);
+                device.createCommandEncoder().writeToBuffer(vertexBuffer.slice(0, size), data);
+            } finally {
+                meshes.forEach(MeshData::close);
+            }
+        }
+
+        RenderSystem.AutoStorageIndexBuffer quadIndices = RenderSystem.getSequentialBuffer(PrimitiveTopology.QUADS);
+        GpuBuffer indexBuffer = quadIndices.getBuffer(maxIndexCount);
+        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
+                () -> "Lyrics in the sky", target.getColorTextureView(), Optional.empty(),
+                target.getDepthTextureView(), OptionalDouble.empty())) {
+            for (Draw draw : draws) {
+                draw.renderType().drawFromBuffer(new StagedVertexBuffer.ExecuteInfo(
+                        vertexBuffer, indexBuffer, quadIndices.type(), draw.baseVertex(), 0, draw.indexCount(),
+                        PrimitiveTopology.QUADS), pass);
+            }
+        }
+    }
+
+    /** Vanilla glyph render type with its texture and transforms, but drawn through our pipeline. */
+    private static PreparedRenderType skyRenderType(RenderType type) {
+        PreparedRenderType prepared = type.prepare();
+        RenderPipeline pipeline = type.pipeline() == RenderPipelines.TEXT_GRAYSCALE_SEE_THROUGH ? SKY_TEXT_GRAYSCALE : SKY_TEXT;
+        return new PreparedRenderType(prepared.name(), pipeline, null, prepared.dynamicTransforms(),
+                prepared.scissorState(), prepared.textures());
+    }
+
+    private static ByteBuffer uploadBuffer(int size) {
+        if (upload == null || upload.capacity() < size) {
+            upload = ByteBuffer.allocateDirect(Integer.highestOneBit(Math.max(1024, size - 1)) << 1)
+                    .order(ByteOrder.nativeOrder());
+        }
+        upload.clear();
+        return upload;
+    }
+
+    private static void ensureVertexBuffer(GpuDevice device, int size) {
+        if (vertexBuffer == null || vertexBuffer.size() < size) {
+            if (vertexBuffer != null) {
+                vertexBuffer.close();
+            }
+            int capacity = Integer.highestOneBit(Math.max(1024, size - 1)) << 1;
+            vertexBuffer = device.createBuffer(() -> "Lyrics in the sky vertices",
+                    GpuBuffer.USAGE_VERTEX | GpuBuffer.USAGE_COPY_DST, capacity);
+        }
+    }
+}

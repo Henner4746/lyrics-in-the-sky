@@ -1,0 +1,95 @@
+plugins {
+    // 1.18.x needs Gradle 9.7; 1.17.11 is the version FlightAssistant already builds 26.x with on Gradle 9.5.1.
+    id 'net.fabricmc.fabric-loom' version '1.17.11' apply false
+}
+
+subprojects {
+    apply plugin: 'net.fabricmc.fabric-loom'
+
+    version = "${rootProject.mod_version}+mc${project.minecraft_version}"
+    group = rootProject.maven_group
+
+    base {
+        archivesName = rootProject.archives_base_name
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = [rootProject.file("src/main/java"), file("src/main/java")]
+            resources.srcDirs = [rootProject.file("src/main/resources"), file("src/main/resources")]
+        }
+        test {
+            java.srcDirs = [rootProject.file("src/test/java")]
+        }
+    }
+
+    dependencies {
+        // 26.x ships without obfuscation, so this Loom variant needs no mappings.
+        minecraft "com.mojang:minecraft:${project.minecraft_version}"
+        implementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+        implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+        testImplementation platform("org.junit:junit-bom:5.11.4")
+        testImplementation "org.junit.jupiter:junit-jupiter"
+        testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    }
+
+    loom {
+        runs {
+            // `gradlew :mc26.3:runSelfTest`: loads run/saves/SkyTest, screenshots the demo, quits.
+            register("selfTest") {
+                client()
+                name = "Self Test"
+                vmArg "-Dlyricsinthesky.selftest=true"
+                programArgs "--quickPlaySingleplayer", "SkyTest"
+            }
+            // `gradlew :mc26.3:runRecordPreview`: like the self test, but one 1280x720 screenshot per tick.
+            register("recordPreview") {
+                client()
+                name = "Record Preview"
+                vmArg "-Dlyricsinthesky.selftest=true"
+                vmArg "-Dlyricsinthesky.selftest.record=true"
+                programArgs "--quickPlaySingleplayer", "SkyTest", "--width", "1280", "--height", "720"
+            }
+        }
+    }
+
+    processResources {
+        inputs.property "version", project.version
+        inputs.property "mc_range", project.mc_range
+        filesMatching("fabric.mod.json") {
+            expand "version": project.version, "mc_range": project.mc_range
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
+        options.release = 25
+    }
+
+    java {
+        toolchain.languageVersion = JavaLanguageVersion.of(25)
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    jar {
+        from(rootProject.file("LICENSE"))
+    }
+}
+
+// `gradlew collectJars` puts the release jars of all versions into build/libs.
+tasks.register("collectJars", Copy) {
+    group = "build"
+    subprojects.each { sub ->
+        dependsOn(sub.tasks.named("build"))
+        from(sub.tasks.named("jar").flatMap { it.archiveFile })
+    }
+    into(layout.buildDirectory.dir("libs"))
+}

@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = "Fabric"
+            url = "https://maven.fabricmc.net/"
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = "lyrics-in-the-sky"
+
+// One subproject per Minecraft version. Shared code lives in the root src/, version-specific
+// rendering glue in versions/<mc>/src/.
+["26.3", "26.2"].each { mc ->
+    include "mc$mc"
+    project(":mc$mc").projectDir = file("versions/$mc")
+}
