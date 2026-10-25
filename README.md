@@ -12,7 +12,7 @@
 ![Platforms](https://img.shields.io/badge/Windows%20%7C%20Linux-supported-4c6ef5)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
-[Deutsche Version](README.de.md)
+**[Download on CurseForge](https://www.curseforge.com/minecraft/mc-mods/lyrics-in-the-sky)** · [Deutsche Version](README.de.md)
 
 <img src="preview/preview.gif" width="720" alt="Sung words floating around the player at dusk, staying in place while the camera turns">
 
@@ -76,7 +76,8 @@ Full preview video: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-th
 
 ## Installation
 
-1. Put `lyrics-in-the-sky-1.2.2+mc26.3.jar` (or `…+mc26.2.jar`) and Fabric API into your `mods` folder.
+1. Download the mod from [CurseForge](https://www.curseforge.com/minecraft/mc-mods/lyrics-in-the-sky) and put `lyrics-in-the-sky-1.2.2+mc26.3.jar` (or `…+mc26.2.jar`)
+   and Fabric API into your `mods` folder.
 2. Start the game, start some music, join a world.
 3. Lyrics come from lrclib.net, which is on from the start; the first time, a note in chat says what is sent
    and offers to switch it off.
@@ -197,7 +198,6 @@ flowchart LR
 |---|---|
 | `src/` | Shared code: media sessions, LRCLIB, lyrics timing, animations, HUD, commands |
 | `versions/26.2`, `versions/26.3` | Rendering glue per Minecraft version (Mojang reworked the render API in 26.3) |
-| `reports/`, `research_notes/` | Research on existing mods, APIs and legal questions (German/English) |
 | `preview/` | Preview video and screenshots |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules and [CHANGELOG.md](CHANGELOG.md) for releases.
