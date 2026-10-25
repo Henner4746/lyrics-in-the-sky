@@ -41,6 +41,19 @@ shows up in a different spot, and when the line is over it dissolves like a clou
    (allow).
 4. Press Right Shift for the settings, or run `/skylyrics demo` to see it without music.
 
+### Optional: Spotify login
+
+Music playing on your PC needs no login. To show lyrics for Spotify on your phone, console or another
+Spotify Connect device, connect your account in the settings. Spotify only lets small apps serve a handful of
+accounts, so you need a free Spotify developer app of your own (takes two minutes):
+
+1. Click "Spotify-App anlegen …" in the settings. It opens the
+   [Spotify developer dashboard](https://developer.spotify.com/dashboard).
+2. Create an app with the redirect URI `http://127.0.0.1:43217/callback` and tick "Web API".
+3. Paste its Client ID into the settings and click "Mit Spotify verbinden", then "Agree" in the browser.
+
+No client secret is needed (the login uses PKCE).
+
 ### Requirements
 
 - Minecraft Java Edition 26.2 or 26.3, Fabric Loader 0.20.1 or newer, Fabric API
@@ -55,8 +68,9 @@ This mod connects to the internet. Everything it sends is listed here:
   the song that is playing, to look up its synced lyrics. Nothing else is sent; lyrics are kept in memory
   only and never saved.
 - **Spotify Web API** (only if you connect your Spotify account in the settings): reads which song is
-  playing. Login uses your own Spotify developer app and Spotify's official consent page; the tokens stay in
-  `config/lyricsinthesky/spotify.json` on your PC and you can disconnect at any time.
+  playing (scopes `user-read-currently-playing` and `user-read-playback-state`). Login runs through Spotify's
+  official consent page; the tokens stay in `config/lyricsinthesky/spotify.json` on your PC and you can
+  disconnect at any time.
 - **Your PC's media session:** on Windows a small PowerShell script bundled in the mod reads the system
   media session (the same information Windows shows in its volume overlay); on Linux the mod asks MPRIS via
   `gdbus`. This stays on your PC.

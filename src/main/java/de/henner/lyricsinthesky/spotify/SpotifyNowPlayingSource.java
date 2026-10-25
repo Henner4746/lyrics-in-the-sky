@@ -109,6 +109,12 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
                 current = null;
                 return POLL_DISCONNECTED_MS;
             }
+            case 403 -> {
+                // The app is in development mode and this account is not (or no longer) added to it.
+                account.invalidate(SpotifyAccount.NOT_REGISTERED);
+                current = null;
+                return POLL_DISCONNECTED_MS;
+            }
             case 429 -> {
                 long retry = response.headers().firstValueAsLong("Retry-After").orElse(5);
                 return Math.max(1, retry) * 1000L;

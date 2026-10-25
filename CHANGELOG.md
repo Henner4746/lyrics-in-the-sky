@@ -9,8 +9,9 @@
 - **Optional Spotify login** for music that does not play on this PC (phone, console, Spotify Connect): click
   "Connect with Spotify", log in and agree in the browser. Uses a Spotify app's client ID with PKCE, no secret;
   builds ship with the client ID of the "Lyrics in the Sky" app, which can be replaced in the settings. Expired
-  logins (Spotify refresh tokens last 180 days) ask to reconnect. Without login everything keeps working
-  through the media session as before.
+  logins (Spotify refresh tokens last 180 days) ask to reconnect, and accounts the app does not serve (Spotify
+  development mode) are told to use their own app. Without login everything keeps working through the media
+  session as before.
 - More tests: PKCE, the local login callback, Spotify responses, source priority; the in-game self test now
   opens the settings screen and switches modes.
 

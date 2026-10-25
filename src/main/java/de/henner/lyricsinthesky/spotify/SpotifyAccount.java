@@ -35,6 +35,7 @@ public final class SpotifyAccount {
     public static final String DASHBOARD_URL = "https://developer.spotify.com/dashboard";
     private static final String SCOPES = "user-read-currently-playing user-read-playback-state";
     private static final Duration LOGIN_TIMEOUT = Duration.ofMinutes(5);
+    static final String NOT_REGISTERED = "App kennt dein Konto nicht – eigene App anlegen";
     private static final Gson GSON = new Gson();
 
     public enum State { NOT_CONFIGURED, DISCONNECTED, WAITING_FOR_BROWSER, CONNECTED, ERROR }
@@ -125,33 +126,54 @@ public final class SpotifyAccount {
                 fail("Browser ließ sich nicht öffnen");
                 return;
             }
-            Map<String, String> query = server.awaitCallback(LOGIN_TIMEOUT, params -> CallbackPage.render(
-                    params.containsKey("code") && expectedState.equals(params.get("state")),
-                    params.getOrDefault("error", "")));
-            if (!expectedState.equals(query.get("state"))) {
-                fail("Antwort passte nicht zur Anfrage");
-            } else if (query.containsKey("error")) {
-                fail("access_denied".equals(query.get("error")) ? "Zustimmung abgelehnt" : query.get("error"));
-            } else {
-                JsonObject token = tokenRequest(Map.of(
-                        "grant_type", "authorization_code",
-                        "code", query.getOrDefault("code", ""),
-                        "redirect_uri", REDIRECT_URI,
-                        "client_id", id,
-                        "code_verifier", verifier));
-                store(id, token, null);
-                tokens = new Tokens(id, tokens.accessToken(), tokens.refreshToken(), tokens.expiresAtMs(), fetchDisplayName());
-                save();
-                state = State.CONNECTED;
-                LOGGER.info("Spotify connected");
-            }
+            // The login is finished before the browser gets its page, so the page tells the real outcome.
+            server.awaitCallback(LOGIN_TIMEOUT, params -> {
+                String error = finish(id, verifier, expectedState, params);
+                return CallbackPage.render(error.isEmpty(), error);
+            });
         } catch (SocketTimeoutException e) {
             fail("Anmeldung abgelaufen (5 Minuten)");
         } catch (java.net.BindException e) {
             fail("Port " + PORT + " ist belegt");
+        } catch (IOException | RuntimeException e) {
+            LOGGER.warn("Spotify login failed: {}", e.getMessage());
+            fail("Anmeldung fehlgeschlagen");
+        }
+    }
+
+    /** Completes the login from the callback; returns "" on success, otherwise an error code for the page. */
+    private String finish(String id, String verifier, String expectedState, Map<String, String> params) {
+        if (!expectedState.equals(params.get("state"))) {
+            fail("Antwort passte nicht zur Anfrage");
+            return "state_mismatch";
+        }
+        if (params.containsKey("error")) {
+            String error = params.get("error");
+            fail("access_denied".equals(error) ? "Zustimmung abgelehnt" : error);
+            return error;
+        }
+        try {
+            JsonObject token = tokenRequest(Map.of(
+                    "grant_type", "authorization_code",
+                    "code", params.getOrDefault("code", ""),
+                    "redirect_uri", REDIRECT_URI,
+                    "client_id", id,
+                    "code_verifier", verifier));
+            store(id, token, null);
+            String name = fetchDisplayName();
+            if (name == null) {
+                invalidate(NOT_REGISTERED);
+                return CallbackPage.NOT_REGISTERED;
+            }
+            tokens = new Tokens(id, tokens.accessToken(), tokens.refreshToken(), tokens.expiresAtMs(), name);
+            save();
+            state = State.CONNECTED;
+            LOGGER.info("Spotify connected");
+            return "";
         } catch (IOException | InterruptedException | RuntimeException e) {
             LOGGER.warn("Spotify login failed: {}", e.getMessage());
             fail("Anmeldung fehlgeschlagen");
+            return "token_exchange_failed";
         }
     }
 
@@ -224,6 +246,10 @@ public final class SpotifyAccount {
         return JsonParser.parseString(response.body()).getAsJsonObject();
     }
 
+    /**
+     * The player's display name, "" when Spotify does not tell, and {@code null} when Spotify refuses the
+     * account for this app (an app in development mode only serves the accounts added to it).
+     */
     private String fetchDisplayName() {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.spotify.com/v1/me"))
@@ -231,6 +257,9 @@ public final class SpotifyAccount {
                     .header("Authorization", "Bearer " + tokens.accessToken())
                     .build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 403) {
+                return null;
+            }
             if (response.statusCode() == 200) {
                 JsonObject me = JsonParser.parseString(response.body()).getAsJsonObject();
                 if (me.has("display_name") && !me.get("display_name").isJsonNull()) {

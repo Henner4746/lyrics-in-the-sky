@@ -10,6 +10,8 @@ import java.util.Random;
  * blocky hills, and the result written into the sky in the mod's own handwriting, letter by letter.
  */
 final class CallbackPage {
+    /** Error code for an account the app does not serve (development mode, account not added). */
+    static final String NOT_REGISTERED = "not_registered";
     private static final String FONT_RESOURCE = "/assets/lyricsinthesky/font/kalam-bold.ttf";
     private static String fontFace;
 
@@ -21,6 +23,10 @@ final class CallbackPage {
                 ? "Spotify ist jetzt mit Lyrics in the Sky verbunden. Du kannst diesen Tab schließen und zurück ins Spiel."
                 : "access_denied".equals(error)
                         ? "Du hast die Zustimmung abgelehnt. In Minecraft kannst du es jederzeit noch einmal versuchen."
+                : NOT_REGISTERED.equals(error)
+                        ? "Spotify lässt dein Konto nicht mit dieser App zu: Sie ist im Entwicklungsmodus und nur für "
+                                + "wenige eingetragene Konten offen. Leg in Minecraft über „Spotify-App anlegen …“ deine "
+                                + "eigene App an und trag ihre Client-ID ein."
                         : "Etwas hat nicht geklappt" + (error.isBlank() ? "" : " (" + escape(error) + ")")
                                 + ". Versuch es in Minecraft noch einmal.";
         return TEMPLATE

@@ -73,6 +73,13 @@ class SpotifyTest {
     }
 
     @Test
+    void callbackPageSendsUnregisteredAccountsToTheirOwnApp() {
+        String page = CallbackPage.render(false, CallbackPage.NOT_REGISTERED);
+        assertTrue(page.contains("Entwicklungsmodus"));
+        assertTrue(page.contains("eigene App"));
+    }
+
+    @Test
     void parsesATrack() {
         String body = """
                 {"timestamp": 1792900000000, "progress_ms": 61500, "is_playing": true,
