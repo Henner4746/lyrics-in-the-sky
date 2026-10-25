@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Movable now-playing bar:** drag it with the mouse anywhere ("Leiste" button in the settings); it hangs from the
+  top or sits at the bottom above the hotbar, and snaps to the middle and to its usual height.
+- **Four looks for the bar:** *Pille* (as before), *Karaoke* (two lines in a box, every word fills up with color as it
+  is sung), *Schlicht* (just the words with a shadow) and *Nur Titel* (only the song). In the settings under
+  "Leiste", or `/skylyrics bar <pill|karaoke|plain|title>` and `/skylyrics barpos <top|bottom>`.
+
 ## 1.2.2 – 2026-10-25
 
 - **Works with shader packs (Iris):** with a shader pack on, the lyrics are drawn on top of the pack's finished

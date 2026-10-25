@@ -40,6 +40,13 @@ public final class SkyLyricsConfig {
      * lyrics are on.
      */
     public static final List<String> PRESETS = List.of("standard", "sky", "around", "party", "calm");
+    /**
+     * Looks of the now-playing bar: "pill" the rounded bar with the line and the word being sung, "karaoke" two lines
+     * in a box with every word filling up as it is sung, "plain" just the words with a shadow, "title" only the song.
+     */
+    public static final List<String> HUD_STYLES = List.of("pill", "karaoke", "plain", "title");
+    /** Edges the bar sits at: the top of the screen, or the bottom above the hotbar. */
+    public static final List<String> HUD_ANCHORS = List.of("top", "bottom");
     public static final float DEFAULT_ELEVATION = 16f;
 
     public boolean enabled = true;
@@ -69,8 +76,18 @@ public final class SkyLyricsConfig {
     public boolean followView = true;
     /** Show title and artist in the sky when a new song starts. */
     public boolean showTitleCard = true;
-    /** Show the "now playing" pill at the top of the screen. */
+    /** Show the "now playing" bar. */
     public boolean showHud = true;
+    /** One of {@link #HUD_STYLES}. */
+    public String hudStyle = "pill";
+    /** One of {@link #HUD_ANCHORS}. */
+    public String hudAnchor = "top";
+    /**
+     * Where the bar was moved to by hand, in GUI pixels: its middle right of the screen's middle, and its edge away
+     * from the anchor edge (down from the top, up from the bottom).
+     */
+    public int hudOffsetX = 0;
+    public int hudOffsetY = 0;
     /** In the sky: mountains, trees and clouds stand in front of the text; off, it is drawn on top of everything. */
     public boolean skyBehindTerrain = true;
     /** The lyrics give a little kick on every sung word. */
@@ -159,6 +176,15 @@ public final class SkyLyricsConfig {
         if (style == null || !STYLES.contains(style)) {
             style = "elegant";
         }
+        if (hudStyle == null || !HUD_STYLES.contains(hudStyle)) {
+            hudStyle = "pill";
+        }
+        if (hudAnchor == null || !HUD_ANCHORS.contains(hudAnchor)) {
+            hudAnchor = "top";
+        }
+        // The bar is kept on screen when drawn; this only keeps the numbers sane.
+        hudOffsetX = Math.max(-4000, Math.min(4000, hudOffsetX));
+        hudOffsetY = Math.max(-4000, Math.min(4000, hudOffsetY));
         spotifyClientId = spotifyClientId == null ? "" : spotifyClientId.trim();
     }
 

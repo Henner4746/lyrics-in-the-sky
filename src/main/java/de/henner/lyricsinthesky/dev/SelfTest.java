@@ -2,6 +2,9 @@ package de.henner.lyricsinthesky.dev;
 
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
+import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.gui.HudEditScreen;
+import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
@@ -39,6 +42,14 @@ public final class SelfTest {
     private static final double SIMULATION_FROM = 38.0;
     private static final long SIMULATED_POSITION_MS = 57_000;
     private static final double[] SIMULATION_SHOTS = {41.0, 44.0, 47.0};
+    /** Before each song shot the now-playing bar gets another look and place; then its editor is opened. */
+    private static final double BAR_KARAOKE_BOTTOM = 40.5;
+    private static final double BAR_PLAIN_TOP = 43.5;
+    private static final double BAR_PILL_MOVED = 46.5;
+    private static final double BAR_EDITOR_OPEN = 47.4;
+    private static final double BAR_EDITOR_SHOT = 47.9;
+    private static final double BAR_EDITOR_CLOSE = 48.5;
+    private static String[] barBefore;
     private static final double QUIT_AT = 49.0;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
@@ -140,9 +151,15 @@ public final class SelfTest {
                 }
             }
         }
+        if (!Boolean.getBoolean("lyricsinthesky.selftest.record")) {
+            barSteps(minecraft, controller.config());
+        }
         for (double shot : SIMULATION_SHOTS) {
             if (atSecond(shot)) {
                 LOGGER.info("SELFTEST status: {}", controller.status());
+                NowPlayingHud.Bounds bar = NowPlayingHud.lastBounds();
+                LOGGER.info("SELFTEST bar: {} {} at {}", controller.config().hudStyle, controller.config().hudAnchor,
+                        bar == null ? "hidden" : bar.x() + "," + bar.y() + " " + bar.width() + "x" + bar.height());
                 shoot(minecraft, String.format("song %04.1f", shot));
             }
         }
@@ -163,6 +180,48 @@ public final class SelfTest {
         if (atSecond(QUIT_AT)) {
             minecraft.stop();
         }
+    }
+
+    /** The bar in its looks and places, then its editor; the player's own bar settings are put back afterwards. */
+    private static void barSteps(Minecraft minecraft, SkyLyricsConfig config) {
+        if (atSecond(BAR_KARAOKE_BOTTOM)) {
+            barBefore = new String[] {config.hudStyle, config.hudAnchor, Integer.toString(config.hudOffsetX),
+                    Integer.toString(config.hudOffsetY), Boolean.toString(config.showHud)};
+            setBar(config, "karaoke", "bottom", 0);
+        }
+        if (atSecond(BAR_PLAIN_TOP)) {
+            setBar(config, "plain", "top", 0);
+        }
+        if (atSecond(BAR_PILL_MOVED)) {
+            setBar(config, "pill", "bottom", -120);
+        }
+        if (atSecond(BAR_EDITOR_OPEN)) {
+            minecraft.gui.setScreen(new HudEditScreen(minecraft.gui.screen(), config));
+        }
+        if (atSecond(BAR_EDITOR_SHOT)) {
+            NowPlayingHud.Bounds bar = NowPlayingHud.lastBounds();
+            LOGGER.info("SELFTEST bar editor: {}", minecraft.gui.screen() instanceof HudEditScreen && bar != null
+                    ? "open, bar at " + bar.x() + "," + bar.y() : "NOT open or bar hidden");
+            shoot(minecraft, "bar editor");
+        }
+        if (atSecond(BAR_EDITOR_CLOSE) && barBefore != null) {
+            config.hudStyle = barBefore[0];
+            config.hudAnchor = barBefore[1];
+            config.hudOffsetX = Integer.parseInt(barBefore[2]);
+            config.hudOffsetY = Integer.parseInt(barBefore[3]);
+            config.showHud = Boolean.parseBoolean(barBefore[4]);
+            if (minecraft.gui.screen() instanceof HudEditScreen editor) {
+                editor.onClose();
+            }
+        }
+    }
+
+    private static void setBar(SkyLyricsConfig config, String style, String anchor, int offsetX) {
+        config.showHud = true;
+        config.hudStyle = style;
+        config.hudAnchor = anchor;
+        config.hudOffsetX = offsetX;
+        config.hudOffsetY = 0;
     }
 
     private static boolean atSecond(double second) {

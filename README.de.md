@@ -40,7 +40,7 @@ als einzelne Wörter, die rund um dich schweben.
   Gruppe markiert), *Stapel* (aktuelle Zeile in der Mitte, die nächste
   schwach darunter, alles gleitet weich nach oben) und *Verspielt* (Aufploppen, Zoom, Wirbel und mehr, mit
   Funken).
-- **Now-Playing-Pille** oben mit aktueller Zeile, markiertem Wort und kleinem Equalizer.
+- **Now-Playing-Leiste** mit aktueller Zeile und markiertem Wort, frei verschiebbar (oben oder über der Hotbar), als Pille, Karaoke, schlicht oder nur mit dem Titel.
 - **Vorlagen:** Standard, Himmel 1:1, Um dich 1:1, Party und Ruhig setzen den ganzen Look mit einem Klick.
 - **Mitdrehen** (optional): Die Songtexte folgen deinem Blick dicht, statt stehen zu bleiben.
 - **Im Takt wackeln** (optional): Jedes gesungene Wort gibt dem Text einen kleinen Kick, lange Wörter einen
@@ -128,7 +128,9 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics beat <on\|off>` | Bei jedem gesungenen Wort wackeln |
 | `/skylyrics along <on\|off>` | Songtexte drehen sich mit deinem Blick |
 | `/skylyrics preset <standard\|sky\|around\|party\|calm>` | Ganzen Look auf einmal setzen |
-| `/skylyrics hud <on\|off>` | Now-Playing-Pille oben |
+| `/skylyrics hud <on\|off>` | Now-Playing-Leiste an oder aus |
+| `/skylyrics bar <pill\|karaoke\|plain\|title>` | Aussehen der Leiste |
+| `/skylyrics barpos <top\|bottom>` | Leiste oben oder über der Hotbar (frei verschieben mit dem Knopf „Leiste“ in den Einstellungen) |
 | `/skylyrics lrclib <on\|off>` | Abfrage bei lrclib.net erlauben oder verbieten |
 | `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
 

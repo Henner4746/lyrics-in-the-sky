@@ -58,6 +58,10 @@ public final class SettingsScreen extends Screen {
     private static final Map<String, String> MODE_NAMES = Map.of("sky", "Am Himmel", "around", "Um dich herum");
     private static final Map<String, String> PRESET_NAMES = Map.of(
             "standard", "Standard", "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig");
+    /** The bar's looks, and "off" for no bar. */
+    private static final List<String> BAR_CHOICES = List.of("off", "pill", "karaoke", "plain", "title");
+    private static final Map<String, String> BAR_NAMES = Map.of("off", "Aus", "pill", "Pille", "karaoke", "Karaoke",
+            "plain", "Schlicht", "title", "Nur Titel");
 
     private final Screen parent;
     private final LyricsController controller;
@@ -108,11 +112,18 @@ public final class SettingsScreen extends Screen {
         int y = 10;
         titleY = y;
         int small = 46;
-        addRenderableWidget(new OutlineButton(left + contentWidth - small, y - 3, small, text("Fertig"), true, this::onClose));
-        addRenderableWidget(new OutlineButton(left + contentWidth - 2 * small - 6, y - 3, small, text("Demo"), false, () -> {
-            controller.startDemo();
-            onClose();
-        }));
+        addRenderableWidget(new OutlineButton(font, text, left + contentWidth - small, y - 3, small, text("Fertig"), true,
+                this::onClose));
+        addRenderableWidget(new OutlineButton(font, text, left + contentWidth - 2 * small - 6, y - 3, small, text("Demo"),
+                false, () -> {
+                    controller.startDemo();
+                    onClose();
+                }));
+        addRenderableWidget(new OutlineButton(font, text, left + contentWidth - 3 * small - 12, y - 3, small, text("Leiste"),
+                false, () -> {
+                    config.save();
+                    minecraft.gui.setScreen(new HudEditScreen(this, config));
+                }));
         y += 18;
 
         // Choices across the full width: a whole look at once, then what is shown, how, and in which colors and type.
@@ -143,7 +154,7 @@ public final class SettingsScreen extends Screen {
                     default -> "Jede Zeile erscheint an einer anderen Stelle, mit wechselnden Animationen und Funkeln.";
                 }));
         y = row("Schrift", left, y, new Choice(wide, SkyLyricsConfig.FONTS, FONT_NAMES, () -> config.font,
-                value -> config.font = value, value -> "Schrift der Songtexte und der Leiste oben."));
+                value -> config.font = value, value -> "Schrift der Songtexte und der Leiste."));
         y = row("Farben", left, y, new Choice(wide, SkyLyricsConfig.PALETTES, PALETTE_NAMES, () -> config.palette,
                 value -> config.palette = value, value -> "standard".equals(value)
                         ? "Altrosa am Himmel, Weiß zu Lavendel um dich herum."
@@ -187,8 +198,19 @@ public final class SettingsScreen extends Screen {
                 "Neue Zeilen erscheinen dort, wo du gerade hinschaust."));
         rightY = row("Songtitel", rightX, rightY, new Toggle(control, () -> config.showTitleCard,
                 value -> config.showTitleCard = value, "Titel und Künstler, wenn ein neuer Song beginnt."));
-        rightY = row("Leiste oben", rightX, rightY, new Toggle(control, () -> config.showHud, value -> config.showHud = value,
-                "Die Leiste oben mit der aktuellen Zeile und dem gesungenen Wort."));
+        rightY = row("Leiste", rightX, rightY, new Choice(control, BAR_CHOICES, BAR_NAMES,
+                () -> config.showHud ? config.hudStyle : "off", value -> {
+                    config.showHud = !"off".equals(value);
+                    if (config.showHud) {
+                        config.hudStyle = value;
+                    }
+                }, value -> switch (value) {
+                    case "off" -> "Keine Leiste. Verschieben kannst du sie über den Knopf „Leiste“ oben.";
+                    case "karaoke" -> "Zwei Zeilen in einem Kasten, jedes Wort füllt sich beim Singen mit Farbe.";
+                    case "plain" -> "Nur die Wörter mit Schatten, ohne Kasten; das gesungene Wort in Farbe.";
+                    case "title" -> "Nur Songtitel und Künstler, ohne Songtext.";
+                    default -> "Die runde Leiste mit der aktuellen Zeile; das gesungene Wort ist hinterlegt.";
+                }));
         y = Math.max(leftY, rightY) + 6;
 
         // Optional Spotify account, for music that does not play on this PC.
@@ -207,8 +229,8 @@ public final class SettingsScreen extends Screen {
             updateSpotifyButton();
         });
         addRenderableWidget(clientIdBox);
-        spotifyButton = addRenderableWidget(new OutlineButton(left + contentWidth - buttonWidth, y, buttonWidth, Component.empty(),
-                false, () -> {
+        spotifyButton = addRenderableWidget(new OutlineButton(font, text, left + contentWidth - buttonWidth, y, buttonWidth,
+                Component.empty(), false, () -> {
                     if (spotify.isConnected()) {
                         spotify.disconnect();
                     } else {
@@ -217,8 +239,8 @@ public final class SettingsScreen extends Screen {
                     }
                     updateSpotifyButton();
                 }));
-        addRenderableWidget(new OutlineButton(left + contentWidth - 2 * buttonWidth - 6, y, buttonWidth, text("App anlegen"),
-                false, () -> Browser.open(SpotifyAccount.DASHBOARD_URL)));
+        addRenderableWidget(new OutlineButton(font, text, left + contentWidth - 2 * buttonWidth - 6, y, buttonWidth,
+                text("App anlegen"), false, () -> Browser.open(SpotifyAccount.DASHBOARD_URL)));
         y += 16;
         // One line for the Spotify status, or for what the hovered option does while one is hovered.
         spotifyStatusY = y;
@@ -561,39 +583,4 @@ public final class SettingsScreen extends Screen {
         }
     }
 
-    /** A button as a thin white frame; the main one ({@code filled}) white with black text. Hover inverts it. */
-    private final class OutlineButton extends AbstractButton {
-        private final boolean filled;
-        private final Runnable action;
-
-        OutlineButton(int x, int y, int width, Component message, boolean filled, Runnable action) {
-            super(x, y, width, 14, message);
-            this.filled = filled;
-            this.action = action;
-        }
-
-        @Override
-        public void onPress(InputWithModifiers input) {
-            action.run();
-        }
-
-        @Override
-        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
-            boolean inverted = active && (filled != isHoveredOrFocused());
-            int frame = active ? WHITE : DIM;
-            if (inverted) {
-                graphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), WHITE);
-            } else {
-                graphics.outline(getX(), getY(), getWidth(), getHeight(), frame);
-            }
-            Component message = getMessage().copy().withStyle(text);
-            int textX = getX() + (getWidth() - font.width(message)) / 2;
-            graphics.text(font, message, textX, getY() + 3, inverted ? 0xFF000000 : frame, false);
-        }
-
-        @Override
-        protected void updateWidgetNarration(NarrationElementOutput output) {
-            defaultButtonNarrationText(output);
-        }
-    }
 }
