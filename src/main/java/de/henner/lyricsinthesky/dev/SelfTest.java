@@ -55,7 +55,12 @@ public final class SelfTest {
     private static final double SONG_SETTINGS_OPEN = 42.0;
     private static final double SONG_SETTINGS_SHOT = 42.6;
     private static final double SONG_SETTINGS_CLOSE = 43.1;
-    private static final double QUIT_AT = 49.0;
+    /** Then the same song in its intro, music without singing: the bar must show the song, readable. */
+    private static final double INTRO_FROM = 49.0;
+    private static final double INTRO_PILL_SHOT = 50.0;
+    private static final double INTRO_KARAOKE = 50.2;
+    private static final double INTRO_KARAOKE_SHOT = 50.8;
+    private static final double QUIT_AT = 52.0;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
 
@@ -159,6 +164,7 @@ public final class SelfTest {
         if (!Boolean.getBoolean("lyricsinthesky.selftest.record")) {
             barSteps(minecraft, controller.config());
             songTimingSteps(minecraft, controller);
+            introSteps(minecraft, controller);
         }
         for (double shot : SIMULATION_SHOTS) {
             if (atSecond(shot)) {
@@ -248,6 +254,43 @@ public final class SelfTest {
         }
         if (atSecond(SONG_SETTINGS_CLOSE) && minecraft.gui.screen() != null) {
             minecraft.gui.screen().onClose();
+        }
+    }
+
+    /**
+     * Music without singing (the intro, before the first line): the bar shows the song instead of a line, fully
+     * faded in, as a pill and as karaoke. The bar settings are put back afterwards.
+     */
+    private static void introSteps(Minecraft minecraft, LyricsController controller) {
+        SkyLyricsConfig config = controller.config();
+        if (atSecond(INTRO_FROM)) {
+            LyricsController.Timeline now = controller.timeline(System.currentTimeMillis());
+            long firstLine = now == null || now.lyrics() == null || now.lyrics().isEmpty() ? 0
+                    : now.lyrics().lines().get(0).startMs();
+            long intro = Math.max(0, firstLine - 4_000);
+            LOGGER.info("SELFTEST intro: first line at {} ms, playing from {} ms", firstLine, intro);
+            barBefore = new String[] {config.hudStyle, config.hudAnchor, Integer.toString(config.hudOffsetX),
+                    Integer.toString(config.hudOffsetY), Boolean.toString(config.showHud)};
+            setBar(config, "pill", "top", 0);
+            controller.simulate(new NowPlaying("selftest", PROBE.title(), PROBE.artist(), PROBE.album(), true,
+                    intro, PROBE.durationMs(), System.currentTimeMillis()));
+        }
+        if (atSecond(INTRO_KARAOKE)) {
+            config.hudStyle = "karaoke";
+        }
+        if (atSecond(INTRO_PILL_SHOT) || atSecond(INTRO_KARAOKE_SHOT)) {
+            NowPlayingHud.Shown shown = NowPlayingHud.lastShown();
+            boolean ok = shown != null && !shown.lyricLine() && shown.text().contains(PROBE.title()) && shown.opacity() > 0.9f;
+            LOGGER.info("SELFTEST bar without singing ({}): {} – '{}', opacity {}", config.hudStyle, ok ? "ok" : "WRONG",
+                    shown == null ? "hidden" : shown.text(), shown == null ? 0 : String.format("%.2f", shown.opacity()));
+            shoot(minecraft, "intro " + config.hudStyle);
+        }
+        if (atSecond(INTRO_KARAOKE_SHOT) && barBefore != null) {
+            config.hudStyle = barBefore[0];
+            config.hudAnchor = barBefore[1];
+            config.hudOffsetX = Integer.parseInt(barBefore[2]);
+            config.hudOffsetY = Integer.parseInt(barBefore[3]);
+            config.showHud = Boolean.parseBoolean(barBefore[4]);
         }
     }
 

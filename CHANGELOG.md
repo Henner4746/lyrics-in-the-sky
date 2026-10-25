@@ -10,6 +10,11 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.3 – 2026-10-25
+
+- The now-playing bar shows the song again during music without singing (intros, solos). Since the bar could be
+  moved, it stayed an empty dark bar there.
+
 ### 1.3.0-dev.2 – 2026-10-25
 
 - **More songs get lyrics:** when LRCLIB's exact lookup finds nothing, the title is tried without version notes

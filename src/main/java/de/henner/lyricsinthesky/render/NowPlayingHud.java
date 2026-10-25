@@ -44,12 +44,17 @@ public final class NowPlayingHud implements HudElement {
 
     /** Where the bar was drawn in the last frame, for dragging it; null while it is hidden. */
     private static volatile Bounds lastBounds;
+    /** What the bar showed in the last frame and how visible its text was, for the self test. */
+    private static volatile Shown lastShown;
 
     public record Bounds(int x, int y, int width, int height) {
         public boolean contains(double px, double py) {
             return px >= x && px < x + width && py >= y && py < y + height;
         }
     }
+
+    /** @param opacity of the text, 0 to 1; stays near 0 when the text keeps starting over */
+    public record Shown(String text, boolean lyricLine, float opacity) {}
 
     private float alpha;
     private float width = -1f;
@@ -72,6 +77,10 @@ public final class NowPlayingHud implements HudElement {
 
     public static Bounds lastBounds() {
         return lastBounds;
+    }
+
+    public static Shown lastShown() {
+        return lastShown;
     }
 
     @Override
@@ -98,6 +107,7 @@ public final class NowPlayingHud implements HudElement {
         alpha += ((timeline != null || editing ? 1f : 0f) - alpha) * (1f - (float) Math.exp(-dt / 0.18f));
         if (alpha < 0.02f || words.length == 0) {
             lastBounds = null;
+            lastShown = null;
             return;
         }
 
@@ -127,6 +137,7 @@ public final class NowPlayingHud implements HudElement {
                 graphics.guiWidth(), graphics.guiHeight(), w, height);
         lastBounds = new Bounds(at.x(), at.y(), w, height);
         float slide = Easing.outCubic((now - contentChangedNanos) / 1e6f / LINE_SLIDE_MS);
+        lastShown = new Shown(String.join(" ", words), lyricLine, alpha * slide);
         switch (style) {
             case "karaoke" -> drawKaraoke(graphics, font, at.x(), at.y(), w, slide);
             case "plain" -> drawPlain(graphics, font, at.x(), at.y(), w, slide);
@@ -253,7 +264,7 @@ public final class NowPlayingHud implements HudElement {
             String hint = SkyLyricsRenderer.hint(timeline.state());
             String song = timeline.artist().isBlank() || !hint.isEmpty() ? timeline.title()
                     : timeline.title() + " · " + timeline.artist();
-            showTitle((hint.isEmpty() ? "" : hint + " · ") + song, now);
+            showTitle(key, (hint.isEmpty() ? "" : hint + " · ") + song, now);
         }
     }
 
@@ -266,9 +277,7 @@ public final class NowPlayingHud implements HudElement {
         positionMs = now / 1_000_000L % PREVIEW_CYCLE_MS;
         if ("title".equals(config.hudStyle)) {
             if (!contentKey.equals("preview#title")) {
-                contentKey = "preview#title";
-                showTitle("Lyrics in the Sky · Vorschau", now);
-                contentKey = "preview#title";
+                showTitle("preview#title", "Lyrics in the Sky · Vorschau", now);
             }
             return;
         }
@@ -285,13 +294,17 @@ public final class NowPlayingHud implements HudElement {
         }
     }
 
-    private void showTitle(String text, long now) {
+    /**
+     * Shows the song instead of a line. {@code key} must be the one the caller compares against next frame: with any
+     * other the title would count as new every frame and never fade in, leaving an empty bar.
+     */
+    private void showTitle(String key, String text, long now) {
         words = text.trim().split("\\s+");
         nextWords = new String[0];
         wordTimes = new long[0];
         lyricLine = false;
         estimated = false;
-        changed(contentKey.startsWith("preview") ? contentKey : contentKey + "#", now);
+        changed(key, now);
     }
 
     /** The bar speaks in the same type as the lyrics, except handwriting, which is too busy at this size. */
