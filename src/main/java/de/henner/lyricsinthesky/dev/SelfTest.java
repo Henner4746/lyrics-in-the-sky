@@ -4,10 +4,13 @@ import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
+import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -60,7 +63,19 @@ public final class SelfTest {
     private static final double INTRO_PILL_SHOT = 50.0;
     private static final double INTRO_KARAOKE = 50.2;
     private static final double INTRO_KARAOKE_SHOT = 50.8;
-    private static final double QUIT_AT = 52.0;
+    /** Then the bar as Liquid Glass by day and at night, while the song is sung. */
+    private static final double GLASS_FROM = 52.0;
+    private static final String[][] GLASS_BARS = {{"pill", "noon"}, {"karaoke", "noon"}, {"plain", "noon"},
+            {"title", "noon"}, {"pill", "midnight"}, {"karaoke", "midnight"}};
+    /** Then every page of the settings, in glass by day, the look page also in the classic theme and at night. */
+    private static final double MENU_FROM = 59.0;
+    private static final String[][] MENU_SHOTS = {{"general", "glass", "noon"}, {"look", "glass", "noon"},
+            {"sources", "glass", "noon"}, {"look", "classic", "noon"}, {"general", "glass", "midnight"}};
+    /** Then "Wortgenau" with all services on: the song gets word times from one of them. */
+    private static final double WORD_TIMES_ON = 65.0;
+    private static final double WORD_TIMES_CHECK = 75.0;
+    private static final double QUIT_AT = 77.0;
+    private static String themeBefore;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
 
@@ -165,6 +180,9 @@ public final class SelfTest {
             barSteps(minecraft, controller.config());
             songTimingSteps(minecraft, controller);
             introSteps(minecraft, controller);
+            glassSteps(minecraft, controller);
+            menuSteps(minecraft, controller);
+            wordTimeSteps(controller);
         }
         for (double shot : SIMULATION_SHOTS) {
             if (atSecond(shot)) {
@@ -292,6 +310,105 @@ public final class SelfTest {
             config.hudOffsetY = Integer.parseInt(barBefore[3]);
             config.showHud = Boolean.parseBoolean(barBefore[4]);
         }
+    }
+
+    /** The bar in all its looks as Liquid Glass, over a bright noon sky and at midnight. */
+    private static void glassSteps(Minecraft minecraft, LyricsController controller) {
+        SkyLyricsConfig config = controller.config();
+        for (int i = 0; i < GLASS_BARS.length; i++) {
+            double at = GLASS_FROM + i;
+            if (atSecond(at)) {
+                clearScreen(minecraft);
+                if (i == 0) {
+                    themeBefore = config.theme;
+                    barBefore = new String[] {config.hudStyle, config.hudAnchor, Integer.toString(config.hudOffsetX),
+                            Integer.toString(config.hudOffsetY), Boolean.toString(config.showHud)};
+                    config.theme = "glass";
+                    controller.simulate(new NowPlaying("selftest", PROBE.title(), PROBE.artist(), PROBE.album(), true,
+                            SIMULATED_POSITION_MS, PROBE.durationMs(), System.currentTimeMillis()));
+                }
+                setBar(config, GLASS_BARS[i][0], "top", 0);
+                minecraft.player.connection.sendCommand("time set " + GLASS_BARS[i][1]);
+            }
+            if (atSecond(at + 0.5)) {
+                clearScreen(minecraft);
+            }
+            if (atSecond(at + 0.7)) {
+                shoot(minecraft, "glass bar " + GLASS_BARS[i][0] + " " + GLASS_BARS[i][1]);
+            }
+        }
+        if (atSecond(GLASS_FROM + GLASS_BARS.length) && barBefore != null) {
+            config.hudStyle = barBefore[0];
+            config.hudAnchor = barBefore[1];
+            config.hudOffsetX = Integer.parseInt(barBefore[2]);
+            config.hudOffsetY = Integer.parseInt(barBefore[3]);
+            config.showHud = Boolean.parseBoolean(barBefore[4]);
+        }
+    }
+
+    /** Every page of the settings; each has to fit the 240 GUI pixels of a 720p screen. */
+    private static void menuSteps(Minecraft minecraft, LyricsController controller) {
+        SkyLyricsConfig config = controller.config();
+        for (int i = 0; i < MENU_SHOTS.length; i++) {
+            double at = MENU_FROM + i;
+            String[] shot = MENU_SHOTS[i];
+            if (atSecond(at)) {
+                clearScreen(minecraft);
+                config.theme = shot[1];
+                minecraft.player.connection.sendCommand("time set " + shot[2]);
+                if (!(minecraft.gui.screen() instanceof SettingsScreen)) {
+                    LyricsInTheSkyClient.openSettings(minecraft);
+                }
+                if (minecraft.gui.screen() instanceof SettingsScreen settings) {
+                    settings.show(shot[0]);
+                }
+            }
+            if (atSecond(at + 0.4)) {
+                clearScreen(minecraft);
+            }
+            if (atSecond(at + 0.6)) {
+                if (minecraft.gui.screen() instanceof SettingsScreen settings) {
+                    int height = settings.height;
+                    LOGGER.info("SELFTEST settings {} ({}): {} (panel bottom {} of {})", shot[0], shot[1],
+                            settings.panelBottom() <= height ? "fits" : "TOO TALL", settings.panelBottom(), height);
+                } else {
+                    LOGGER.info("SELFTEST settings {}: NOT open", shot[0]);
+                }
+                shoot(minecraft, "settings " + shot[0] + " " + shot[1] + " " + shot[2]);
+            }
+        }
+        if (atSecond(MENU_FROM + MENU_SHOTS.length)) {
+            if (minecraft.gui.screen() instanceof SettingsScreen settings) {
+                settings.show("general");
+                settings.onClose();
+            }
+            config.theme = themeBefore != null ? themeBefore : config.theme;
+            minecraft.player.connection.sendCommand("time set noon");
+        }
+    }
+
+    /** "Wortgenau" on: the song playing gets word times from one of the services; switched off again afterwards. */
+    private static void wordTimeSteps(LyricsController controller) {
+        SkyLyricsConfig config = controller.config();
+        if (atSecond(WORD_TIMES_ON)) {
+            wordSourcesBefore = List.copyOf(config.wordSources);
+            config.setWordTimes(true);
+            controller.refreshWordTimes();
+        }
+        if (atSecond(WORD_TIMES_CHECK)) {
+            String status = controller.status();
+            LOGGER.info("SELFTEST word times: {} – {}", status.contains("wortgenau") ? "ok" : "NONE (estimated)", status);
+            config.wordSources = new ArrayList<>(wordSourcesBefore);
+            controller.refreshWordTimes();
+        }
+    }
+
+    private static List<String> wordSourcesBefore = List.of();
+
+    /** No command feedback or tutorial toast over the bar and the menu in the screenshots. */
+    private static void clearScreen(Minecraft minecraft) {
+        minecraft.gui.hud.getChat().clearMessages(false);
+        minecraft.gui.toastManager().clear();
     }
 
     private static void setBar(SkyLyricsConfig config, String style, String anchor, int offsetX) {
