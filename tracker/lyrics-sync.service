@@ -1,0 +1,26 @@
+[Unit]
+Description=Lyrics in the Sky timing tracker
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 -I /opt/lyrics-sync/lyrics_sync.py
+Environment=LYRICS_SYNC_DATA=/var/lib/lyrics-sync
+Environment=LYRICS_SYNC_PORT=8472
+DynamicUser=yes
+StateDirectory=lyrics-sync
+StateDirectoryMode=0700
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target
