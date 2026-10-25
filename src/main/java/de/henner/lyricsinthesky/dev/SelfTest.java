@@ -66,15 +66,16 @@ public final class SelfTest {
     /** Then the bar as Liquid Glass by day and at night, while the song is sung. */
     private static final double GLASS_FROM = 52.0;
     private static final String[][] GLASS_BARS = {{"pill", "noon"}, {"karaoke", "noon"}, {"plain", "noon"},
-            {"title", "noon"}, {"pill", "midnight"}, {"karaoke", "midnight"}};
+            {"title", "noon"}, {"pill", "midnight"}, {"karaoke", "midnight"}, {"plain", "midnight"},
+            {"title", "midnight"}};
     /** Then every page of the settings, in glass by day, the look page also in the classic theme and at night. */
-    private static final double MENU_FROM = 59.0;
+    private static final double MENU_FROM = 61.0;
     private static final String[][] MENU_SHOTS = {{"general", "glass", "noon"}, {"look", "glass", "noon"},
             {"sources", "glass", "noon"}, {"look", "classic", "noon"}, {"general", "glass", "midnight"}};
     /** Then "Wortgenau" with all services on: the song gets word times from one of them. */
-    private static final double WORD_TIMES_ON = 65.0;
-    private static final double WORD_TIMES_CHECK = 75.0;
-    private static final double QUIT_AT = 77.0;
+    private static final double WORD_TIMES_ON = 67.0;
+    private static final double WORD_TIMES_CHECK = 77.0;
+    private static final double QUIT_AT = 79.0;
     private static String themeBefore;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
