@@ -8,6 +8,27 @@
   is sung), *Schlicht* (just the words with a shadow) and *Nur Titel* (only the song). In the settings under
   "Leiste", or `/skylyrics bar <pill|karaoke|plain|title>` and `/skylyrics barpos <top|bottom>`.
 
+## Development builds (branch `lyricsplus`, not on CurseForge)
+
+### 1.3.0-dev.2 – 2026-10-25
+
+- **More songs get lyrics:** when LRCLIB's exact lookup finds nothing, the title is tried without version notes
+  ("- Remastered 2009", "(2015 Remaster)", "- Single Mix"), then a free search that only takes results naming the
+  song and the artist. When LRCLIB has only the text without times, it is spread over the song by line length; the
+  bar shows "≈" instead of "♪", and the mod offers "Wortgenau" once, which often has real times for such songs.
+- **Timing per song:** a song whose lyrics run early or late can be corrected on its own, with the slider "Dieser
+  Song" in the settings, the earlier/later keys while it plays, or `/skylyrics songoffset <ms|reset>`. Kept in
+  `config/lyricsinthesky/song-timing.json`.
+- **Shared corrections:** corrections are shared anonymously with a small tracker at `henrik.click/lyrics-sync`
+  (source in `tracker/`). Once 10 players corrected a song and 70 % of them agree within 150 ms, that correction
+  applies to everyone who has not set an own one. On by default with a note in chat the first time; switch it off
+  with "Teilen" in the settings or `/skylyrics share off`.
+
+### 1.3.0-dev – 2026-10-25
+
+- **Wortgenau (optional, off by default):** exact word times from LyricsPlus (unofficial, from Apple Music and QQ
+  Music), used only when they fit LRCLIB's lines; for songs LRCLIB does not know, LyricsPlus stands in.
+
 ## 1.2.2 – 2026-10-25
 
 - **Works with shader packs (Iris):** with a shader pack on, the lyrics are drawn on top of the pack's finished

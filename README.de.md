@@ -116,7 +116,9 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics demo` | 37 Sekunden Demo mit eigenem Text |
 | `/skylyrics on` · `off` | Lyrics ein- oder ausschalten |
 | `/skylyrics mode <sky\|around>` | am Himmel oder um dich herum |
-| `/skylyrics offset <ms>` | Verzögerung ausgleichen; positiv = Lyrics früher |
+| `/skylyrics offset <ms>` | Verzögerung für alle Songs ausgleichen; positiv = Lyrics früher |
+| `/skylyrics songoffset <ms\|reset>` | Timing nur des laufenden Songs korrigieren; `reset` nimmt wieder die gemeinsame Korrektur |
+| `/skylyrics share <on\|off>` | Timing-Korrekturen anonym teilen und die übernehmen, auf die sich andere Spieler geeinigt haben |
 | `/skylyrics opacity <0.1–1>` | Deckkraft (Standard 0.82) |
 | `/skylyrics scale <0.3–3>` | Textgröße |
 | `/skylyrics height <10–70>` | Höhe über dem Horizont in Grad |
@@ -133,11 +135,13 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics bar <pill\|karaoke\|plain\|title>` | Aussehen der Leiste |
 | `/skylyrics barpos <top\|bottom>` | Leiste oben oder über der Hotbar (frei verschieben mit dem Knopf „Leiste“ in den Einstellungen) |
 | `/skylyrics lrclib <on\|off>` | Abfrage bei lrclib.net erlauben oder verbieten |
+| `/skylyrics lyricsplus <on\|off>` | Wortzeiten von LyricsPlus („Wortgenau“, standardmäßig aus) |
 | `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
 
 **Tasten** (unter *Steuerung → Lyrics in the Sky*): Einstellungen (**rechte Umschalttaste**), dazu
-standardmäßig unbelegt: Lyrics ein/aus, Lyrics 100 ms früher, Lyrics 100 ms später. Alle Einstellungen stehen
-auch in `config/lyricsinthesky.json`.
+standardmäßig unbelegt: Lyrics ein/aus, Lyrics 100 ms früher, Lyrics 100 ms später. Läuft ein Song mit
+Songtext, korrigieren die beiden Timing-Tasten nur diesen Song. Alle Einstellungen stehen auch in
+`config/lyricsinthesky.json`, die Korrekturen pro Song in `config/lyricsinthesky/song-timing.json`.
 
 ## So funktioniert es
 
@@ -158,7 +162,17 @@ flowchart LR
 - **Songtexte** kommen von [LRCLIB](https://lrclib.net), einer freien Datenbank für synchrone Lyrics.
   Gesendet werden nur Titel, Künstler, Album und Länge. Gefundene Songtexte bleiben in
   `config/lyricsinthesky/lyrics` (bis zu 1000 Songs), damit ein schon gehörter Song sie auch hat, wenn
-  LRCLIB gerade nicht antwortet.
+  LRCLIB gerade nicht antwortet. Findet die genaue Abfrage nichts, versucht die Mod den Titel ohne
+  Versionszusatz („- Remastered 2009“, „(Single Mix)“), dann eine freie Suche. Hat LRCLIB nur den Text ohne
+  Zeiten, wird er über den Song verteilt (markiert mit „≈“).
+- **Wortgenau (optional, standardmäßig aus):** Wortzeiten von LyricsPlus, einem inoffiziellen Dienst, der sie aus
+  Apple Music und QQ Music liest. Sie werden nur genommen, wenn sie zu LRCLIBs Zeilen passen; für Songs, die
+  LRCLIB nicht kennt, springt LyricsPlus ein.
+- **Timing pro Song:** Läuft der Text eines Songs zu früh oder zu spät, lässt er sich einzeln korrigieren. Diese
+  Korrekturen werden anonym mit einem kleinen Tracker auf `henrik.click/lyrics-sync` geteilt (Quelltext in
+  [`tracker/`](tracker/)): eine zufällige Kennung deiner Installation und der Song als Prüfsumme aus Künstler,
+  Titel und den ersten Zeilen mit Zeiten. Haben 10 Spieler einen Song korrigiert und die meisten sind sich
+  einig, gilt ihre Korrektur für alle.
 - **Optionaler Spotify-Login** über Spotifys offizielle Web API mit Authorization Code + PKCE: kein
   Client-Secret, der Browser kehrt zu einer kleinen Seite zurück, die die Mod auf `127.0.0.1:43217` ausliefert,
   und die Tokens liegen in `config/lyricsinthesky/spotify.json` auf deinem PC.
@@ -170,9 +184,13 @@ flowchart LR
 
 - Keine Anmeldung nötig. Der optionale Spotify-Login liest nur, was gerade läuft
   (`user-read-currently-playing`, `user-read-playback-state`), und lässt sich jederzeit trennen.
-- Keine Cookies, keine inoffiziellen oder internen Schnittstellen.
+- Keine Cookies. LyricsPlus, ein inoffizieller Dienst, wird nur gefragt, wenn du „Wortgenau“ einschaltest.
 - Abfragen sind von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten in den Einstellungen oder
   mit `/skylyrics lrclib off`.
+- Das Teilen von Timing-Korrekturen ist von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten mit
+  „Teilen“ in den Einstellungen oder `/skylyrics share off`, dann geht nichts an den Tracker. Der Tracker
+  speichert pro Korrektur nur die Song-Prüfsumme, die Millisekunden und gesalzene Prüfsummen deiner
+  Installations-Kennung und deines Netzes, keine IP-Adressen und kein Zugriffsprotokoll.
 - Lyrics werden beim Abspielen geholt; gefundene bleiben auf deinem PC in `config/lyricsinthesky/lyrics`,
   den Ordner kannst du jederzeit löschen. Das Projekt liefert oder hostet keine Songtexte.
 - Nicht verbunden mit Mojang, Microsoft, Spotify, Amazon oder LRCLIB.
