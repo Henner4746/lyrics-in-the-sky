@@ -55,7 +55,7 @@ class SpotifyTest {
                             URI.create(base + "/callback?code=abc%2B1&state=xyz"))
                     .timeout(Duration.ofSeconds(5)).build(), HttpResponse.BodyHandlers.ofString());
             assertEquals(200, callback.statusCode());
-            assertTrue(callback.body().contains("Verbunden!"));
+            assertTrue(callback.body().contains("aria-label=\"Verbunden\""));
             Map<String, String> query = result.get();
             assertEquals("abc+1", query.get("code"));
             assertEquals("xyz", query.get("state"));
@@ -66,7 +66,10 @@ class SpotifyTest {
     void callbackPageExplainsADeniedConsent() {
         String page = CallbackPage.render(false, "access_denied");
         assertTrue(page.contains("Zustimmung abgelehnt"));
-        assertFalse(page.contains("%s"));
+        assertFalse(page.contains("{{"));
+        // The font is embedded, so the page loads nothing from the internet.
+        assertTrue(page.contains("data:font/ttf;base64,"));
+        assertFalse(page.contains("http://") || page.contains("https://"));
     }
 
     @Test

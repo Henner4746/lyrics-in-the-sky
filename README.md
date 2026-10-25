@@ -73,14 +73,18 @@ a different spot, and when the line is over it dissolves like a cloud.
 ## Optional: connect Spotify
 
 Music playing on this PC – Spotify, Amazon Music, browsers – works without any login. If you listen on your
-phone, a console or another device, connect your Spotify account instead:
+phone, a console or another device, connect your Spotify account instead.
+
+Builds from this repository ship with the client ID of the "Lyrics in the Sky" app (`spotify_client_id` in
+`gradle.properties`). Its owner and the up to five people added to it only need to click **Mit Spotify
+verbinden** and then **Agree** in the browser. Everyone else creates their own app:
 
 1. Open the [Spotify developer dashboard](https://developer.spotify.com/dashboard) (the button *Spotify-App
    anlegen …* in the settings opens it) and create an app. Any name is fine. Add the redirect URI
    `http://127.0.0.1:43217/callback` and tick *Web API*.
 2. Copy the app's **Client ID** into the settings field *Client-ID deiner Spotify-App*.
 3. Click **Mit Spotify verbinden**. Your browser opens Spotify's consent page: log in if needed and click
-   **Agree**. The browser then shows "Verbunden!" and you can close it.
+   **Agree**. The page then writes "verbunden" into a Minecraft dusk sky and you can close the tab.
 
 Spotify only lets an app in development mode serve its owner plus up to five people you add under *User
 Management*, and the owner needs Spotify Premium. Amazon Music has no comparable login for other apps; it keeps
@@ -151,8 +155,8 @@ flowchart LR
 - Without login, Spotify reports its position only every few seconds; `/skylyrics offset` fixes small delays.
   The Spotify client on Linux reports no position at all, so after seeking the timing is off until the next
   song. With the optional Spotify login the position is exact.
-- The Spotify login needs your own Spotify developer app (see above); its development mode is limited to five
-  extra users.
+- The built-in Spotify app is in development mode: besides its owner only five added people can connect.
+  Everyone else needs their own Spotify developer app (see above).
 - Livestreams and videos without a known length get no lyrics.
 - Shader packs (Iris) are untested.
 - In-game messages and command feedback are in German for now.

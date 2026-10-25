@@ -7,8 +7,10 @@
 - **"Around you" mode:** lines float close around the player at eye level, slowly circling, always visible like
   a hologram. Switch with the settings screen or `/skylyrics mode around`.
 - **Optional Spotify login** for music that does not play on this PC (phone, console, Spotify Connect): click
-  "Connect with Spotify", log in and agree in the browser. Uses your own Spotify app's client ID with PKCE, no
-  secret. Without login everything keeps working through the media session as before.
+  "Connect with Spotify", log in and agree in the browser. Uses a Spotify app's client ID with PKCE, no secret;
+  builds ship with the client ID of the "Lyrics in the Sky" app, which can be replaced in the settings. Expired
+  logins (Spotify refresh tokens last 180 days) ask to reconnect. Without login everything keeps working
+  through the media session as before.
 - More tests: PKCE, the local login callback, Spotify responses, source priority; the in-game self test now
   opens the settings screen and switches modes.
 

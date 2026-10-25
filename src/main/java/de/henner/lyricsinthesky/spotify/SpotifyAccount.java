@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,13 +79,21 @@ public final class SpotifyAccount {
     }
 
     /** Opens Spotify's consent page; the login finishes in the background. */
-    public synchronized void connect() {
+    public void connect() {
+        connect(Browser::open);
+    }
+
+    /**
+     * Like {@link #connect()}, with a custom way to show the consent page (used by tests that drive a browser
+     * themselves).
+     */
+    public synchronized void connect(Predicate<String> openConsentPage) {
         String id = clientId.get();
         if (id.isBlank() || state == State.WAITING_FOR_BROWSER) {
             return;
         }
         state = State.WAITING_FOR_BROWSER;
-        loginThread = new Thread(() -> login(id), "LyricsInTheSky-SpotifyLogin");
+        loginThread = new Thread(() -> login(id, openConsentPage), "LyricsInTheSky-SpotifyLogin");
         loginThread.setDaemon(true);
         loginThread.start();
     }
@@ -100,7 +109,7 @@ public final class SpotifyAccount {
         }
     }
 
-    private void login(String id) {
+    private void login(String id, Predicate<String> openConsentPage) {
         String verifier = Pkce.randomString(48);
         String expectedState = Pkce.randomString(16);
         try (LoopbackServer server = LoopbackServer.open(PORT)) {
@@ -112,7 +121,7 @@ public final class SpotifyAccount {
                     "state", expectedState,
                     "code_challenge_method", "S256",
                     "code_challenge", Pkce.challenge(verifier)));
-            if (!Browser.open(url)) {
+            if (!openConsentPage.test(url)) {
                 fail("Browser ließ sich nicht öffnen");
                 return;
             }
@@ -161,10 +170,19 @@ public final class SpotifyAccount {
                 throw new IOException("not connected");
             }
             if (System.currentTimeMillis() >= current.expiresAtMs() - 60_000) {
-                JsonObject token = tokenRequest(Map.of(
-                        "grant_type", "refresh_token",
-                        "refresh_token", current.refreshToken(),
-                        "client_id", current.clientId()));
+                JsonObject token;
+                try {
+                    token = tokenRequest(Map.of(
+                            "grant_type", "refresh_token",
+                            "refresh_token", current.refreshToken(),
+                            "client_id", current.clientId()));
+                } catch (IOException e) {
+                    // invalid_grant: access was revoked or the refresh token ran out (Spotify: 180 days).
+                    if (e.getMessage() != null && e.getMessage().contains("invalid_grant")) {
+                        invalidate("Anmeldung abgelaufen – bitte neu verbinden");
+                    }
+                    throw e;
+                }
                 store(current.clientId(), token, current);
                 save();
             }

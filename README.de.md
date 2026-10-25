@@ -74,14 +74,18 @@ Handschrift auf, jede Zeile an einer anderen Stelle, und wenn sie vorbei ist, ve
 ## Optional: Spotify verbinden
 
 Musik auf diesem PC – Spotify, Amazon Music, Browser – läuft ohne Anmeldung. Wenn du auf dem Handy, der
-Konsole oder einem anderen Gerät hörst, verbinde stattdessen dein Spotify-Konto:
+Konsole oder einem anderen Gerät hörst, verbinde stattdessen dein Spotify-Konto.
+
+Die Builds dieses Repos bringen die Client-ID der App „Lyrics in the Sky“ schon mit (`spotify_client_id` in
+`gradle.properties`). Für den Besitzer der App und die bis zu fünf dort eingetragenen Personen reicht deshalb
+ein Klick auf **Mit Spotify verbinden** → im Browser **Zustimmen**. Alle anderen legen eine eigene App an:
 
 1. Das [Spotify-Entwickler-Dashboard](https://developer.spotify.com/dashboard) öffnen (der Knopf *Spotify-App
    anlegen …* in den Einstellungen tut das) und eine App anlegen. Name egal. Als Redirect-URI
    `http://127.0.0.1:43217/callback` eintragen und *Web API* ankreuzen.
 2. Die **Client ID** der App in das Feld *Client-ID deiner Spotify-App* kopieren.
 3. **Mit Spotify verbinden** klicken. Im Browser öffnet sich Spotifys Zustimmungsseite: falls nötig anmelden
-   und **Zustimmen** klicken. Danach zeigt der Browser „Verbunden!“ und kann geschlossen werden.
+   und **Zustimmen** klicken. Danach schreibt die Seite „verbunden“ in einen Minecraft-Abendhimmel, und der Tab kann zu.
 
 Eine Spotify-App im Entwicklungsmodus darf nur ihr Besitzer plus bis zu fünf Personen nutzen, die du unter
 *User Management* einträgst, und der Besitzer braucht Spotify Premium. Amazon Music bietet keine vergleichbare
@@ -154,8 +158,8 @@ flowchart LR
 - Ohne Login meldet Spotify seine Position nur alle paar Sekunden; `/skylyrics offset` gleicht kleine
   Verzögerungen aus. Der Spotify-Client unter Linux meldet gar keine Position, nach dem Vorspulen ist die Zeit
   deshalb bis zum nächsten Song ungenau. Mit dem optionalen Spotify-Login ist die Position genau.
-- Der Spotify-Login braucht eine eigene Spotify-Entwickler-App (siehe oben); deren Entwicklungsmodus ist auf
-  fünf weitere Personen begrenzt.
+- Die eingebaute Spotify-App ist im Entwicklungsmodus: Außer ihrem Besitzer können sich nur fünf eingetragene
+  Personen verbinden. Alle anderen brauchen ihre eigene Spotify-Entwickler-App (siehe oben).
 - Livestreams und Videos ohne bekannte Länge bekommen keine Lyrics.
 - Mit Shaderpacks (Iris) ungetestet.
 

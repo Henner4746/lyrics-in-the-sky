@@ -76,6 +76,10 @@ public final class SelfTest {
             minecraft.player.connection.sendCommand(record ? "time set 12900" : "time set noon");
             minecraft.player.connection.sendCommand("weather clear");
         }
+        if (ticksInWorld == DEMO_START_TICK - 1) {
+            // What the real sources report before the demo takes over (OS media session or Spotify account).
+            LOGGER.info("SELFTEST source before demo: {}", controller.status());
+        }
         if (ticksInWorld == DEMO_START_TICK) {
             controller.startDemo();
             if (Boolean.getBoolean("lyricsinthesky.selftest.record")) {

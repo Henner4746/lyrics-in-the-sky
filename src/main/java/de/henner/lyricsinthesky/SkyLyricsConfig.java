@@ -4,10 +4,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +67,26 @@ public final class SkyLyricsConfig {
         }
         config.file = file;
         config.clamp();
+        if (config.spotifyClientId.isEmpty()) {
+            config.spotifyClientId = defaultSpotifyClientId();
+        }
         return config;
+    }
+
+    /** Client ID baked in at build time, so the Spotify login works without setting up an own app. */
+    private static String defaultSpotifyClientId() {
+        try (InputStream in = SkyLyricsConfig.class.getResourceAsStream("/lyricsinthesky/defaults.properties")) {
+            if (in == null) {
+                return "";
+            }
+            Properties properties = new Properties();
+            properties.load(in);
+            String id = properties.getProperty("spotify.clientId", "").trim();
+            // An unexpanded placeholder means a build without a configured ID.
+            return id.startsWith("$") ? "" : id;
+        } catch (IOException e) {
+            return "";
+        }
     }
 
     public void save() {
