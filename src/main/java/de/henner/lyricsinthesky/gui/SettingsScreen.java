@@ -4,6 +4,7 @@ import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
 import de.henner.lyricsinthesky.spotify.SpotifyAccount;
+import de.henner.lyricsinthesky.timing.SongTimings;
 import de.henner.lyricsinthesky.util.Browser;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,7 +108,7 @@ public final class SettingsScreen extends Screen {
         int columnWidth = twoColumns ? (contentWidth - COLUMN_GAP) / 2 : contentWidth;
         // Title, four choices, the switches and sliders, the Spotify block and the hint line must fit the screen;
         // on short screens the rows move closer together.
-        int optionRows = 5 + (twoColumns ? 7 : 14);
+        int optionRows = 5 + (twoColumns ? 8 : 16);
         row = 10 + 18 + optionRows * ROW + 16 + 16 + 16 + 12 + 6 <= height ? ROW : COMPACT_ROW;
         int y = 10;
         titleY = y;
@@ -175,6 +176,9 @@ public final class SettingsScreen extends Screen {
         leftY = row("Timing", left, leftY, new Slider(control, -2000, 2000, 50, config.offsetMs,
                 value -> (value > 0 ? "+" : "") + Math.round(value) + " ms", value -> config.offsetMs = Math.round(value),
                 "Verschiebt alle Songtexte, falls dein Kopfhörer verzögert. Positiv zeigt sie früher."));
+        leftY = row("Dieser Song", left, leftY, songTiming(control));
+        leftY = row("Teilen", left, leftY, new Toggle(control, () -> config.shareTiming, value -> config.shareTiming = value,
+                "Teilt Song-Korrekturen anonym mit henrik.click; ab 10 gleichen gelten sie für alle Spieler."));
         leftY = row("Songtexte", left, leftY, new Toggle(control, () -> Boolean.TRUE.equals(config.lrclibAllowed), value -> {
             config.lrclibAllowed = value;
             controller.retryLookups();
@@ -251,6 +255,30 @@ public final class SettingsScreen extends Screen {
         panelTop = 2;
         panelBottom = y + 6;
         updateSpotifyButton();
+    }
+
+    /**
+     * Timing of the song playing now only, on top of the timing for all songs. Shows the correction many players
+     * agreed on until the player sets an own one.
+     */
+    private Slider songTiming(int width) {
+        LyricsController.Song song = controller.currentSong();
+        SongTimings timings = controller.timings();
+        String hint;
+        if (song == null) {
+            hint = "Korrigiert nur den laufenden Song. Gerade läuft keiner mit Songtext.";
+        } else {
+            SongTimings.Shared common = timings.shared(song.id());
+            hint = "Nur für „" + song.title() + "“."
+                    + (common != null && common.offsetMs() != null && timings.own(song.id()).isEmpty()
+                            ? " Gemeinsame Korrektur von " + common.players() + " Spielern." : "")
+                    + (song.shareable() ? "" : " Dieser Text hat keine Zeiten, die Korrektur bleibt bei dir.");
+        }
+        Slider slider = new Slider(width, -3000, 3000, 50, song == null ? 0 : timings.offsetFor(song.id()),
+                value -> song == null ? "–" : (value > 0 ? "+" : "") + Math.round(value) + " ms",
+                value -> controller.setSongOffset(song, (int) Math.round(value)), hint);
+        slider.active = song != null;
+        return slider;
     }
 
     /** Adds a labelled option at {@code x}, {@code y}; returns the y of the next row. */

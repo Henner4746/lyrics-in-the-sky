@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +63,15 @@ public final class SkyLyricsConfig {
     public boolean lrclibNoticeShown = false;
     /** Word times from LyricsPlus, an unofficial service that reads them from Apple Music and QQ Music; off unless switched on. */
     public boolean lyricsPlus = false;
+    /**
+     * Timing corrections per song are shared anonymously with the timing tracker on henrik.click, and the ones many
+     * players agreed on apply here too; on unless switched off.
+     */
+    public boolean shareTiming = true;
+    /** The one-time chat note on sharing timing corrections has been shown. */
+    public boolean timingNoticeShown = false;
+    /** A random ID of this installation, so the tracker counts every player once; not linked to the Minecraft account. */
+    public String installId = "";
     /** Base height of the lyrics above the horizon, in degrees. */
     public float elevationDeg = DEFAULT_ELEVATION;
     /** Size multiplier for the text. */
@@ -118,6 +128,11 @@ public final class SkyLyricsConfig {
         config.clamp();
         if (config.spotifyClientId.isEmpty()) {
             config.spotifyClientId = defaultSpotifyClientId();
+        }
+        if (config.installId == null || config.installId.isBlank()) {
+            // Kept at once: a new ID on every start would count the same player again.
+            config.installId = UUID.randomUUID().toString();
+            config.save();
         }
         return config;
     }

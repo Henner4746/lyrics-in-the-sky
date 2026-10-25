@@ -4,14 +4,18 @@ import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.lyrics.LyricsPlusClient;
+import de.henner.lyricsinthesky.lyrics.SongId;
 import de.henner.lyricsinthesky.lyrics.WordTimeTransfer;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PlaybackClock;
+import de.henner.lyricsinthesky.timing.SongTimings;
+import de.henner.lyricsinthesky.timing.TimingTracker;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,12 +49,21 @@ public final class LyricsController {
             long durationMs,
             boolean playing) {}
 
+    /**
+     * The song playing now, whose timing can be corrected on its own.
+     *
+     * @param shareable timed lyrics, whose corrections are shared; text spread over the song is corrected only here
+     */
+    public record Song(String id, String title, boolean shareable) {}
+
     /** @param failures failed lookups in a row for this song, for spacing out the retries */
     private record CacheEntry(Optional<Lyrics> lyrics, LookupState state, long createdAtMs, int failures) {
         CacheEntry(Optional<Lyrics> lyrics, LookupState state, long createdAtMs) {
             this(lyrics, state, createdAtMs, 0);
         }
     }
+
+    private record SongRef(Lyrics lyrics, String id) {}
 
     private final NowPlayingSource source;
     private final LrclibClient lrclib;
@@ -59,6 +72,10 @@ public final class LyricsController {
     /** Songs found before, so they still have lyrics when LRCLIB is busy or offline. */
     private final LyricsCache saved;
     private final SkyLyricsConfig config;
+    /** Timing corrections per song: the player's own and the ones many players agreed on. */
+    private final SongTimings timings;
+    /** Shares the player's corrections and asks for the common ones; {@code null} keeps everything on this PC. */
+    private final TimingTracker tracker;
     private final ExecutorService lookups = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "LyricsInTheSky-Lookup");
         thread.setDaemon(true);
@@ -79,18 +96,26 @@ public final class LyricsController {
     private volatile long demoStartedAtMs;
     private volatile NowPlaying simulated;
     private volatile boolean sourcesMuted;
+    /** The song ID of the lyrics shown last; worked out once per lyrics, not every frame. */
+    private volatile SongRef songRef;
 
     public LyricsController(NowPlayingSource source, LrclibClient lrclib, LyricsPlusClient lyricsPlus, LyricsCache saved,
-            SkyLyricsConfig config) {
+            SkyLyricsConfig config, SongTimings timings, TimingTracker tracker) {
         this.source = source;
         this.lrclib = lrclib;
         this.lyricsPlus = lyricsPlus;
         this.saved = saved;
         this.config = config;
+        this.timings = timings;
+        this.tracker = tracker;
     }
 
     public SkyLyricsConfig config() {
         return config;
+    }
+
+    public SongTimings timings() {
+        return timings;
     }
 
     /** Development only: pretend this track is playing instead of reading the media session. */
@@ -117,6 +142,10 @@ public final class LyricsController {
         if (!Boolean.TRUE.equals(config.lrclibAllowed)) {
             // Lyrics found before stay where they are, so switching the lookup back on shows them again at once.
             return;
+        }
+        if (cached != null && tracker != null) {
+            // Once per song: did other players correct its timing?
+            cached.lyrics().filter(LyricsController::shareable).ifPresent(found -> tracker.ask(songId(now, found)));
         }
         long nowMs = System.currentTimeMillis();
         if (cached != null && !lookUpAgain(cached, nowMs)) {
@@ -325,8 +354,46 @@ public final class LyricsController {
                 : entry == null ? LookupState.IDLE : entry.state();
         Lyrics lyrics = entry == null ? null : entry.lyrics().filter(found -> !found.isInstrumental()).orElse(null);
         long position = clock.at(key, nowMs, now.estimatePositionMs(nowMs), now.playing());
-        return new Timeline(key, now.title(), now.artist(), lyrics, state, position + config.offsetMs, now.durationMs(),
-                now.playing());
+        int songOffset = lyrics == null ? 0 : timings.offsetFor(songId(now, lyrics));
+        return new Timeline(key, now.title(), now.artist(), lyrics, state, position + config.offsetMs + songOffset,
+                now.durationMs(), now.playing());
+    }
+
+    /** The song playing now if it has lyrics, else {@code null}; never the demo. */
+    public Song currentSong() {
+        NowPlaying now = track;
+        if (now == null || isDemoRunning() || !Boolean.TRUE.equals(config.lrclibAllowed)) {
+            return null;
+        }
+        CacheEntry entry = cache.get(key(now));
+        Lyrics lyrics = entry == null ? null : entry.lyrics().filter(found -> !found.isInstrumental()).orElse(null);
+        return lyrics == null ? null : new Song(songId(now, lyrics), now.title(), shareable(lyrics));
+    }
+
+    /**
+     * The player's own timing for a song; {@code null} forgets it, so the one many players agreed on applies again.
+     * Corrections of timed lyrics are shared, unless the player switched that off.
+     */
+    public void setSongOffset(Song song, Integer offsetMs) {
+        timings.setOwn(song.id(), offsetMs);
+        if (tracker != null && song.shareable()) {
+            OptionalInt own = timings.own(song.id());
+            tracker.tell(song.id(), own.isPresent() ? own.getAsInt() : null);
+        }
+    }
+
+    /** Only timed lyrics are shared; text spread over the song by estimate is off everywhere in its own way. */
+    private static boolean shareable(Lyrics lyrics) {
+        return !lyrics.isEstimated() && !lyrics.isInstrumental();
+    }
+
+    private String songId(NowPlaying now, Lyrics lyrics) {
+        SongRef ref = songRef;
+        if (ref == null || ref.lyrics() != lyrics) {
+            ref = new SongRef(lyrics, SongId.of(now.artist(), now.title(), lyrics));
+            songRef = ref;
+        }
+        return ref.id();
     }
 
     /** Forgets cached "not found" and failed lookups, e.g. after the player allowed LRCLIB. */
@@ -348,9 +415,26 @@ public final class LyricsController {
         } else if (entry != null && entry.lyrics().map(Lyrics::isEstimated).orElse(false)) {
             state += " (ohne Zeiten, ungefähr)";
         }
-        return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms",
+        return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms%s",
                 now.artist(), now.title(), now.app(), now.playing() ? "spielt" : "pausiert",
-                now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs);
+                now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs, songTimingText());
+    }
+
+    /** ", dieser Song +300 ms (eigenes)" and the like, or nothing when the song has no correction. */
+    private String songTimingText() {
+        Song song = currentSong();
+        if (song == null) {
+            return "";
+        }
+        SongTimings.Shared common = timings.shared(song.id());
+        String players = common != null && common.players() > 0 ? ", " + common.players() + " Spieler haben korrigiert" : "";
+        if (timings.own(song.id()).isPresent()) {
+            return String.format(", dieser Song %+d ms (eigenes%s)", timings.own(song.id()).getAsInt(), players);
+        }
+        if (common != null && common.offsetMs() != null) {
+            return String.format(", dieser Song %+d ms (gemeinsam von %d Spielern)", common.offsetMs(), common.players());
+        }
+        return players.isEmpty() ? "" : players;
     }
 
     private static String key(NowPlaying track) {

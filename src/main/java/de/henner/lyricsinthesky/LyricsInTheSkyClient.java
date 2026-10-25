@@ -17,6 +17,8 @@ import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
 import de.henner.lyricsinthesky.spotify.SpotifyAccount;
 import de.henner.lyricsinthesky.spotify.SpotifyNowPlayingSource;
+import de.henner.lyricsinthesky.timing.SongTimings;
+import de.henner.lyricsinthesky.timing.TimingTracker;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
@@ -81,8 +83,12 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         }
         NowPlayingSource source = osSource == null ? spotifySource : new PreferredNowPlayingSource(spotifySource, osSource);
         LrclibClient lrclib = new LrclibClient(version);
+        SongTimings timings = new SongTimings(configDir.resolve(MOD_ID).resolve("song-timing.json"));
+        // The self test plays songs with made-up timing; nothing of it goes to the tracker.
+        TimingTracker tracker = new TimingTracker(timings, () -> config.shareTiming && !SelfTest.isEnabled(),
+                config.installId, version);
         controller = new LyricsController(source, lrclib, new LyricsPlusClient(version),
-                new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")), config);
+                new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")), config, timings, tracker);
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the
         // helper process out of the busy resource-loading phase.
@@ -93,7 +99,10 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             handleKeys(client);
             offerLyricsPlus(client);
         });
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> noteLrclib(client));
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            noteLrclib(client);
+            noteTiming(client);
+        });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SkyLyricsRenderer.INSTANCE.reset());
         HudElementRegistry.attachElementBefore(VanillaHudElements.BOSS_BAR,
                 Identifier.fromNamespaceAndPath(MOD_ID, "now_playing"), new NowPlayingHud());
@@ -142,10 +151,51 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         }
     }
 
+    /** While a song with lyrics plays, the keys correct that song only; else they move all lyrics. */
     private static void changeOffset(Minecraft client, int deltaMs) {
+        LyricsController.Song song = controller.currentSong();
+        if (song != null) {
+            controller.setSongOffset(song, controller.timings().offsetFor(song.id()) + deltaMs);
+            client.gui.hud.getChat().addClientSystemMessage(prefix().append(songOffsetText(song)));
+            return;
+        }
         config.offsetMs += deltaMs;
         config.save();
         client.gui.hud.getChat().addClientSystemMessage(prefix().append(offsetText()));
+    }
+
+    private static String songOffsetText(LyricsController.Song song) {
+        int offset = controller.timings().offsetFor(song.id());
+        boolean own = controller.timings().own(song.id()).isPresent();
+        return "Timing für „" + song.title() + "“: " + (offset >= 0 ? "+" : "") + offset + " ms"
+                + (own ? "" : " (gemeinsame Korrektur)") + ", nur dieser Song. Positiv = Lyrics früher.";
+    }
+
+    private static int songOffset(CommandContext<FabricClientCommandSource> context, Integer offsetMs) {
+        LyricsController.Song song = controller.currentSong();
+        if (song == null) {
+            return reply(context, "Gerade läuft kein Song mit Songtext. Für alle Songs: /skylyrics offset <ms>.");
+        }
+        controller.setSongOffset(song, offsetMs);
+        return reply(context, songOffsetText(song));
+    }
+
+    /**
+     * First world join with sharing on: say once that timing corrections are shared and that the mod asks the tracker
+     * about every song with lyrics, and offer to switch it off.
+     */
+    private static void noteTiming(Minecraft client) {
+        if (config.timingNoticeShown || !config.shareTiming || SelfTest.isEnabled()) {
+            return;
+        }
+        MutableComponent message = prefix()
+                .append("Korrigierst du das Timing eines Songs, wird das anonym mit henrik.click geteilt: eine zufällige "
+                        + "Kennung, der Song nur als Prüfsumme. Haben 10 Spieler einen Song gleich korrigiert, passt er "
+                        + "für alle. Dafür fragt die Mod dort bei jedem Song mit Songtext nach. ")
+                .append(button("[Ausschalten]", "/skylyrics share off", ChatFormatting.GRAY));
+        client.gui.hud.getChat().addClientSystemMessage(message);
+        config.timingNoticeShown = true;
+        config.save();
     }
 
     /**
@@ -210,7 +260,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             LiteralArgumentBuilder<FabricClientCommandSource> root = ClientCommands.literal("skylyrics")
                     .executes(context -> reply(context, "Einstellungen: Rechte Umschalttaste oder /skylyrics settings. "
                             + "Befehle: status, demo, on, off, mode <sky|around>, style <elegant|natural|flow|classic>, "
-                            + "offset <ms>, opacity <0.1-1>, scale <0.3-3>, height <10-70>, palette <name>, "
+                            + "offset <ms>, songoffset <ms|reset>, share <on|off>, opacity <0.1-1>, scale <0.3-3>, "
+                            + "height <10-70>, palette <name>, "
                             + "font <sans|script|minecraft>, follow <on|off>, title <on|off>, hud <on|off>, "
                             + "behind <on|off>, beat <on|off>, along <on|off>, preset <standard|sky|around|party|calm>, "
                             + "bar <pill|karaoke|plain|title>, barpos <top|bottom>, "
@@ -248,6 +299,12 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                                         config.save();
                                         return reply(context, offsetText());
                                     })))
+                    .then(ClientCommands.literal("songoffset")
+                            .then(ClientCommands.literal("reset").executes(context -> songOffset(context, null)))
+                            .then(ClientCommands.argument("ms", IntegerArgumentType.integer(-SongTimings.MAX_OFFSET_MS,
+                                    SongTimings.MAX_OFFSET_MS))
+                                    .executes(context -> songOffset(context, IntegerArgumentType.getInteger(context, "ms")))))
+                    .then(toggle("share", (c, value) -> c.shareTiming = value, "Timing-Korrekturen teilen"))
                     .then(ClientCommands.literal("opacity")
                             .then(ClientCommands.argument("value", FloatArgumentType.floatArg(0.1f, 1f))
                                     .executes(context -> set(context, c -> c.opacity = FloatArgumentType.getFloat(context, "value"),

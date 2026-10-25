@@ -2,6 +2,6 @@
   "key.category.lyricsinthesky.main": "Lyrics in the Sky",
   "key.lyricsinthesky.settings": "Einstellungen öffnen",
   "key.lyricsinthesky.toggle": "Lyrics ein/aus",
-  "key.lyricsinthesky.earlier": "Lyrics 100 ms früher",
-  "key.lyricsinthesky.later": "Lyrics 100 ms später"
+  "key.lyricsinthesky.earlier": "Lyrics 100 ms früher (dieser Song)",
+  "key.lyricsinthesky.later": "Lyrics 100 ms später (dieser Song)"
 }
