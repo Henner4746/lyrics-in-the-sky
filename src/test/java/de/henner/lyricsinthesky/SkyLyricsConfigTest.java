@@ -20,6 +20,22 @@ class SkyLyricsConfigTest {
     }
 
     @Test
+    void lyricsPlusSwitchedOnBeforeCarriesOverAndUnknownServicesAreDropped(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("lyricsinthesky.json");
+        Files.writeString(file, "{\"lyricsPlus\": true, \"wordSources\": [\"kugou\", \"spotify\"]}", StandardCharsets.UTF_8);
+        SkyLyricsConfig config = SkyLyricsConfig.load(file);
+        // Kept in the order the services are asked.
+        assertEquals(java.util.List.of("lyricsplus", "kugou"), config.wordSources);
+        assertEquals(false, config.lyricsPlus);
+        config.setWordTimes(true);
+        assertEquals(SkyLyricsConfig.WORD_SOURCES, config.wordSources);
+        config.setWordSource("deezer", false);
+        assertEquals(false, config.wordSource("deezer"));
+        config.setWordTimes(false);
+        assertEquals(false, config.wordTimes());
+    }
+
+    @Test
     void unknownValuesFallBackToTheDefaults(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("lyricsinthesky.json");
         Files.writeString(file, "{\"style\": \"neon\", \"palette\": \"rainbow\", \"mode\": \"moon\"}", StandardCharsets.UTF_8);

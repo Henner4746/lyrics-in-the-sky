@@ -26,22 +26,8 @@ import java.util.StringJoiner;
  * go to lyricsplus.prjktla.my.id. What comes back is only used after {@link WordTimeTransfer} has checked that it was
  * timed for the same recording as the LRCLIB lyrics.
  */
-public final class LyricsPlusClient {
+public final class LyricsPlusClient implements WordTimeSource {
     private static final String BASE = "https://lyricsplus.prjktla.my.id/v2/lyrics/get";
-
-    /** A sung word and when it starts, in ms of the song as LyricsPlus timed it. */
-    public record Word(long startMs, String text) {}
-
-    public record Line(long startMs, List<Word> words) {
-        public String text() {
-            StringJoiner text = new StringJoiner(" ");
-            words.forEach(word -> text.add(word.text()));
-            return text.toString();
-        }
-    }
-
-    /** @param source where LyricsPlus took the words from, e.g. "Apple" or "QQ Music" */
-    public record Timed(String source, List<Line> lines) {}
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -53,8 +39,14 @@ public final class LyricsPlusClient {
         this.userAgent = "LyricsInTheSky/" + modVersion + " (Minecraft mod; optional word times)";
     }
 
+    @Override
+    public String name() {
+        return "LyricsPlus";
+    }
+
     /** Empty when LyricsPlus has no word times for the song: only line times, none, or no lyrics at all. */
-    public Optional<Timed> find(NowPlaying track) throws IOException, InterruptedException {
+    @Override
+    public Optional<TimedWords> find(NowPlaying track) throws IOException, InterruptedException {
         return request(track).flatMap(LyricsPlusClient::parse);
     }
 
@@ -97,7 +89,7 @@ public final class LyricsPlusClient {
 
     /** LRC of an answer: word-timed when it has syllables, line-timed when it has only lines, else empty. */
     static Optional<String> lrc(String body) {
-        Optional<Timed> timed = parse(body);
+        Optional<TimedWords> timed = parse(body);
         if (timed.isPresent()) {
             return Optional.of(WordTimeTransfer.lrc(timed.get().lines(), 0, WordTimeTransfer.STAND_IN_MARK));
         }
@@ -119,7 +111,7 @@ public final class LyricsPlusClient {
         return lines == 0 ? Optional.empty() : Optional.of(lrc.toString());
     }
 
-    static Optional<Timed> parse(String body) {
+    static Optional<TimedWords> parse(String body) {
         JsonObject root = JsonParser.parseString(body).getAsJsonObject();
         String type = string(root, "type");
         if (!"Word".equalsIgnoreCase(type) && !"Syllable".equalsIgnoreCase(type)) {
@@ -127,25 +119,25 @@ public final class LyricsPlusClient {
         }
         String source = root.has("metadata") && root.get("metadata").isJsonObject()
                 ? string(root.getAsJsonObject("metadata"), "source") : "";
-        List<Line> lines = new ArrayList<>();
+        List<TimedWords.Line> lines = new ArrayList<>();
         if (root.has("lyrics") && root.get("lyrics").isJsonArray()) {
             for (JsonElement element : root.getAsJsonArray("lyrics")) {
                 JsonObject line = element.getAsJsonObject();
                 if (!line.has("syllabus") || !line.get("syllabus").isJsonArray()) {
                     continue;
                 }
-                List<Word> words = words(line.getAsJsonArray("syllabus"));
+                List<TimedWords.Word> words = words(line.getAsJsonArray("syllabus"));
                 if (!words.isEmpty()) {
-                    lines.add(new Line(words.get(0).startMs(), words));
+                    lines.add(new TimedWords.Line(words.get(0).startMs(), words));
                 }
             }
         }
-        return lines.isEmpty() ? Optional.empty() : Optional.of(new Timed(source, lines));
+        return lines.isEmpty() ? Optional.empty() : Optional.of(new TimedWords(source, lines));
     }
 
     /** Syllables joined into words: a syllable ending in a space ends its word. Backing vocals are left out. */
-    static List<Word> words(JsonArray syllables) {
-        List<Word> words = new ArrayList<>();
+    static List<TimedWords.Word> words(JsonArray syllables) {
+        List<TimedWords.Word> words = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         long start = -1;
         for (JsonElement element : syllables) {
@@ -167,11 +159,11 @@ public final class LyricsPlusClient {
         return words;
     }
 
-    private static void add(List<Word> words, long start, StringBuilder text) {
+    private static void add(List<TimedWords.Word> words, long start, StringBuilder text) {
         String word = text.toString().trim();
         text.setLength(0);
         if (start >= 0 && !word.isEmpty()) {
-            words.add(new Word(start, word));
+            words.add(new TimedWords.Word(start, word));
         }
     }
 

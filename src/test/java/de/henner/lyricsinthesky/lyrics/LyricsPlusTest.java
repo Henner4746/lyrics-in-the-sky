@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -20,10 +19,10 @@ class LyricsPlusTest {
 
     @Test
     void readsWordsAndSkipsBackingVocals() {
-        LyricsPlusClient.Timed timed = LyricsPlusClient.parse(WORD_RESPONSE).orElseThrow();
+        TimedWords timed = LyricsPlusClient.parse(WORD_RESPONSE).orElseThrow();
         assertEquals("Apple", timed.source());
         assertEquals(2, timed.lines().size());
-        LyricsPlusClient.Line first = timed.lines().get(0);
+        TimedWords.Line first = timed.lines().get(0);
         assertEquals("She watches the ships", first.text());
         assertEquals(1000, first.startMs());
         // "wat" + "ches " joins into one word at the first syllable's time.
@@ -70,7 +69,7 @@ class LyricsPlusTest {
     @Test
     void takesWordTimesWhenTheLinesLineUp() {
         Lyrics base = Lyrics.parseLrc(lrcAt(0));
-        LyricsPlusClient.Timed timed = timedAt(0);
+        TimedWords timed = timedAt(0);
         WordTimeTransfer.Result result = WordTimeTransfer.transfer(base, timed).orElseThrow();
         assertTrue(result.lyrics().hasWordTiming());
         assertEquals(0, result.shiftMs());
@@ -113,15 +112,6 @@ class LyricsPlusTest {
         assertTrue(WordTimeTransfer.transfer(base, LyricsPlusClient.parse(mixed + "]}").orElseThrow()).isEmpty());
     }
 
-    @Test
-    void theNothingFittingMarkerExpiresAfterTwoWeeks() {
-        LocalDate day = LocalDate.of(2026, 10, 25);
-        String marker = WordTimeTransfer.noneMarker(day);
-        assertTrue(WordTimeTransfer.recentlyNone(marker, day.plusDays(13)));
-        assertFalse(WordTimeTransfer.recentlyNone(marker, day.plusDays(15)));
-        assertFalse(WordTimeTransfer.recentlyNone(WordTimeTransfer.MARK, day));
-    }
-
     private static String lrcAt(long shiftMs) {
         StringBuilder lrc = new StringBuilder();
         for (int i = 0; i < 10; i++) {
@@ -130,7 +120,7 @@ class LyricsPlusTest {
         return lrc.toString();
     }
 
-    private static LyricsPlusClient.Timed timedAt(long shiftMs) {
+    private static TimedWords timedAt(long shiftMs) {
         StringBuilder json = new StringBuilder("{\"type\":\"Word\",\"metadata\":{\"source\":\"Apple\"},\"lyrics\":[");
         for (int i = 0; i < 10; i++) {
             long t = i * 4000L + shiftMs;

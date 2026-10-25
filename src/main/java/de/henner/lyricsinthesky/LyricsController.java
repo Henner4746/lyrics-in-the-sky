@@ -5,6 +5,7 @@ import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.lyrics.LyricsPlusClient;
 import de.henner.lyricsinthesky.lyrics.SongId;
+import de.henner.lyricsinthesky.lyrics.WordTimeFinder;
 import de.henner.lyricsinthesky.lyrics.WordTimeTransfer;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
@@ -13,9 +14,11 @@ import de.henner.lyricsinthesky.timing.SongTimings;
 import de.henner.lyricsinthesky.timing.TimingTracker;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,7 +70,9 @@ public final class LyricsController {
 
     private final NowPlayingSource source;
     private final LrclibClient lrclib;
-    /** Optional word times, only asked when the player switched LyricsPlus on. */
+    /** Optional word times, only asked when the player switched services on ("Wortgenau"). */
+    private final WordTimeFinder wordTimeFinder;
+    /** Also stands in line by line when LRCLIB has no lyrics and no service has word times. */
     private final LyricsPlusClient lyricsPlus;
     /** Songs found before, so they still have lyrics when LRCLIB is busy or offline. */
     private final LyricsCache saved;
@@ -99,10 +104,12 @@ public final class LyricsController {
     /** The song ID of the lyrics shown last; worked out once per lyrics, not every frame. */
     private volatile SongRef songRef;
 
-    public LyricsController(NowPlayingSource source, LrclibClient lrclib, LyricsPlusClient lyricsPlus, LyricsCache saved,
-            SkyLyricsConfig config, SongTimings timings, TimingTracker tracker) {
+    public LyricsController(NowPlayingSource source, LrclibClient lrclib, WordTimeFinder wordTimeFinder,
+            LyricsPlusClient lyricsPlus, LyricsCache saved, SkyLyricsConfig config, SongTimings timings,
+            TimingTracker tracker) {
         this.source = source;
         this.lrclib = lrclib;
+        this.wordTimeFinder = wordTimeFinder;
         this.lyricsPlus = lyricsPlus;
         this.saved = saved;
         this.config = config;
@@ -202,7 +209,7 @@ public final class LyricsController {
                 Optional<Lyrics> standIn = standIn(key, now);
                 if (standIn.isPresent()) {
                     cache.put(key, new CacheEntry(standIn, LookupState.FOUND, System.currentTimeMillis()));
-                    LOGGER.info("Lyrics for '{}' by '{}': FOUND (LyricsPlus, LRCLIB has none)", now.title(), now.artist());
+                    LOGGER.info("Lyrics for '{}' by '{}': FOUND (word time service, LRCLIB has none)", now.title(), now.artist());
                     return;
                 }
                 // Last: the text without times, spread over the song. Not kept on disk, so timed lyrics that turn up
@@ -221,11 +228,11 @@ public final class LyricsController {
             lyrics.ifPresent(found -> refine(key, now, found));
         } catch (Exception e) {
             int failures = failuresBefore + 1;
-            // LRCLIB busy or unreachable: with LyricsPlus on, its lyrics show right away instead of after the retry.
+            // LRCLIB busy or unreachable: with word time services on, theirs show right away instead of after the retry.
             Optional<Lyrics> standIn = standIn(key, now);
             if (standIn.isPresent()) {
                 cache.put(key, new CacheEntry(standIn, LookupState.FOUND, System.currentTimeMillis()));
-                LOGGER.warn("Lyrics lookup for '{}' failed ({}), LyricsPlus stands in", now.title(), e.toString());
+                LOGGER.warn("Lyrics lookup for '{}' failed ({}), a word time service stands in", now.title(), e.toString());
                 return;
             }
             cache.put(key, new CacheEntry(Optional.empty(), LookupState.ERROR, System.currentTimeMillis(), failures));
@@ -235,44 +242,58 @@ public final class LyricsController {
     }
 
     /**
-     * With LyricsPlus switched on, its lyrics stand in when LRCLIB has none or cannot be reached: with word times
-     * where it has them, else line by line. They are kept apart from LRCLIB's, so switching LyricsPlus off brings
-     * back the old way, and LRCLIB is still asked first next time.
+     * With word time services switched on, they stand in when LRCLIB has no lyrics or cannot be reached: the first one
+     * that has the song with word times, else LyricsPlus line by line if it is on. They are kept apart from LRCLIB's,
+     * so switching the services off brings back the old way, and LRCLIB is still asked first next time.
      */
     private Optional<Lyrics> standIn(String key, NowPlaying now) {
-        if (!config.lyricsPlus || now.durationMs() <= 0) {
+        Set<String> enabled = enabledSources();
+        if (enabled.isEmpty() || now.durationMs() <= 0) {
             return Optional.empty();
         }
-        String savedKey = key + "\u0000lyricsplus-standin";
+        String savedKey = key + "\u0000wordtimes-standin";
         Optional<String> known = saved.read(savedKey);
         if (known.isPresent()) {
-            if (WordTimeTransfer.recentlyNone(known.get(), LocalDate.now())) {
+            if (WordTimeFinder.recentlyNone(known.get(), LocalDate.now(), enabled)) {
                 return Optional.empty();
             }
+            Optional<String> from = WordTimeFinder.serviceOf(known.get());
             Lyrics lyrics = Lyrics.parseLrc(known.get());
-            if (!lyrics.isEmpty()) {
+            // LyricsPlus line times kept without a mark came from LyricsPlus.
+            if (!lyrics.isEmpty() && enabled.contains(from.orElse("lyricsplus"))) {
                 return Optional.of(lyrics);
             }
         }
         try {
-            Optional<String> lrc = lyricsPlus.findLrc(now);
-            Optional<Lyrics> lyrics = lrc.map(Lyrics::parseLrc).filter(found -> !found.isEmpty());
-            saved.write(savedKey, lyrics.isPresent() ? lrc.get() : WordTimeTransfer.noneMarker(LocalDate.now()));
-            LOGGER.info("LyricsPlus stand-in for '{}' by '{}': {}", now.title(), now.artist(), lyrics
-                    .map(found -> found.hasWordTiming() ? "word times" : "line times").orElse("none"));
+            WordTimeFinder.Outcome outcome = wordTimeFinder.find(now, null, enabled);
+            if (outcome.taken().isPresent()) {
+                WordTimeFinder.Taken taken = outcome.taken().get();
+                saved.write(savedKey, taken.lyrics().lrc());
+                LOGGER.info("Word times from {} stand in for '{}' by '{}'", taken.source(), now.title(), now.artist());
+                return Optional.of(taken.lyrics());
+            }
+            Optional<String> lines = enabled.contains("lyricsplus") ? lyricsPlus.findLrc(now) : Optional.empty();
+            Optional<Lyrics> lyrics = lines.map(Lyrics::parseLrc).filter(found -> !found.isEmpty());
+            if (lyrics.isPresent()) {
+                saved.write(savedKey, lines.get());
+            } else if (outcome.complete()) {
+                saved.write(savedKey, WordTimeFinder.noneMarker(LocalDate.now(), enabled));
+            }
+            LOGGER.info("Stand-in for '{}' by '{}': {}", now.title(), now.artist(),
+                    lyrics.isPresent() ? "LyricsPlus line times" : "none");
             return lyrics;
         } catch (Exception e) {
-            LOGGER.info("LyricsPlus stand-in for '{}' failed: {}", now.title(), e.toString());
+            LOGGER.info("Stand-in for '{}' failed: {}", now.title(), e.toString());
             return Optional.empty();
         }
     }
 
     /**
-     * With LyricsPlus switched on: looks for word times of the same recording in the background and swaps them in
-     * while the song plays. The lyrics shown meanwhile are LRCLIB's, with estimated word times.
+     * With word time services switched on: looks for word times of the same recording in the background and swaps them
+     * in while the song plays. The lyrics shown meanwhile are LRCLIB's, with estimated word times.
      */
     private void refine(String key, NowPlaying now, Lyrics found) {
-        if (!config.lyricsPlus || found.isInstrumental() || found.hasWordTiming()) {
+        if (!config.wordTimes() || found.isInstrumental() || found.hasWordTiming()) {
             return;
         }
         wordTimes.submit(() -> {
@@ -283,39 +304,46 @@ public final class LyricsController {
                                 : entry));
             } catch (Exception e) {
                 // Not kept as "nothing fitting": a busy or unreachable service is asked again next time.
-                LOGGER.info("LyricsPlus for '{}' failed: {}", now.title(), e.toString());
+                LOGGER.info("Word times for '{}' failed: {}", now.title(), e.toString());
             }
         });
     }
 
-    private Optional<Lyrics> wordTimed(String key, NowPlaying now, Lyrics found) throws IOException, InterruptedException {
-        String savedKey = key + "\u0000lyricsplus";
-        Optional<String> known = saved.read(savedKey);
-        if (known.isPresent() && WordTimeTransfer.recentlyNone(known.get(), LocalDate.now())) {
+    private Optional<Lyrics> wordTimed(String key, NowPlaying now, Lyrics found) throws InterruptedException {
+        Set<String> enabled = enabledSources();
+        String savedKey = key + "\u0000wordtimes";
+        // Word times taken by 1.3.0-dev.1 to dev.3 were kept under the LyricsPlus name.
+        Optional<String> known = saved.read(savedKey).or(() -> saved.read(key + "\u0000lyricsplus")
+                .filter(kept -> WordTimeFinder.serviceOf(kept).isPresent()));
+        if (known.isPresent() && WordTimeFinder.recentlyNone(known.get(), LocalDate.now(), enabled)) {
             return Optional.empty();
         }
-        if (known.isPresent() && known.get().startsWith(WordTimeTransfer.MARK)) {
+        Optional<String> from = known.flatMap(WordTimeFinder::serviceOf);
+        if (from.isPresent() && enabled.contains(from.get())) {
             Lyrics lyrics = Lyrics.parseLrc(known.get());
             if (lyrics.hasWordTiming()) {
                 return Optional.of(lyrics);
             }
         }
-        Optional<LyricsPlusClient.Timed> timed = lyricsPlus.find(now);
-        Optional<WordTimeTransfer.Result> result = timed.flatMap(words -> WordTimeTransfer.transfer(found, words));
-        if (result.isEmpty()) {
-            saved.write(savedKey, WordTimeTransfer.noneMarker(LocalDate.now()));
-            LOGGER.info("LyricsPlus for '{}' by '{}': {}", now.title(), now.artist(),
-                    timed.isPresent() ? "word times of another version, estimating instead" : "no word times");
+        WordTimeFinder.Outcome outcome = wordTimeFinder.find(now, found, enabled);
+        if (outcome.taken().isEmpty()) {
+            if (outcome.complete()) {
+                saved.write(savedKey, WordTimeFinder.noneMarker(LocalDate.now(), enabled));
+            }
+            LOGGER.info("Word times for '{}' by '{}': none that fit, estimating instead", now.title(), now.artist());
             return Optional.empty();
         }
-        WordTimeTransfer.Result taken = result.get();
-        saved.write(savedKey, taken.lrc());
-        LOGGER.info("LyricsPlus for '{}' by '{}': word times from {}, {} lines matched, {} ms from LRCLIB, shifted {} ms",
-                now.title(), now.artist(), timed.get().source(), taken.matched(), taken.offsetMs(), taken.shiftMs());
+        WordTimeFinder.Taken taken = outcome.taken().get();
+        saved.write(savedKey, taken.lyrics().lrc());
+        LOGGER.info("Word times for '{}' by '{}' from {} ({})", now.title(), now.artist(), taken.source(), taken.how());
         return Optional.of(taken.lyrics());
     }
 
-    /** After LyricsPlus was switched on or off: found songs are looked up again, from the saved copies. */
+    private Set<String> enabledSources() {
+        return new LinkedHashSet<>(config.wordSources);
+    }
+
+    /** After word time services were switched on or off: found songs are looked up again, from the saved copies. */
     public void refreshWordTimes() {
         cache.values().removeIf(entry -> entry.state() == LookupState.FOUND);
         trackKey = null;
@@ -411,7 +439,8 @@ public final class LyricsController {
         String state = !Boolean.TRUE.equals(config.lrclibAllowed) ? LookupState.NOT_ALLOWED.name()
                 : entry == null ? LookupState.IDLE.name() : entry.state().name();
         if (entry != null && entry.lyrics().map(Lyrics::hasWordTiming).orElse(false)) {
-            state += " (wortgenau)";
+            state += entry.lyrics().flatMap(found -> WordTimeFinder.sourceOf(found.lrc()))
+                    .map(from -> " (wortgenau, " + from + ")").orElse(" (wortgenau)");
         } else if (entry != null && entry.lyrics().map(Lyrics::isEstimated).orElse(false)) {
             state += " (ohne Zeiten, ungefähr)";
         }

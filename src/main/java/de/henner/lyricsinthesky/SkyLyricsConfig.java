@@ -8,9 +8,12 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +52,11 @@ public final class SkyLyricsConfig {
     /** Edges the bar sits at: the top of the screen, or the bottom above the hotbar. */
     public static final List<String> HUD_ANCHORS = List.of("top", "bottom");
     public static final float DEFAULT_ELEVATION = 16f;
+    /**
+     * The word time services ("Grauzone"), in the order they are asked: all unofficial, free to reach without an
+     * account, and liable to change or vanish any day. Each is off until the player switches it on.
+     */
+    public static final List<String> WORD_SOURCES = List.of("deezer", "lyricsplus", "netease", "kugou");
 
     public boolean enabled = true;
     /** One of {@link #MODES}. */
@@ -61,7 +69,9 @@ public final class SkyLyricsConfig {
     public Boolean lrclibAllowed = true;
     /** The one-time chat note on what is sent to lrclib.net has been shown. */
     public boolean lrclibNoticeShown = false;
-    /** Word times from LyricsPlus, an unofficial service that reads them from Apple Music and QQ Music; off unless switched on. */
+    /** The {@link #WORD_SOURCES} switched on; none unless the player switched them on ("Wortgenau"). */
+    public List<String> wordSources = new ArrayList<>();
+    /** Up to 1.3.0-dev.3 the only word time service; only read to carry the choice over to {@link #wordSources}. */
     public boolean lyricsPlus = false;
     /**
      * Timing corrections per song are shared anonymously with the timing tracker on henrik.click, and the ones many
@@ -201,6 +211,37 @@ public final class SkyLyricsConfig {
         hudOffsetX = Math.max(-4000, Math.min(4000, hudOffsetX));
         hudOffsetY = Math.max(-4000, Math.min(4000, hudOffsetY));
         spotifyClientId = spotifyClientId == null ? "" : spotifyClientId.trim();
+        Set<String> sources = new LinkedHashSet<>(wordSources == null ? List.of() : wordSources);
+        if (lyricsPlus) {
+            sources.add("lyricsplus");
+            lyricsPlus = false;
+        }
+        sources.retainAll(WORD_SOURCES);
+        wordSources = new ArrayList<>(WORD_SOURCES.stream().filter(sources::contains).toList());
+    }
+
+    /** Whether any word time service is switched on: the switch "Wortgenau". */
+    public boolean wordTimes() {
+        return !wordSources.isEmpty();
+    }
+
+    /** The main switch: all word time services on, or all off. */
+    public void setWordTimes(boolean on) {
+        wordSources = new ArrayList<>(on ? WORD_SOURCES : List.of());
+    }
+
+    public boolean wordSource(String name) {
+        return wordSources.contains(name);
+    }
+
+    public void setWordSource(String name, boolean on) {
+        Set<String> sources = new LinkedHashSet<>(wordSources);
+        if (on) {
+            sources.add(name);
+        } else {
+            sources.remove(name);
+        }
+        wordSources = new ArrayList<>(WORD_SOURCES.stream().filter(sources::contains).toList());
     }
 
     public void applyPreset(String preset) {

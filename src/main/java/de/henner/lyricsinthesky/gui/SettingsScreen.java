@@ -188,10 +188,11 @@ public final class SettingsScreen extends Screen {
             config.lrclibAllowed = value;
             controller.retryLookups();
         }, "Songtexte von lrclib.net. Gesendet werden nur Titel, Künstler, Album und Länge des Songs."));
-        leftY = row("Wortgenau", left, leftY, new Toggle(control, () -> config.lyricsPlus, value -> {
-            config.lyricsPlus = value;
+        leftY = row("Wortgenau", left, leftY, new Toggle(control, config::wordTimes, value -> {
+            config.setWordTimes(value);
             controller.refreshWordTimes();
-        }, "Wortzeiten aus Apple/QQ Music über LyricsPlus (inoffiziell). Sendet Titel, Künstler, Album, Länge."));
+        }, "Echte Wortzeiten von inoffiziellen Diensten (Grauzone: Deezer, LyricsPlus, NetEase, Kugou). Sie bekommen "
+                + "Titel, Künstler, Album, Länge und können jederzeit wegfallen. Einzeln unter „Quellen“."));
         int rightX = twoColumns ? left + columnWidth + COLUMN_GAP : left;
         int rightY = twoColumns ? y : leftY;
         rightY = row("Lyrics", rightX, rightY, new Toggle(control, () -> config.enabled, value -> config.enabled = value,

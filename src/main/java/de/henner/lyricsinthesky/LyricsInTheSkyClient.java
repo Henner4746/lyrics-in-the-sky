@@ -10,7 +10,11 @@ import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
+import de.henner.lyricsinthesky.lyrics.DeezerClient;
+import de.henner.lyricsinthesky.lyrics.KugouClient;
 import de.henner.lyricsinthesky.lyrics.LyricsPlusClient;
+import de.henner.lyricsinthesky.lyrics.NeteaseClient;
+import de.henner.lyricsinthesky.lyrics.WordTimeFinder;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PreferredNowPlayingSource;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
@@ -87,7 +91,12 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         // The self test plays songs with made-up timing; nothing of it goes to the tracker.
         TimingTracker tracker = new TimingTracker(timings, () -> config.shareTiming && !SelfTest.isEnabled(),
                 config.installId, version);
-        controller = new LyricsController(source, lrclib, new LyricsPlusClient(version),
+        LyricsPlusClient lyricsPlus = new LyricsPlusClient(version);
+        NeteaseClient netease = new NeteaseClient(version);
+        // In the order measured best: Deezer fitted most songs, LyricsPlus (Apple, QQ) and NetEase add others, Kugou few.
+        WordTimeFinder wordTimes = new WordTimeFinder(List.of(new DeezerClient(version), lyricsPlus, netease,
+                new KugouClient(version)));
+        controller = new LyricsController(source, lrclib, wordTimes, lyricsPlus,
                 new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")), config, timings, tracker);
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the
@@ -216,11 +225,11 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     }
 
     /**
-     * A song LRCLIB has no timed lyrics for, with LyricsPlus off: offer it once per game session, since it finds many
-     * of those songs. Nothing is sent to LyricsPlus until the player clicks.
+     * A song LRCLIB has no timed lyrics for, with the word time services off: offer them once per game session, since
+     * they find many of those songs. Nothing is sent to them until the player clicks.
      */
     private static void offerLyricsPlus(Minecraft client) {
-        if (lyricsPlusOffered || config.lyricsPlus || client.player == null || SelfTest.isEnabled()) {
+        if (lyricsPlusOffered || config.wordTimes() || client.player == null || SelfTest.isEnabled()) {
             return;
         }
         LyricsController.Timeline timeline = controller.timeline(System.currentTimeMillis());
@@ -234,10 +243,10 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         }
         lyricsPlusOffered = true;
         MutableComponent message = prefix()
-                .append("Für „" + timeline.title() + "“ hat lrclib.net keine Lyrics mit Zeiten. „Wortgenau“ sucht zusätzlich "
-                        + "über LyricsPlus (inoffiziell, Apple Music und QQ Music) und bekommt dafür Titel, Künstler, Album "
-                        + "und Länge. ")
-                .append(button("[Einschalten]", "/skylyrics lyricsplus on", ChatFormatting.GREEN));
+                .append("Für „" + timeline.title() + "“ hat lrclib.net keine Lyrics mit Zeiten. „Wortgenau“ fragt zusätzlich "
+                        + "inoffizielle Dienste (Grauzone: Deezer, LyricsPlus, NetEase, Kugou) und schickt ihnen Titel, "
+                        + "Künstler, Album und Länge. Sie können jederzeit wegfallen. ")
+                .append(button("[Einschalten]", "/skylyrics wortgenau on", ChatFormatting.GREEN));
         client.gui.hud.getChat().addClientSystemMessage(message);
     }
 
@@ -265,7 +274,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                             + "font <sans|script|minecraft>, follow <on|off>, title <on|off>, hud <on|off>, "
                             + "behind <on|off>, beat <on|off>, along <on|off>, preset <standard|sky|around|party|calm>, "
                             + "bar <pill|karaoke|plain|title>, barpos <top|bottom>, "
-                            + "lrclib <on|off>, lyricsplus <on|off>, spotify <connect|disconnect>"))
+                            + "lrclib <on|off>, wortgenau <on|off>, source <deezer|lyricsplus|netease|kugou> <on|off>, "
+                            + "spotify <connect|disconnect>"))
                     .then(ClientCommands.literal("status").executes(context ->
                             reply(context, controller.status() + " | " + spotify.statusText())))
                     .then(ClientCommands.literal("settings").executes(context -> {
@@ -339,12 +349,33 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                         c.lrclibAllowed = value;
                         controller.retryLookups();
                     }, "Songtexte von lrclib.net"))
-                    .then(toggle("lyricsplus", (c, value) -> {
-                        c.lyricsPlus = value;
+                    .then(toggle("wortgenau", (c, value) -> {
+                        c.setWordTimes(value);
                         controller.refreshWordTimes();
-                    }, "Wortzeiten von LyricsPlus"));
+                    }, "Wortgenau (alle Grauzonen-Dienste)"))
+                    .then(toggle("grauzone", (c, value) -> {
+                        c.setWordTimes(value);
+                        controller.refreshWordTimes();
+                    }, "Grauzone (alle inoffiziellen Dienste)"))
+                    .then(toggle("lyricsplus", (c, value) -> {
+                        c.setWordSource("lyricsplus", value);
+                        controller.refreshWordTimes();
+                    }, "Wortzeiten von LyricsPlus"))
+                    .then(sources());
             dispatcher.register(root);
         });
+    }
+
+    /** {@code source <name> <on|off>}: one word time service at a time. */
+    private static LiteralArgumentBuilder<FabricClientCommandSource> sources() {
+        LiteralArgumentBuilder<FabricClientCommandSource> node = ClientCommands.literal("source");
+        for (String name : SkyLyricsConfig.WORD_SOURCES) {
+            node.then(toggle(name, (c, value) -> {
+                c.setWordSource(name, value);
+                controller.refreshWordTimes();
+            }, "Wortzeiten von " + WordSourceInfo.label(name)));
+        }
+        return node;
     }
 
     private interface Setter<T> {
