@@ -18,6 +18,16 @@ import org.junit.jupiter.api.Test;
 
 class SpotifyTest {
     @Test
+    void onlyARefusalThatSaysSoMeansTheAccountIsNotAdded() {
+        assertTrue(SpotifyAccount.notRegistered(
+                "{\"error\":{\"status\":403,\"message\":\"Check settings on developer.spotify.com/dashboard, the user may not be registered.\"}}"));
+        assertTrue(SpotifyAccount.notRegistered("User not registered in the Developer Dashboard"));
+        assertFalse(SpotifyAccount.notRegistered("{\"error\":{\"status\":403,\"message\":\"Forbidden\"}}"));
+        assertFalse(SpotifyAccount.notRegistered(""));
+        assertFalse(SpotifyAccount.notRegistered(null));
+    }
+
+    @Test
     void pkceMatchesRfc7636Example() {
         assertEquals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
                 Pkce.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"));

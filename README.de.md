@@ -78,7 +78,7 @@ Ganzes Vorschauvideo: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-
 
 ## Installation
 
-1. `lyrics-in-the-sky-1.2.0+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
+1. `lyrics-in-the-sky-1.2.1+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
 2. Spiel starten, Musik starten, Welt betreten.
 3. Die Songtexte kommen von lrclib.net, das ist von Anfang an an. Beim ersten Mal sagt ein Hinweis im Chat,
    was gesendet wird, und bietet das Ausschalten an.

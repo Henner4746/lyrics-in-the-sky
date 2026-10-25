@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.1 – 2026-10-25
+
+- **Steady sync:** the position the lyrics follow is now a clock of its own that the player's reports pull
+  gently into place. It never runs backwards while a song plays, so words no longer flicker when the media
+  session and the Spotify account report a few dozen milliseconds apart; skipping still shows up at once.
+- **Lyrics come back by themselves:** when LRCLIB is busy or the connection drops, the lookup is tried again
+  after 5 s, 15 s, 45 s and so on, also while the same song keeps playing (before, a failure stuck for ten
+  minutes or until the next song). When LRCLIB's exact lookup fails, the search is tried right away.
+- **Spotify stays connected:** a single refusal from Spotify no longer logs you out. Only answers that say the
+  account is not added to the app count, several in a row; an expired access is simply renewed.
+
 ## 1.2.0 – 2026-10-25
 
 - **New look in both modes** (style *Elegant*, the new default):

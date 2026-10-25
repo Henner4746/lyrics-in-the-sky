@@ -4,6 +4,7 @@ import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
+import de.henner.lyricsinthesky.nowplaying.PlaybackClock;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,8 +16,11 @@ import org.slf4j.LoggerFactory;
 /** Joins the media session with looked-up lyrics and tells the renderer where the song is. */
 public final class LyricsController {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
-    /** Failed or empty lookups are retried after this long, since LRCLIB grows over time. */
+    /** Songs LRCLIB has no lyrics for are asked again after this long, since LRCLIB grows over time. */
     private static final long NEGATIVE_CACHE_MS = 10 * 60 * 1000;
+    /** A failed lookup (LRCLIB busy, no connection) is tried again after 5 s, then 15 s, 45 s … up to 2 minutes. */
+    private static final long FIRST_RETRY_MS = 5_000;
+    private static final long MAX_RETRY_MS = 120_000;
     private static final String DEMO_KEY = "demo";
 
     public enum LookupState { IDLE, NOT_ALLOWED, SEARCHING, FOUND, INSTRUMENTAL, NOT_FOUND, ERROR }
@@ -36,7 +40,12 @@ public final class LyricsController {
             long durationMs,
             boolean playing) {}
 
-    private record CacheEntry(Optional<Lyrics> lyrics, LookupState state, long createdAtMs) {}
+    /** @param failures failed lookups in a row for this song, for spacing out the retries */
+    private record CacheEntry(Optional<Lyrics> lyrics, LookupState state, long createdAtMs, int failures) {
+        CacheEntry(Optional<Lyrics> lyrics, LookupState state, long createdAtMs) {
+            this(lyrics, state, createdAtMs, 0);
+        }
+    }
 
     private final NowPlayingSource source;
     private final LrclibClient lrclib;
@@ -47,6 +56,8 @@ public final class LyricsController {
         return thread;
     });
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
+    /** Smooths the reported positions into one steady clock, so words never flicker on report jitter. */
+    private final PlaybackClock clock = new PlaybackClock();
 
     private volatile NowPlaying track;
     private volatile String trackKey;
@@ -84,29 +95,54 @@ public final class LyricsController {
         }
         String key = key(now);
         CacheEntry cached = cache.get(key);
-        if (key.equals(trackKey) && cached != null && cached.state() != LookupState.NOT_ALLOWED) {
-            return;
-        }
         trackKey = key;
         if (!Boolean.TRUE.equals(config.lrclibAllowed)) {
-            cache.put(key, new CacheEntry(Optional.empty(), LookupState.NOT_ALLOWED, System.currentTimeMillis()));
+            if (cached == null || cached.state() != LookupState.NOT_ALLOWED) {
+                cache.put(key, new CacheEntry(Optional.empty(), LookupState.NOT_ALLOWED, System.currentTimeMillis()));
+            }
             return;
         }
-        boolean fresh = cached != null && cached.state() != LookupState.NOT_ALLOWED
-                && (cached.lyrics().isPresent() || System.currentTimeMillis() - cached.createdAtMs() < NEGATIVE_CACHE_MS);
-        if (fresh) {
+        long nowMs = System.currentTimeMillis();
+        if (cached != null && !lookUpAgain(cached, nowMs)) {
             return;
         }
         if (now.durationMs() <= 0) {
             // Livestreams and videos without a timeline cannot be synced.
-            cache.put(key, new CacheEntry(Optional.empty(), LookupState.NOT_FOUND, System.currentTimeMillis()));
+            cache.put(key, new CacheEntry(Optional.empty(), LookupState.NOT_FOUND, nowMs));
             return;
         }
-        cache.put(key, new CacheEntry(Optional.empty(), LookupState.SEARCHING, System.currentTimeMillis()));
-        lookups.submit(() -> lookup(key, now));
+        int failures = cached == null ? 0 : cached.failures();
+        cache.put(key, new CacheEntry(Optional.empty(), LookupState.SEARCHING, nowMs, failures));
+        lookups.submit(() -> lookup(key, now, failures));
     }
 
-    private void lookup(String key, NowPlaying now) {
+    /**
+     * Whether a song's lookup is due again, also while it keeps playing: after a failure soon and then less
+     * often, when LRCLIB had nothing after a while, never when lyrics were found or a lookup is running.
+     */
+    static boolean lookUpAgain(LookupState state, boolean found, long ageMs, int failures) {
+        return switch (state) {
+            case SEARCHING -> false;
+            case NOT_ALLOWED -> true;
+            case ERROR -> ageMs >= retryDelayMs(failures);
+            default -> !found && ageMs >= NEGATIVE_CACHE_MS;
+        };
+    }
+
+    private static boolean lookUpAgain(CacheEntry entry, long nowMs) {
+        return lookUpAgain(entry.state(), entry.lyrics().isPresent(), nowMs - entry.createdAtMs(), entry.failures());
+    }
+
+    /** 5 s after the first failure, then three times as long each time, at most 2 minutes. */
+    static long retryDelayMs(int failures) {
+        long delay = FIRST_RETRY_MS;
+        for (int i = 1; i < failures && delay < MAX_RETRY_MS; i++) {
+            delay *= 3;
+        }
+        return Math.min(delay, MAX_RETRY_MS);
+    }
+
+    private void lookup(String key, NowPlaying now, int failuresBefore) {
         try {
             Optional<Lyrics> lyrics = lrclib.find(now);
             LookupState state = lyrics.map(found -> found.isInstrumental() ? LookupState.INSTRUMENTAL : LookupState.FOUND)
@@ -114,8 +150,10 @@ public final class LyricsController {
             cache.put(key, new CacheEntry(lyrics, state, System.currentTimeMillis()));
             LOGGER.info("Lyrics for '{}' by '{}': {}", now.title(), now.artist(), state);
         } catch (Exception e) {
-            cache.put(key, new CacheEntry(Optional.empty(), LookupState.ERROR, System.currentTimeMillis()));
-            LOGGER.warn("Lyrics lookup for '{}' failed: {}", now.title(), e.toString());
+            int failures = failuresBefore + 1;
+            cache.put(key, new CacheEntry(Optional.empty(), LookupState.ERROR, System.currentTimeMillis(), failures));
+            LOGGER.warn("Lyrics lookup for '{}' failed ({}. time, next try in {} s): {}", now.title(), failures,
+                    retryDelayMs(failures) / 1000, e.toString());
         }
     }
 
@@ -145,8 +183,9 @@ public final class LyricsController {
         CacheEntry entry = cache.get(key);
         LookupState state = entry == null ? LookupState.IDLE : entry.state();
         Lyrics lyrics = entry == null ? null : entry.lyrics().filter(found -> !found.isInstrumental()).orElse(null);
-        return new Timeline(key, now.title(), now.artist(), lyrics, state,
-                now.estimatePositionMs(nowMs) + config.offsetMs, now.durationMs(), now.playing());
+        long position = clock.at(key, nowMs, now.estimatePositionMs(nowMs), now.playing());
+        return new Timeline(key, now.title(), now.artist(), lyrics, state, position + config.offsetMs, now.durationMs(),
+                now.playing());
     }
 
     /** Forgets cached "not found"/"not allowed" results, e.g. after the player allowed LRCLIB. */

@@ -26,6 +26,15 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
     private static final long POLL_PLAYING_MS = 1_000;
     private static final long POLL_IDLE_MS = 3_000;
     private static final long POLL_DISCONNECTED_MS = 2_000;
+    /** Refusals saying the account is not added to the app, in a row, before the login ends. */
+    private static final int NOT_REGISTERED_LIMIT = 3;
+    private static final long MAX_REFUSED_WAIT_MS = 30_000;
+    /** 403 answers in a row, any reason; waits grow with them. */
+    private int refusals;
+    private int notRegisteredInARow;
+    /** Rejected tokens in a row, each followed by a fresh one, before the login ends. */
+    private static final int UNAUTHORIZED_LIMIT = 3;
+    private int unauthorizedInARow;
 
     private final SpotifyAccount account;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
@@ -94,6 +103,13 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
                 .header("Authorization", "Bearer " + token)
                 .build(), HttpResponse.BodyHandlers.ofString());
         long receivedAt = System.currentTimeMillis();
+        if (response.statusCode() != 403) {
+            refusals = 0;
+            notRegisteredInARow = 0;
+        }
+        if (response.statusCode() != 401) {
+            unauthorizedInARow = 0;
+        }
         switch (response.statusCode()) {
             case 200 -> {
                 // The position was measured somewhere between sending and receiving; the middle is the best guess.
@@ -105,15 +121,31 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
                 return POLL_IDLE_MS;
             }
             case 401 -> {
-                account.invalidate("Zugriff wurde entzogen – bitte neu verbinden");
-                current = null;
-                return POLL_DISCONNECTED_MS;
+                // Mostly an access token that ran out early: get a fresh one. Only if that keeps failing was the
+                // access really taken away (a refresh Spotify refuses ends the login on its own).
+                unauthorizedInARow++;
+                if (unauthorizedInARow >= UNAUTHORIZED_LIMIT) {
+                    account.invalidate("Zugriff wurde entzogen – bitte neu verbinden");
+                    current = null;
+                    return POLL_DISCONNECTED_MS;
+                }
+                account.expireAccessToken();
+                return 500;
             }
             case 403 -> {
-                // The app is in development mode and this account is not (or no longer) added to it.
-                account.invalidate(SpotifyAccount.NOT_REGISTERED);
-                current = null;
-                return POLL_DISCONNECTED_MS;
+                // Spotify refuses single requests now and then, even for accounts added to the app; the login
+                // only ends after several refusals in a row that say the account is not added.
+                refusals++;
+                if (SpotifyAccount.notRegistered(response.body())) {
+                    notRegisteredInARow++;
+                    if (notRegisteredInARow >= NOT_REGISTERED_LIMIT) {
+                        account.invalidate(SpotifyAccount.NOT_REGISTERED);
+                        current = null;
+                        return POLL_DISCONNECTED_MS;
+                    }
+                }
+                LOGGER.info("Spotify refused a request (403, {} in a row), trying again", refusals);
+                return Math.min(POLL_IDLE_MS * refusals, MAX_REFUSED_WAIT_MS);
             }
             case 429 -> {
                 long retry = response.headers().firstValueAsLong("Retry-After").orElse(5);

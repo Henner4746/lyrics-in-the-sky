@@ -89,7 +89,13 @@ No telemetry, no servers of our own, no cookies, no unofficial Spotify or Amazon
 
 Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 
-## Changelog 1.2.0 (for the file upload)
+## Changelog 1.2.1 (for the file upload)
+
+- Steady sync: the lyrics follow a clock of their own that never runs backwards, so words no longer flicker; skipping still shows up at once
+- Lyrics come back by themselves when LRCLIB was busy: retried after 5 s, 15 s, 45 s …, also while the song keeps playing
+- Spotify stays connected: a single refusal no longer logs you out, an expired access is renewed
+
+## Changelog 1.2.0
 
 - New look in both modes: in the sky, word groups of different sizes build up each line near the horizon with depth; around you, every sung word floats on its own at a fixed spot and fades out after a few seconds
 - The sky text stands behind everything, like the sun: mountains, trees, houses and clouds are in front of it

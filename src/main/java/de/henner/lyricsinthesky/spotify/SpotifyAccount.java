@@ -212,6 +212,14 @@ public final class SpotifyAccount {
         }
     }
 
+    /** Spotify rejected the access token: the next {@link #accessToken} call gets a fresh one with the refresh token. */
+    synchronized void expireAccessToken() {
+        Tokens current = tokens;
+        if (current != null) {
+            tokens = new Tokens(current.clientId(), current.accessToken(), current.refreshToken(), 0, current.displayName());
+        }
+    }
+
     /** Called when Spotify rejects the token for good, e.g. after the player removed access. */
     void invalidate(String reason) {
         tokens = null;
@@ -249,27 +257,48 @@ public final class SpotifyAccount {
     /**
      * The player's display name, "" when Spotify does not tell, and {@code null} when Spotify refuses the
      * account for this app (an app in development mode only serves the accounts added to it).
+     *
+     * <p>Spotify answers 403 on the profile now and then even for accounts that are added, so only a refusal that
+     * says the account is not registered counts – twice in a row, and only if the endpoint the mod really uses,
+     * "currently playing", refuses as well.
      */
     private String fetchDisplayName() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.spotify.com/v1/me"))
-                    .timeout(Duration.ofSeconds(10))
-                    .header("Authorization", "Bearer " + tokens.accessToken())
-                    .build();
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 403) {
-                return null;
-            }
-            if (response.statusCode() == 200) {
-                JsonObject me = JsonParser.parseString(response.body()).getAsJsonObject();
-                if (me.has("display_name") && !me.get("display_name").isJsonNull()) {
-                    return me.get("display_name").getAsString();
+            for (int attempt = 0; attempt < 2; attempt++) {
+                HttpResponse<String> response = get("https://api.spotify.com/v1/me");
+                if (response.statusCode() == 200) {
+                    JsonObject me = JsonParser.parseString(response.body()).getAsJsonObject();
+                    return me.has("display_name") && !me.get("display_name").isJsonNull()
+                            ? me.get("display_name").getAsString() : "";
                 }
+                if (response.statusCode() != 403 || !notRegistered(response.body())) {
+                    return "";
+                }
+                Thread.sleep(1_500);
             }
+            int playing = get("https://api.spotify.com/v1/me/player/currently-playing").statusCode();
+            return playing == 200 || playing == 204 ? "" : null;
         } catch (IOException | InterruptedException | RuntimeException e) {
             LOGGER.debug("Spotify profile not available: {}", e.getMessage());
         }
         return "";
+    }
+
+    private HttpResponse<String> get(String url) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
+                .header("Authorization", "Bearer " + tokens.accessToken())
+                .build();
+        return http.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    /**
+     * Whether a 403 from the Web API says the account is not added to an app in development mode ("User not
+     * registered in the Developer Dashboard", "the user may not be registered"), rather than refusing one request.
+     */
+    static boolean notRegistered(String body) {
+        String text = body == null ? "" : body.toLowerCase(java.util.Locale.ROOT);
+        return text.contains("not registered") || text.contains("not be registered") || text.contains("not approved");
     }
 
     private void load() {

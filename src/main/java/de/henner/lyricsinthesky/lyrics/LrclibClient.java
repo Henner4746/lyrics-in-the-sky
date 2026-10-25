@@ -62,7 +62,13 @@ public final class LrclibClient {
                 query.put("album_name", track.album());
             }
             query.put("duration", Long.toString(Math.round(track.durationMs() / 1000.0)));
-            exact = getObject("get", query).flatMap(LrclibClient::toLyrics);
+            try {
+                exact = getObject("get", query).flatMap(LrclibClient::toLyrics);
+            } catch (IOException e) {
+                // "get" may ask other sources first and time out or answer 503 when LRCLIB is busy; the search
+                // below only reads LRCLIB's own records and often still works.
+                LOGGER.debug("LRCLIB get failed, trying the search: {}", e.getMessage());
+            }
             if (exact.isPresent() && (exact.get().hasWordTiming() || exact.get().isInstrumental())) {
                 return exact;
             }
