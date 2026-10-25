@@ -56,11 +56,13 @@ subprojects {
                 programArgs "--quickPlaySingleplayer", "SkyTest", "--width", "1280", "--height", "720"
             }
             // `gradlew :mc26.3:runShowcase`: the demo under a scripted camera flight, for recording the preview
-            // video with a screen recorder. Window size with -PshowcaseWidth/-PshowcaseHeight (default 1280x720).
+            // video with a screen recorder. Window size with -PshowcaseWidth/-PshowcaseHeight (default 1280x720),
+            // style with -PshowcaseStyle (default elegant).
             register("showcase") {
                 client()
                 name = "Showcase"
                 vmArg "-Dlyricsinthesky.showcase=true"
+                vmArg "-Dlyricsinthesky.showcase.style=" + (project.findProperty("showcaseStyle") ?: "elegant")
                 programArgs "--quickPlaySingleplayer", "SkyTest",
                         "--width", project.findProperty("showcaseWidth") ?: "1280",
                         "--height", project.findProperty("showcaseHeight") ?: "720"

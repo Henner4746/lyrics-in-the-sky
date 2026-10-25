@@ -10,6 +10,42 @@ import org.junit.jupiter.api.Test;
 
 class VideoLayoutTest {
     @Test
+    void wordsAvoidSpotsBehindBlocks() {
+        // A wall on the left half of the view: every word must land on the free right half.
+        for (long seed = 0; seed < 200; seed++) {
+            VideoLayout.Spot spot = VideoLayout.nextSpot(new Random(seed), List.of(), 0f, 1.5f, 0.9f,
+                    candidate -> candidate.yawOffset() < 0f);
+            assertTrue(spot.yawOffset() >= 0f, "seed " + seed + " landed behind the wall at " + spot.yawOffset());
+        }
+    }
+
+    @Test
+    void aWordStillAppearsWhenEverySpotIsBehindBlocks() {
+        VideoLayout.Spot spot = VideoLayout.nextSpot(new Random(7), List.of(), 0f, 1.5f, 0.9f, candidate -> true);
+        assertTrue(Math.abs(spot.yawOffset()) <= VideoLayout.MAX_YAW_OFFSET);
+        assertTrue(spot.distance() >= VideoLayout.MIN_DISTANCE && spot.distance() <= VideoLayout.MAX_DISTANCE);
+    }
+
+    @Test
+    void naturalLinesSitRightAboveTheHills() {
+        Placements placements = new Placements();
+        placements.reset(42);
+        float lastOffset = Float.NaN;
+        for (int i = 0; i < 200; i++) {
+            Placements.Placement placement = placements.nextHorizon(90f, 6f);
+            float offset = placement.yaw() - 90f;
+            assertTrue(placement.elevation() >= 1f && placement.elevation() <= 10f, "elevation " + placement.elevation());
+            assertTrue(Math.abs(offset) >= 12f && Math.abs(offset) <= 30f, "yaw offset " + offset);
+            // All at about the same height, so consecutive lines take turns left and right, well apart.
+            if (!Float.isNaN(lastOffset)) {
+                assertTrue(Math.signum(offset) != Math.signum(lastOffset), "same side twice");
+                assertTrue(Math.abs(offset - lastOffset) >= 24f, "too close: " + lastOffset + " then " + offset);
+            }
+            lastOffset = offset;
+        }
+    }
+
+    @Test
     void shortWordsLeanOnTheNextOne() {
         String[] words = "I smoked away my brain, I think I'm going dumb".split(" ");
         List<String> groups = text(words, VideoLayout.groups(words, 42));

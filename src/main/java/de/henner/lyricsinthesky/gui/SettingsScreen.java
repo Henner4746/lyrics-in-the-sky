@@ -35,7 +35,7 @@ public final class SettingsScreen extends Screen {
             "aurora", "Polarlicht", "sunset", "Sonnenuntergang", "gold", "Gold", "sakura", "Kirschblüte",
             "ocean", "Ozean", "white", "Weiß");
     private static final Map<String, String> STYLE_NAMES = Map.of(
-            "elegant", "Elegant", "flow", "Stapel", "classic", "Verspielt");
+            "elegant", "Elegant", "natural", "Natürlich", "flow", "Stapel", "classic", "Verspielt");
     private static final Map<String, String> FONT_NAMES = Map.of(
             "sans", "Modern", "script", "Handschrift", "minecraft", "Minecraft");
 
@@ -83,6 +83,8 @@ public final class SettingsScreen extends Screen {
                 .withTooltip(style -> Tooltip.create(Component.literal(switch (style) {
                     case "elegant" -> "Am Himmel bauen sich die Zeilen Wort für Wort auf, um dich herum schweben "
                             + "einzelne Wörter.";
+                    case "natural" -> "Wie echt in der Welt: Zeilen knapp über den Hügeln, Spieler und Blöcke stehen "
+                            + "vor den Wörtern um dich herum, oben leuchten die gesungenen Wörter als Gruppe.";
                     case "flow" -> "Die aktuelle Zeile in der Mitte, die nächste schwach darunter; alles gleitet weich nach oben.";
                     default -> "Jede Zeile erscheint an einer anderen Stelle, mit wechselnden Animationen und Funkeln.";
                 })))

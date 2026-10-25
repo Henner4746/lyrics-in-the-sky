@@ -34,7 +34,9 @@ you.
   turned – and stays there while you walk or fight, until it fades out a couple of seconds later. A "now
   playing" card hangs in front of you when a song starts.
 - **Colors of your choice:** gradient text in rose, lavender or six more palettes, or a different one per song.
-- **Three styles:** *Elegant* (the two looks above), *Stapel* (the current line in the middle, the next
+- **Four styles:** *Elegant* (the two looks above), *Natürlich* (the same as if it really stood in the world:
+  lines right above the hills, players and blocks in front of the words around you, the words being sung
+  highlighted as a group), *Stapel* (the current line in the middle, the next
   one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and more, with sparkles).
 - **Now-playing pill** at the top of the screen with the current line, the sung word highlighted and a
   little equalizer.
@@ -104,7 +106,7 @@ working automatically through the media session on your PC.
 | `/skylyrics demo` | 37-second demo with built-in text |
 | `/skylyrics on` · `off` | Show or hide the lyrics |
 | `/skylyrics mode <sky\|around>` | In the sky or around you |
-| `/skylyrics style <elegant\|flow\|classic>` | Look: elegant, gliding stack, or playful |
+| `/skylyrics style <elegant\|natural\|flow\|classic>` | Look: elegant, natural, gliding stack, or playful |
 | `/skylyrics offset <ms>` | Fix delay; positive shows lyrics earlier |
 | `/skylyrics opacity <0.1–1>` | Transparency (default 0.82) |
 | `/skylyrics scale <0.3–3>` | Text size |

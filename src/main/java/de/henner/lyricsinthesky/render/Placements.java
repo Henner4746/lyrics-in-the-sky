@@ -15,13 +15,22 @@ final class Placements {
             {0, 17}, {-26, 5}, {25, -2}, {9, 12}, {-9, -9},
     };
     private static final int AVOID_RECENT = 3;
+    /**
+     * Lines right above the hills keep at least this many degrees left or right of the view direction, plus up to
+     * {@link #HORIZON_SIDE_SPREAD}: two lines in a row are then 24° to 60° apart.
+     */
+    private static final float HORIZON_MIN_SIDE = 12f;
+    private static final float HORIZON_SIDE_SPREAD = 18f;
 
     private final Random random = new Random();
     private final Deque<Integer> recent = new ArrayDeque<>();
+    /** Side of the last line right above the hills: -1 left, 1 right. */
+    private int horizonSide;
 
     void reset(long seed) {
         random.setSeed(seed);
         recent.clear();
+        horizonSide = random.nextBoolean() ? 1 : -1;
     }
 
     Placement next(float anchorYaw, float baseElevation) {
@@ -47,6 +56,20 @@ final class Placements {
         float yawOffset = Mth.wrapDegrees(sky.yaw() - anchorYaw) * 1.15f;
         float elevation = clamp(baseElevation + (sky.elevation() - baseElevation) * 0.55f, 5f, 45f);
         return new Placement(anchorYaw + yawOffset, elevation, sky.roll() * 0.5f);
+    }
+
+    /**
+     * Right above the hills: a few degrees over the horizon with a little variety. All lines sit at about the same
+     * height there, so they take turns left and right of the view, far enough apart that the new line does not
+     * run into the one fading out. The line itself is lifted just enough that its lowest row clears the horizon.
+     *
+     * @param baseElevation degrees above the horizon around which the lines sit
+     */
+    Placement nextHorizon(float anchorYaw, float baseElevation) {
+        horizonSide = horizonSide > 0 ? -1 : 1;
+        float yawOffset = horizonSide * (HORIZON_MIN_SIDE + random.nextFloat() * HORIZON_SIDE_SPREAD);
+        float elevation = clamp(baseElevation - 2f + random.nextFloat() * 6f, 1f, 40f);
+        return new Placement(anchorYaw + yawOffset, elevation, jitter(2.5f));
     }
 
     Placement title(float anchorYaw, float baseElevation) {

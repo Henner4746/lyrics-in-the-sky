@@ -27,6 +27,8 @@ public final class NowPlayingHud implements HudElement {
     private static final int GAP = 6;
     private static final int MAX_TEXT = 300;
     private static final long LINE_SLIDE_MS = 260;
+    /** Natural style: words started within this time before the current one are highlighted with it. */
+    private static final long GROUP_WINDOW_MS = 650;
 
     private float alpha;
     private float width = -1f;
@@ -41,6 +43,8 @@ public final class NowPlayingHud implements HudElement {
     private boolean playing;
     private Palette palette = Palette.AURORA;
     private Style textStyle = Style.EMPTY;
+    /** Highlight the words being sung as one group instead of only the current word. */
+    private boolean groupHighlight;
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -94,6 +98,7 @@ public final class NowPlayingHud implements HudElement {
         palette = Palette.pick(config.palette, timeline.trackKey(), "around".equals(config.mode));
         // The pill speaks in the same type as the lyrics, except handwriting, which is too busy at this size.
         textStyle = "sans".equals(config.font) ? SkyLyricsRenderer.regularStyle("sans") : Style.EMPTY;
+        groupHighlight = "natural".equals(config.style);
         positionMs = timeline.positionMs();
         playing = timeline.playing();
         Lyrics lyrics = timeline.lyrics();
@@ -141,17 +146,27 @@ public final class NowPlayingHud implements HudElement {
     private void drawWords(GuiGraphicsExtractor graphics, Font font, int x, int y, float opacity) {
         int space = font.width(Component.literal(" ").withStyle(textStyle));
         int current = currentWord();
+        if (lyricLine && current >= 0) {
+            // Highlight pill behind the word being sung (or, in the natural style, the words being sung), fading in
+            // as the first of them starts. Drawn before any text so it never covers a word.
+            int first = groupHighlight ? groupStart(current) : current;
+            int cursor = x;
+            int left = x;
+            int right = x;
+            for (int i = 0; i <= current; i++) {
+                int wordWidth = font.width(Component.literal(words[i]).withStyle(textStyle));
+                left = i == first ? cursor : left;
+                right = cursor + wordWidth;
+                cursor += wordWidth + space;
+            }
+            float fresh = Easing.outCubic((positionMs - wordTimes[first]) / 180f);
+            roundedRect(graphics, left - 3, y - 3, right + 3, y + 10, 4, ARGB.color(opacity * 0.85f * fresh, palette.accentEnd));
+        }
         int cursor = x;
         for (int i = 0; i < words.length; i++) {
             Component word = Component.literal(words[i]).withStyle(textStyle);
             int wordWidth = font.width(word);
             boolean sung = !lyricLine || i <= current;
-            if (lyricLine && i == current) {
-                // Highlight pill behind the word being sung, fading in as the word starts.
-                float fresh = Easing.outCubic((positionMs - wordTimes[i]) / 180f);
-                roundedRect(graphics, cursor - 3, y - 3, cursor + wordWidth + 3, y + 10, 4,
-                        ARGB.color(opacity * 0.85f * fresh, palette.accentEnd));
-            }
             int color = sung ? 0xFFFFFF : 0x9AA0B4;
             graphics.text(font, word, cursor, y, ARGB.color(opacity * (sung ? 1f : 0.85f), color), false);
             cursor += wordWidth + space;
@@ -168,6 +183,15 @@ public final class NowPlayingHud implements HudElement {
             index++;
         }
         return positionMs > lineEndMs ? -1 : index;
+    }
+
+    /** First word of the group being sung: the words just before the current one that started a moment ago. */
+    private int groupStart(int current) {
+        int first = current;
+        while (first > 0 && positionMs - wordTimes[first - 1] < GROUP_WINDOW_MS) {
+            first--;
+        }
+        return first;
     }
 
     private void drawEqualizer(GuiGraphicsExtractor graphics, int x, int y0, long now) {

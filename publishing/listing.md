@@ -30,7 +30,7 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 
 - Lyrics synced word by word: exact word timing when the lyrics have it, otherwise at the pace the song is sung; skipping within a song shows up at once
 - Colors of your choice: gradient text in rose, lavender or six more palettes, or a different one per song
-- Three styles: *Elegant* (the two looks above, default), *Stapel* (the current line in the middle, the next one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and sparkles)
+- Four styles: *Elegant* (the two looks above, default), *Natürlich* (the same as if it really stood in the world: lines right above the hills, players and blocks in front of the words around you), *Stapel* (the current line in the middle, the next one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and sparkles)
 - Fonts: modern (Poppins), handwriting (Kalam) or the Minecraft font
 - A "now playing" pill at the top of the screen with the word being sung highlighted
 - Settings screen on **Right Shift** with live preview: mode, style, colors, font, size, height, opacity, timing and more
@@ -43,7 +43,7 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 3. The first time, the mod asks in chat whether it may look up lyrics on lrclib.net. Click **[Erlauben]** (allow).
 4. Press **Right Shift** for the settings, or run `/skylyrics demo` to see it without music.
 
-Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around`, `style elegant|flow|classic`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `opacity`, `scale`, `height`, `follow`, `title`, `hud`, `lrclib on|off`, `spotify connect|disconnect`.
+Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around`, `style elegant|natural|flow|classic`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `opacity`, `scale`, `height`, `follow`, `title`, `hud`, `lrclib on|off`, `spotify connect|disconnect`.
 
 ## Optional: Spotify login
 
@@ -93,7 +93,7 @@ Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 - Runs on Fabric Loader 0.18.4+ (26.2) and 0.19.3+ (26.3)
 - Gradient text colors, changeable in the settings (rose, lavender, per-song and more)
 - New default font Poppins, also in the now-playing pill
-- Two more styles: a gliding stack and the playful look of 1.0 (`/skylyrics style`)
+- Three more styles: a natural look (lines right above the hills, players and blocks in front of the words around you), a gliding stack and the playful look of 1.0 (`/skylyrics style`)
 
 ## Gallery
 

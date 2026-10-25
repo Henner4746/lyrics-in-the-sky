@@ -35,6 +35,8 @@ public final class SkyLyricsRenderer {
     /** Text size and maximum line width, as blocks at 100 blocks distance (about 4.5° tall, 44° wide). */
     private static final float BLOCKS_PER_PIXEL_AT_100 = 0.74f;
     private static final float MAX_WIDTH_AT_100 = 80f;
+    /** The natural style's lines sit this many degrees lower than the configured height. */
+    private static final float NATURAL_HEIGHT_DROP = 10f;
     private static final float FOLLOW_TIME_CONSTANT_S = 0.25f;
     /** How quickly the gliding stack follows the view, rad/s of its spring: it trails turns by about a second. */
     private static final float FLOW_AIM_OMEGA = 4f;
@@ -128,7 +130,10 @@ public final class SkyLyricsRenderer {
         // xRot is negative when looking up.
         viewElevation = config.followView ? -camera.xRot : 0f;
         boolean around = "around".equals(config.mode);
-        boolean elegant = "elegant".equals(config.style);
+        // "natural" is the elegant look as it would be if it really stood in the world: lines right above the hills,
+        // words around the player hidden by what stands in front of them.
+        boolean natural = "natural".equals(config.style);
+        boolean elegant = natural || "elegant".equals(config.style);
         boolean flowStyle = "flow".equals(config.style);
         aimFlow(camera.yRot, -camera.xRot, config, dt);
 
@@ -139,9 +144,9 @@ public final class SkyLyricsRenderer {
         if (timeline != null) {
             if (elegant && around) {
                 updateFloating(timeline, config, minecraft, camera.pos.x, camera.pos.y, camera.pos.z, camera.yRot,
-                        -camera.xRot, now);
+                        -camera.xRot, now, natural);
             } else if (elegant) {
-                updateArcs(timeline, config, minecraft, now, wantedArcs);
+                updateArcs(timeline, config, minecraft, now, wantedArcs, natural);
             } else if (flowStyle) {
                 updateFlow(timeline, config, minecraft, now);
             } else {
@@ -289,7 +294,7 @@ public final class SkyLyricsRenderer {
      * starts, the old one fades out and the new one builds up somewhere else.
      */
     private void updateArcs(LyricsController.Timeline timeline, SkyLyricsConfig config, Minecraft minecraft, long now,
-            Set<String> wanted) {
+            Set<String> wanted, boolean natural) {
         if (!timeline.trackKey().equals(trackKey)) {
             trackKey = timeline.trackKey();
             trackStartNanos = now;
@@ -307,27 +312,33 @@ public final class SkyLyricsRenderer {
         if (line.text().isBlank() || timeline.positionMs() >= lyrics.endOf(index, timeline.durationMs())) {
             return;
         }
-        String key = trackKey + "#" + index + "#arc#" + config.font + "#" + config.palette;
+        String key = trackKey + "#" + index + "#arc#" + config.style + "#" + config.font + "#" + config.palette;
         wanted.add(key);
         // Skipped back to a line that is still fading out: it starts over.
         ArcLine existing = arcs.get(key);
         if (existing == null || existing.isExiting()) {
-            arcs.put(key, ArcLine.create(key, line.text(), lyrics.wordTimes(index, timeline.durationMs()),
-                    placements.nextLow(anchorYaw, config.elevationDeg), SkyLine.SKY,
-                    Palette.pick(config.palette, trackKey, false), nextSeed(), minecraft.font, boldStyle(config.font, false)));
+            // Natural: right above the hills, the height setting moves the lines up from there (16° by default
+            // becomes about 6°).
+            Placements.Placement placement = natural
+                    ? placements.nextHorizon(anchorYaw, Math.max(3f, config.elevationDeg - NATURAL_HEIGHT_DROP))
+                    : placements.nextLow(anchorYaw, config.elevationDeg);
+            arcs.put(key, ArcLine.create(key, line.text(), lyrics.wordTimes(index, timeline.durationMs()), placement,
+                    SkyLine.SKY, Palette.pick(config.palette, trackKey, false), nextSeed(), minecraft.font,
+                    boldStyle(config.font, false), natural ? ArcLine.LOW_HORIZON_MARGIN_DEG : ArcLine.HORIZON_MARGIN_DEG));
         }
     }
 
     /** The video look around the player: one set of floating words per song. */
     private void updateFloating(LyricsController.Timeline timeline, SkyLyricsConfig config, Minecraft minecraft,
-            double camX, double camY, double camZ, float cameraYaw, float cameraPitch, long now) {
-        String key = timeline.trackKey() + "#float#" + config.font + "#" + config.palette + "#" + config.showTitleCard;
+            double camX, double camY, double camZ, float cameraYaw, float cameraPitch, long now, boolean natural) {
+        String key = timeline.trackKey() + "#float#" + config.style + "#" + config.font + "#" + config.palette + "#"
+                + config.showTitleCard;
         if (floating != null && !floating.key.equals(key)) {
             leaveFloating(now);
         }
         if (floating == null) {
             floating = new FloatingWords(key, Palette.pick(config.palette, timeline.trackKey(), true),
-                    boldStyle(config.font, true), config.showTitleCard);
+                    boldStyle(config.font, true), config.showTitleCard, natural);
         }
         floating.update(timeline, subtitle(timeline), camX, camY, camZ, cameraYaw, cameraPitch, now, minecraft.font);
     }

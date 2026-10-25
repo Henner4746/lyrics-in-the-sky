@@ -8,12 +8,18 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.font.TextRenderable;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Matrix4f;
 
 /**
@@ -90,6 +96,8 @@ final class FloatingWords {
     private final Palette palette;
     private final Style style;
     private final boolean withTitle;
+    /** Players and blocks in front of a word hide it, as for anything standing in the world. */
+    private final boolean occluded;
     private final Random random;
     private final List<Floater> floaters = new ArrayList<>();
     private final Set<String> spawned = new HashSet<>();
@@ -98,11 +106,12 @@ final class FloatingWords {
     private boolean leaving;
     private long lastSongMs = Long.MIN_VALUE;
 
-    FloatingWords(String key, Palette palette, Style style, boolean withTitle) {
+    FloatingWords(String key, Palette palette, Style style, boolean withTitle, boolean occluded) {
         this.key = key;
         this.palette = palette;
         this.style = style;
         this.withTitle = withTitle;
+        this.occluded = occluded;
         this.random = new Random(key.hashCode());
     }
 
@@ -155,8 +164,10 @@ final class FloatingWords {
                 }
                 float scale = VideoLayout.letters(words[w]) >= 6 ? 1.18f : VideoLayout.letters(words[w]) <= 2 ? 0.82f : 1f;
                 Row word = row(words[w], font, scale);
+                // Words that blocks can hide look for a spot with nothing in the way, so none appears inside a wall.
                 VideoLayout.Spot spot = VideoLayout.nextSpot(random, seenWords(camX, camY, camZ, cameraYaw, nowNanos),
-                        cameraPitch, word.width() * scale * BLOCKS_PER_PIXEL, font.lineHeight * scale * BLOCKS_PER_PIXEL);
+                        cameraPitch, word.width() * scale * BLOCKS_PER_PIXEL, font.lineHeight * scale * BLOCKS_PER_PIXEL,
+                        candidate -> occluded && behindBlock(camX, camY, camZ, cameraYaw, candidate));
                 spawn(List.of(word), spot, camX, camY, camZ, cameraYaw, nowNanos, HOLD_MS, font.lineHeight);
             }
         }
@@ -192,6 +203,20 @@ final class FloatingWords {
                     floater.width * BLOCKS_PER_PIXEL, floater.height * BLOCKS_PER_PIXEL));
         }
         return seen;
+    }
+
+    /** Whether a block stands between the eyes and the middle of a word at {@code spot}. */
+    private static boolean behindBlock(double camX, double camY, double camZ, float cameraYaw, VideoLayout.Spot spot) {
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return false;
+        }
+        double radians = Math.toRadians(cameraYaw + spot.yawOffset());
+        Vec3 eyes = new Vec3(camX, camY, camZ);
+        Vec3 word = new Vec3(camX - Math.sin(radians) * spot.distance(), camY + spot.height(),
+                camZ + Math.cos(radians) * spot.distance());
+        return level.clip(new ClipContext(eyes, word, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE,
+                CollisionContext.empty())).getType() != HitResult.Type.MISS;
     }
 
     private Row row(String text, Font font, float scale) {
@@ -264,7 +289,8 @@ final class FloatingWords {
                 glyphs.clear();
                 GlyphEffects.collect(frame.font(), row.text(), glyphs);
                 for (TextRenderable glyph : glyphs) {
-                    GlyphEffects.emitPlain(glyph, rowPose, palette.text, palette.textBottom, alpha, shadow, blur, true, out);
+                    GlyphEffects.emitPlain(glyph, rowPose, palette.text, palette.textBottom, alpha, shadow, blur, true,
+                            occluded, out);
                 }
             }
         }

@@ -29,7 +29,9 @@ final class ArcLine {
     /** How far the line is turned away from the viewer, degrees, at most. */
     private static final float MAX_TWIST = 34f;
     /** The lowest row keeps at least this many degrees above the horizon, so the ground does not cover it. */
-    private static final float HORIZON_MARGIN_DEG = 2.5f;
+    static final float HORIZON_MARGIN_DEG = 2.5f;
+    /** Closer for the lines sitting right above the hills ("natural" style). */
+    static final float LOW_HORIZON_MARGIN_DEG = 1f;
 
     private static final class Piece {
         final FormattedCharSequence text;
@@ -58,6 +60,7 @@ final class ArcLine {
     private final float twist;
     private final float slope;
     private final List<Piece> pieces;
+    private final float horizonMargin;
     /** Half the size of the laid-out line in font pixels. */
     private final float halfWidth;
     private final float halfHeight;
@@ -66,12 +69,13 @@ final class ArcLine {
     private long frozenSongMs;
 
     private ArcLine(String key, Placements.Placement placement, SkyLine.Look look, Palette palette, long seed,
-            List<Piece> pieces, float lineHeight) {
+            List<Piece> pieces, float lineHeight, float horizonMargin) {
         this.key = key;
         this.placement = placement;
         this.look = look;
         this.palette = palette;
         this.pieces = pieces;
+        this.horizonMargin = horizonMargin;
         float w = 0f;
         float h = 0f;
         for (Piece piece : pieces) {
@@ -86,8 +90,9 @@ final class ArcLine {
         this.slope = -2f - 7f * Easing.hash(seed, 23);
     }
 
+    /** @param horizonMargin degrees the lowest row keeps above the horizon */
     static ArcLine create(String key, String text, long[] wordTimes, Placements.Placement placement, SkyLine.Look look,
-            Palette palette, long seed, Font font, Style style) {
+            Palette palette, long seed, Font font, Style style, float horizonMargin) {
         String[] words = text.trim().split("\\s+");
         List<Piece> pieces = new ArrayList<>();
         for (VideoLayout.Group group : VideoLayout.groups(words, seed)) {
@@ -103,7 +108,7 @@ final class ArcLine {
                     (Easing.hash(seed, 300 + index) - 0.5f) * 2.4f, (Easing.hash(seed, 400 + index) - 0.5f) * 5f));
         }
         layout(pieces, font.lineHeight);
-        return new ArcLine(key, placement, look, palette, seed, pieces, font.lineHeight);
+        return new ArcLine(key, placement, look, palette, seed, pieces, font.lineHeight, horizonMargin);
     }
 
     /** Fills rows left to right, each row indented a little more, groups standing on a common baseline. */
@@ -179,7 +184,7 @@ final class ArcLine {
         // Its lowest point: the rotated half extents, a little more for the nearer, bigger end of the turned line.
         double tilt = Math.toRadians(Math.abs(slope + placement.roll()));
         float drop = (float) (halfWidth * Math.sin(tilt) + halfHeight * Math.cos(tilt)) * blocksPerPixel * 1.15f;
-        float lowest = (float) Math.toDegrees(Math.atan2(drop, look.distance())) + HORIZON_MARGIN_DEG;
+        float lowest = (float) Math.toDegrees(Math.atan2(drop, look.distance())) + horizonMargin;
         Matrix4f base = SkyLine.bannerBasis(placement.yaw(), Math.max(placement.elevation(), lowest), look.distance())
                 .rotateY((float) Math.toRadians(twist))
                 .rotateZ((float) Math.toRadians(slope + placement.roll()))
@@ -203,7 +208,7 @@ final class ArcLine {
             glyphs.clear();
             GlyphEffects.collect(frame.font(), piece.text, glyphs);
             for (TextRenderable glyph : glyphs) {
-                GlyphEffects.emitPlain(glyph, pose, top, bottom, alpha, 0f, blur, look.overlay(), out);
+                GlyphEffects.emitPlain(glyph, pose, top, bottom, alpha, 0f, blur, look.overlay(), false, out);
             }
         }
     }

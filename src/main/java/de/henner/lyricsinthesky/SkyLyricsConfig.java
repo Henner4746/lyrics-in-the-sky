@@ -26,10 +26,12 @@ public final class SkyLyricsConfig {
     public static final List<String> MODES = List.of("sky", "around");
     /**
      * "elegant": in the sky word groups building up a line near the horizon, around the player single words
-     * floating at fixed spots. "flow": the current line in the middle, the next one faintly below, gliding up
+     * floating at fixed spots. "natural": the same as if it really stood in the world – lines right above the
+     * hills, words around the player hidden by players and blocks in front of them, the words being sung
+     * highlighted as a group. "flow": the current line in the middle, the next one faintly below, gliding up
      * from line to line. "classic": every line pops up at its own spot with varied animations.
      */
-    public static final List<String> STYLES = List.of("elegant", "flow", "classic");
+    public static final List<String> STYLES = List.of("elegant", "natural", "flow", "classic");
     public static final float DEFAULT_ELEVATION = 16f;
 
     public boolean enabled = true;

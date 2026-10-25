@@ -29,6 +29,9 @@ public final class SelfTest {
     private static final double SETTINGS_CLOSE = 6.0;
     private static final double AROUND_FROM = 12.0;
     private static final double AROUND_TO = 20.5;
+    private static final double WALL_FROM = 16.8;
+    private static final double WALL_SHOT = 17.6;
+    private static final double WALL_TO = 18.2;
     /** With {@code -Dlyricsinthesky.selftest.record=true}: demo seconds captured every tick. */
     private static final double RECORD_FROM = 1.5;
     private static final double RECORD_TO = 20.5;
@@ -105,6 +108,17 @@ public final class SelfTest {
             }
             if (atSecond(AROUND_TO)) {
                 controller.config().mode = "sky";
+            }
+            // A stone wall in front of the left half of the view, while words float around the player: in the
+            // natural style it hides the words behind it, in the others they stay on top.
+            if (atSecond(WALL_FROM)) {
+                minecraft.player.connection.sendCommand("fill ^1 ^-3 ^4 ^8 ^3 ^4 minecraft:stone");
+            }
+            if (atSecond(WALL_SHOT)) {
+                shoot(minecraft, "wall (style " + controller.config().style + ")");
+            }
+            if (atSecond(WALL_TO)) {
+                minecraft.player.connection.sendCommand("fill ^1 ^-3 ^4 ^8 ^3 ^4 minecraft:air");
             }
         }
         if (atSecond(SIMULATION_FROM)) {

@@ -19,8 +19,11 @@
   around you), rose, lavender, per-song colors and the previous palettes.
 - **New font *Modern*** (Poppins, SIL Open Font License) as default, also in the now-playing pill. Handwriting
   and the Minecraft font remain selectable.
-- **Two more styles:** *Stapel* (the current line in the middle, the next one faintly below, gliding up from
-  line to line) and *Verspielt* (the varied animations of 1.0). `/skylyrics style <elegant|flow|classic>`.
+- **Three more styles:** *Natürlich* (the elegant look as if it really stood in the world: lines right above the
+  hills, players and blocks in front of the words around you, which prefer spots with nothing in the way, and
+  the words being sung highlighted as a group in the now-playing pill), *Stapel* (the current line in the
+  middle, the next one faintly below, gliding up from line to line) and *Verspielt* (the varied animations of
+  1.0). `/skylyrics style <elegant|natural|flow|classic>`.
 - **Runs on older Fabric Loaders:** 0.18.4 or newer for 26.2 and 0.19.3 or newer for 26.3, the same as Fabric API
   itself needs (was 0.20.1).
 

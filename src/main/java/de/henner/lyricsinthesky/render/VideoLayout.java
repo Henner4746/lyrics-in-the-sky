@@ -5,9 +5,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
- * Layout decisions of the two video looks, free of Minecraft types so they can be tested:
+ * Layout decisions of the word-by-word looks, free of Minecraft types so they can be tested:
  * how a line in the sky splits into word groups of different sizes, and where the next floating word around
  * the player goes.
  */
@@ -102,6 +103,8 @@ final class VideoLayout {
     /** Not closer than this, or a big word fills half the screen once the player walks towards it. */
     static final float MIN_DISTANCE = 4.6f;
     static final float MAX_DISTANCE = 9f;
+    /** Larger than any difference in spacing, so a free spot always beats one behind a block. */
+    private static final float HIDDEN_PENALTY = 1_000f;
 
     /**
      * A word already on show, as seen from the player now, in degrees.
@@ -129,6 +132,15 @@ final class VideoLayout {
      * @param heightBlocks height of the new word in blocks
      */
     static Spot nextSpot(Random random, List<Seen> recent, float viewPitch, float widthBlocks, float heightBlocks) {
+        return nextSpot(random, recent, viewPitch, widthBlocks, heightBlocks, spot -> false);
+    }
+
+    /**
+     * The same, for words that blocks can hide: a spot that {@code hidden} reports as behind a block only wins
+     * when every other candidate is hidden as well.
+     */
+    static Spot nextSpot(Random random, List<Seen> recent, float viewPitch, float widthBlocks, float heightBlocks,
+            Predicate<Spot> hidden) {
         Spot best = null;
         float bestScore = -Float.MAX_VALUE;
         float pitch = Math.max(-30f, Math.min(30f, viewPitch));
@@ -145,6 +157,10 @@ final class VideoLayout {
             }
             // Prefer the middle of the view slightly, so most words are seen without turning.
             score -= Math.abs(yaw) * 0.05f;
+            // Only a candidate that would win is checked, the check may be a ray through the world.
+            if (score > bestScore && hidden.test(new Spot(yaw, distance, height, 0f, 0f))) {
+                score -= HIDDEN_PENALTY;
+            }
             if (score > bestScore) {
                 bestScore = score;
                 float twist = (yaw < 0 ? 1f : -1f) * (8f + random.nextFloat() * 22f);

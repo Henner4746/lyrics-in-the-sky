@@ -86,7 +86,8 @@ public final class Showcase {
             minecraft.player.connection.sendCommand("time set 12900");
             minecraft.player.connection.sendCommand("weather clear");
             // The defaults a new player sees.
-            config.style = "elegant";
+            // -Dlyricsinthesky.showcase.style records another style, e.g. "natural".
+            config.style = System.getProperty("lyricsinthesky.showcase.style", "elegant");
             config.mode = "sky";
             config.palette = "standard";
             config.font = "sans";

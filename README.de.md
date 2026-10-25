@@ -35,7 +35,9 @@ als einzelne Wörter, die rund um dich schweben.
   verblasst. Zum Songstart hängt eine „Now Playing“-Karte vor dir.
 - **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder sechs weiteren Paletten, oder je Song
   anders.
-- **Drei Stile:** *Elegant* (die beiden Looks oben), *Stapel* (aktuelle Zeile in der Mitte, die nächste
+- **Vier Stile:** *Elegant* (die beiden Looks oben), *Natürlich* (dasselbe, als stünde es wirklich in der Welt:
+  Zeilen knapp über den Hügeln, Spieler und Blöcke vor den Wörtern um dich herum, die gesungenen Wörter als
+  Gruppe markiert), *Stapel* (aktuelle Zeile in der Mitte, die nächste
   schwach darunter, alles gleitet weich nach oben) und *Verspielt* (Aufploppen, Zoom, Wirbel und mehr, mit
   Funken).
 - **Now-Playing-Pille** oben mit aktueller Zeile, markiertem Wort und kleinem Equalizer.
@@ -112,7 +114,7 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics height <10–70>` | Höhe über dem Horizont in Grad |
 | `/skylyrics palette <name>` | `standard`, `rose`, `lavender`, `auto` (je Song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
 | `/skylyrics font <sans\|script\|minecraft>` | moderne Schrift, Handschrift oder Minecraft-Schrift |
-| `/skylyrics style <elegant\|flow\|classic>` | Look: elegant, Stapel oder verspielt |
+| `/skylyrics style <elegant\|natural\|flow\|classic>` | Look: elegant, natürlich, Stapel oder verspielt |
 | `/skylyrics follow <on\|off>` | neue Zeilen erscheinen dort, wo du hinschaust |
 | `/skylyrics title <on\|off>` | Songtitel am Himmel beim Songwechsel |
 | `/skylyrics hud <on\|off>` | Now-Playing-Pille oben |

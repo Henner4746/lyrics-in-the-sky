@@ -61,13 +61,15 @@ final class GlyphEffects {
      * The plain look of the video styles: no glow, just the glyph with its top-to-bottom gradient, a faint
      * shadow for readability and an optional blur ring while it comes into focus or fades away.
      *
-     * @param shadow opacity of the soft shadow relative to {@code alpha}; 0 for none
+     * @param shadow   opacity of the soft shadow relative to {@code alpha}; 0 for none
+     * @param occluded with {@code overlay}: hidden by blocks and entities in front of it
      */
     static void emitPlain(TextRenderable glyph, Matrix4f pose, int top, int bottom, float alpha, float shadow, float blur,
-            boolean overlay, List<SkyGlyph> out) {
+            boolean overlay, boolean occluded, List<SkyGlyph> out) {
         if (shadow > 0.01f) {
-            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.45f, 0.6f, 0f),
-                    ARGB.color(alpha * shadow, DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
+            int dark = ARGB.color(alpha * shadow, DAY_HALO);
+            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.45f, 0.6f, 0f), dark, dark, SkyGlyph.LAYER_GLOW,
+                    overlay, occluded));
         }
         if (blur > 0.05f) {
             int ghostTop = ARGB.color(alpha * 0.22f, top);
@@ -75,10 +77,11 @@ final class GlyphEffects {
             for (int i = 0; i < BLUR_COPIES; i++) {
                 double angle = i * Math.PI * 2 / BLUR_COPIES + 0.4;
                 out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate((float) Math.cos(angle) * blur,
-                        (float) Math.sin(angle) * blur, 0f), ghostTop, ghostBottom, SkyGlyph.LAYER_BLUR, overlay));
+                        (float) Math.sin(angle) * blur, 0f), ghostTop, ghostBottom, SkyGlyph.LAYER_BLUR, overlay, occluded));
             }
         }
-        out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, top), ARGB.color(alpha, bottom), SkyGlyph.LAYER_TEXT, overlay));
+        out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, top), ARGB.color(alpha, bottom), SkyGlyph.LAYER_TEXT, overlay,
+                occluded));
     }
 
     /** The glyphs of a text, laid out from 0/0. */
