@@ -10,13 +10,24 @@ import java.util.regex.Pattern;
  * Lyrics with a start time for every sung word, as one of the word time services timed them. They are only shown after
  * {@link WordTimeTransfer} checked that they were timed for the same recording as the LRCLIB lyrics.
  *
- * @param source where the words come from, e.g. "Apple" or "NetEase"
+ * @param source   where the words come from, e.g. "Apple" or "NetEase"
+ * @param otherCut timed for a shorter or longer cut of the song than the one playing (a radio edit, an earlier fade),
+ *                 so only taken where it lines up with LRCLIB from start to end of what it covers
  */
-public record TimedWords(String source, List<Line> lines) {
+public record TimedWords(String source, List<Line> lines, boolean otherCut) {
     /** Credit lines some services put before the lyrics, e.g. "作词 : …" or "Composed by: …". */
     private static final Pattern CREDIT = Pattern.compile(
             "^\\s*(作词|作曲|编曲|制作|监制|混音|录音|母带|和声|吉他|贝斯|鼓|词|曲|lyrics|lyricist|composer|composed|written|"
                     + "producer|produced|arranger|arranged|mixed|mastered)( by)?\\s*[:：]", Pattern.CASE_INSENSITIVE);
+
+    public TimedWords(String source, List<Line> lines) {
+        this(source, lines, false);
+    }
+
+    /** The same words, marked as timed for another cut of the song. */
+    TimedWords asOtherCut() {
+        return new TimedWords(source, lines, true);
+    }
 
     /** A sung word and when it starts, in ms of the song as the service timed it. */
     public record Word(long startMs, String text) {}
@@ -45,7 +56,7 @@ public record TimedWords(String source, List<Line> lines) {
                 }
             }
         }
-        return kept.size() == lines.size() ? this : new TimedWords(source, kept);
+        return kept.size() == lines.size() ? this : new TimedWords(source, kept, otherCut);
     }
 
     /**

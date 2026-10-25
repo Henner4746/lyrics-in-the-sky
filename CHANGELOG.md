@@ -21,6 +21,9 @@
   agree with each other are trusted instead; where its lines only scatter by a few hundred ms around the service's,
   in the same order, the service's times are taken too, unless another service fits closely. Differences below
   1 s are no longer shifted onto LRCLIB's lines.
+- Where Deezer has word times only for another cut of the song (a radio edit, a remaster that fades out earlier),
+  they are taken when they line up with LRCLIB's lines strictly and all the way through; after a shorter cut ends,
+  LRCLIB's lines go on. A service with the song as it plays still comes first.
 - **Liquid Glass** (new default theme): the now-playing bar in every look, its editor and the settings as frosted
   glass like iOS 26, with the world behind the settings softly blurred. *Klassisch* keeps the old look
   (`/skylyrics theme classic`).

@@ -26,6 +26,10 @@ import org.slf4j.LoggerFactory;
  *       the services are right and LRCLIB is not.
  * </ul>
  *
+ * A service may only have word times for another cut of the song, such as the radio edit of a song that plays in full.
+ * Those count only where they line up with LRCLIB's lines from their first word to their last, and only when no
+ * service has the song as it plays.
+ *
  * Without LRCLIB lyrics the first service that has the song stands in. A service that failed rests for a few minutes,
  * so a service that is down never slows down the next songs.
  */
@@ -45,12 +49,15 @@ public final class WordTimeFinder {
     /**
      * @param lyrics what to show, with a first line {@link #MARK_PREFIX} naming the service
      * @param how    "LRCLIB" when checked against LRCLIB's lines, "confirmed by …" when another service confirmed it,
-     *               "stand-in" when LRCLIB had no lyrics
+     *               "stand-in" when LRCLIB had no lyrics, "LRCLIB, other cut" when timed for a shorter or longer cut
      */
     public record Taken(Lyrics lyrics, String source, String how) {
-        /** Only roughly checked; another service that fits closely, or confirms it, is still asked for. */
-        boolean loose() {
-            return how.endsWith("loosely");
+        /**
+         * Only roughly checked, or timed for another cut whose end LRCLIB's lines fill in; another service that fits
+         * closely, or confirms it, is still asked for.
+         */
+        boolean provisional() {
+            return how.endsWith("loosely") || how.endsWith("other cut");
         }
     }
 
@@ -106,9 +113,9 @@ public final class WordTimeFinder {
             // Named after the service asked, which is what the player switches; LyricsPlus adds where it read them.
             String label = words.get().source().equals(source.name()) ? source.name()
                     : source.name() + " (" + words.get().source() + ")";
-            found.add(new TimedWords(label, words.get().withoutTitleLine(track.title()).lines()));
+            found.add(new TimedWords(label, words.get().withoutTitleLine(track.title()).lines(), words.get().otherCut()));
             Optional<Taken> taken = decide(base, found);
-            if (taken.isPresent() && !taken.get().loose()) {
+            if (taken.isPresent() && !taken.get().provisional()) {
                 return new Outcome(taken, true);
             }
             if (roughly == null && taken.isPresent()) {
@@ -123,14 +130,18 @@ public final class WordTimeFinder {
     static Optional<Taken> decide(Lyrics base, List<TimedWords> found) {
         TimedWords latest = found.get(found.size() - 1);
         if (base == null || base.isEmpty()) {
-            return Optional.of(taken(latest, 0, "stand-in"));
+            // Another cut has nothing to be checked against, and its times would drift from the song playing.
+            return latest.otherCut() ? Optional.empty() : Optional.of(taken(latest, 0, "stand-in"));
         }
         Optional<WordTimeTransfer.Result> fits = WordTimeTransfer.transfer(base, latest, mark(latest.source()));
+        if (latest.otherCut()) {
+            return fits.map(cut -> new Taken(cut.lyrics(), latest.source(), "LRCLIB, other cut"));
+        }
         if (fits.isPresent() && !fits.get().loose()) {
             return Optional.of(new Taken(fits.get().lyrics(), latest.source(), "LRCLIB"));
         }
         for (TimedWords earlier : found.subList(0, found.size() - 1)) {
-            if (sameData(earlier, latest)) {
+            if (earlier.otherCut() || sameData(earlier, latest)) {
                 continue;
             }
             Lyrics reference = Lyrics.parseLrc(WordTimeTransfer.lrc(earlier.lines(), 0, mark(earlier.source())));

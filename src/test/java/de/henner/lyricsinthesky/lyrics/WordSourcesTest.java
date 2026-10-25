@@ -121,6 +121,19 @@ class WordSourcesTest {
         assertEquals(List.of("4", "3"), matching.stream().map(SearchHit::id).toList());
     }
 
+    @Test
+    void otherCutsOfASongLeaveOutLiveTakesAndRemixes() {
+        NowPlaying track = new NowPlaying("test", "Lanterns - Remastered 2016", "The Made Up Band", "", true, 0, 300_000, 0);
+        List<SearchHit> hits = List.of(
+                new SearchHit("1", "Lanterns (Live)", "The Made Up Band", 280_000, ""),
+                new SearchHit("2", "Lanterns (Radio Edit)", "The Made Up Band", 230_000, ""),
+                new SearchHit("3", "Lanterns (Club Remix)", "The Made Up Band", 290_000, ""),
+                new SearchHit("4", "Lanterns", "The Made Up Band", 299_000, ""),
+                new SearchHit("5", "Lanterns (Remastered)", "The Made Up Band", 260_000, ""),
+                new SearchHit("6", "Lanterns Of The Sea", "The Made Up Band", 250_000, ""));
+        assertEquals(List.of("5", "2"), SearchHit.otherCuts(track, hits, 2).stream().map(SearchHit::id).toList());
+    }
+
     private static byte[] pack(String text) {
         Deflater deflater = new Deflater();
         deflater.setInput(text.getBytes(StandardCharsets.UTF_8));

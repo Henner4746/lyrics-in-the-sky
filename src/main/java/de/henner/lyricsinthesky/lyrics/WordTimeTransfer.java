@@ -44,6 +44,8 @@ public final class WordTimeTransfer {
     static final long LOOSE_AGREE_MS = 800;
     static final double LOOSE_SHARE = 0.6;
     static final double IN_ORDER_SHARE = 0.9;
+    /** In another cut of the song, this many lines in a row found at other shifts mark a part cut out. */
+    static final int OTHER_CUT_APART_LINES = 3;
     /** Marked word times taken by 1.3.0-dev.1 to dev.3, all from LyricsPlus; still read from the disk. */
     public static final String MARK = "[re:LyricsPlus]";
     /** Kept on disk with LyricsPlus lyrics that stood in because LRCLIB had none. */
@@ -147,12 +149,46 @@ public final class WordTimeTransfer {
             loose = true;
         }
         long shift = Math.abs(offset) >= SHIFT_FROM_MS ? -offset : 0;
-        String lrc = lrc(timed.lines(), shift, mark);
+        String lrc;
+        if (timed.otherCut()) {
+            // A part cut out moves everything after it away from the common shift, and a shorter cut ends early: the
+            // service's words are taken up to the last line at the common shift, LRCLIB's lines from there on. Lines
+            // found at other shifts in a row mean a cut, even if a repeated chorus happens to line up again later.
+            long within = loose ? LOOSE_AGREE_MS : AGREE_MS;
+            int last = -1;
+            int apart = 0;
+            for (int i = 0; i < lines.size() && apart < OTHER_CUT_APART_LINES; i++) {
+                Long diff = chosen.get(i);
+                if (diff != null && Math.abs(diff - offset) <= within) {
+                    last = i;
+                    apart = 0;
+                } else if (diff != null) {
+                    apart++;
+                }
+            }
+            long until = last + 1 < lines.size() ? lines.get(last + 1).startMs() : Long.MAX_VALUE;
+            List<TimedWords.Line> kept = timed.lines().stream()
+                    .filter(line -> line.startMs() - offset < until - AGREE_MS).toList();
+            lrc = lrc(kept, shift, mark) + tail(base, until);
+        } else {
+            lrc = lrc(timed.lines(), shift, mark);
+        }
         Lyrics lyrics = Lyrics.parseLrc(lrc);
         if (lyrics.isEmpty() || !lyrics.hasWordTiming()) {
             return Optional.empty();
         }
         return Optional.of(new Result(lyrics, lrc, offset, shift, chosen.size(), loose));
+    }
+
+    /** LRCLIB's lines from {@code fromMs} on, as LRC without word times. */
+    private static String tail(Lyrics base, long fromMs) {
+        StringBuilder tail = new StringBuilder();
+        for (Lyrics.Line line : base.lines()) {
+            if (line.startMs() >= fromMs) {
+                tail.append('[').append(stamp(line.startMs())).append(']').append(line.text()).append('\n');
+            }
+        }
+        return tail.toString();
     }
 
     /** Word-timed lines as enhanced LRC, every time moved by {@code shiftMs}, under a first line {@code mark}. */

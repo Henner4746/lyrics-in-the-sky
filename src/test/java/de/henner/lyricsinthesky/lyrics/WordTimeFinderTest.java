@@ -133,6 +133,63 @@ class WordTimeFinderTest {
         assertTrue(WordTimeTransfer.transfer(Lyrics.parseLrc(base.toString()), new TimedWords("X", lines)).isPresent());
     }
 
+    @Test
+    void anotherCutThatFadesEarlierKeepsLrclibsEnd() throws Exception {
+        // The service timed a radio edit that ends after line 21; the song playing goes on to line 29.
+        TimedWords edit = numberedTimed(0, 22, 120).asOtherCut();
+        WordTimeFinder finder = new WordTimeFinder(List.of(fixed("Edit", edit)));
+        WordTimeFinder.Taken taken = finder.find(TRACK, numbered(30), Set.of("edit")).taken().orElseThrow();
+        assertEquals("LRCLIB, other cut", taken.how());
+        List<Lyrics.Line> lines = taken.lyrics().lines();
+        assertEquals(30, lines.size());
+        assertTrue(lines.get(21).wordStartsMs() != null);
+        assertEquals(null, lines.get(22).wordStartsMs());
+        assertEquals(22 * 6000, lines.get(22).startMs());
+    }
+
+    @Test
+    void aCutWithAVerseLeftOutGivesWordTimesOnlyBeforeIt() throws Exception {
+        // Lines 20 to 23 are cut out; what follows comes 24 s early and would be sung too soon.
+        List<TimedWords.Line> lines = new ArrayList<>(numberedTimed(0, 20, 0).lines());
+        lines.addAll(numberedTimed(24, 30, -24_000).lines());
+        WordTimeFinder finder = new WordTimeFinder(List.of(fixed("Edit", new TimedWords("Edit", lines).asOtherCut())));
+        List<Lyrics.Line> taken = finder.find(TRACK, numbered(30), Set.of("edit")).taken().orElseThrow().lyrics().lines();
+        assertEquals(30, taken.size());
+        assertTrue(taken.get(19).wordStartsMs() != null);
+        assertEquals(null, taken.get(20).wordStartsMs());
+        assertEquals(24 * 6000, taken.get(24).startMs());
+        assertEquals(null, taken.get(24).wordStartsMs());
+    }
+
+    @Test
+    void theSongAsItPlaysBeatsAnotherCut() throws Exception {
+        TimedWords edit = numberedTimed(0, 22, 0).asOtherCut();
+        TimedWords full = new TimedWords("Full", numberedTimed(0, 30, 50).lines());
+        WordTimeFinder finder = new WordTimeFinder(List.of(fixed("Edit", edit), fixed("Full", full)));
+        assertEquals("Full", finder.find(TRACK, numbered(30), Set.of("edit", "full")).taken().orElseThrow().source());
+        // Without LRCLIB, another cut cannot be checked and never stands in.
+        assertTrue(new WordTimeFinder(List.of(fixed("Edit", edit))).find(TRACK, null, Set.of("edit")).taken().isEmpty());
+    }
+
+    /** {@code count} lines every 6 s, each told apart by its first words. */
+    private static Lyrics numbered(int count) {
+        StringBuilder lrc = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            long t = i * 6000L;
+            lrc.append(String.format(Locale.ROOT, "[%02d:%02d.00]lantern %d is glowing%n", t / 60000, t / 1000 % 60, i));
+        }
+        return Lyrics.parseLrc(lrc.toString());
+    }
+
+    /** Lines {@code from} to {@code to} (exclusive) of {@link #numbered} with word times, {@code shift} ms later. */
+    private static TimedWords numberedTimed(int from, int to, long shift) {
+        List<TimedWords.Line> lines = new ArrayList<>();
+        for (int i = from; i < to; i++) {
+            lines.add(line(i * 6000L + shift, "lantern", Integer.toString(i), "is", "glowing"));
+        }
+        return new TimedWords("Numbered", lines);
+    }
+
     /** Sixteen lines, every 6 s, each line {@code driftMsPerLine} later than the last. */
     private static String lrc(long shift, long driftMsPerLine) {
         StringBuilder lrc = new StringBuilder();

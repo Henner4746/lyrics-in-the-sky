@@ -48,29 +48,40 @@ public final class DeezerClient implements WordTimeSource {
         if (found.isEmpty()) {
             return Optional.empty();
         }
-        for (SearchHit hit : SearchHit.matching(track, hits(found.get()), TRIES)) {
-            JsonObject request = new JsonObject();
-            request.addProperty("query", QUERY);
-            JsonObject variables = new JsonObject();
-            variables.addProperty("id", hit.id());
-            request.add("variables", variables);
-            Optional<TimedWords> words;
-            try {
-                Optional<String> body = web.postJson(LYRICS, request.toString(), "Authorization", "Bearer " + session());
-                if (body.isPresent()) {
-                    checkErrors(body.get());
-                }
-                words = body.flatMap(DeezerClient::parse);
-            } catch (IOException e) {
-                // A session Deezer no longer takes is fetched anew next time.
-                forgetSession();
-                throw e;
-            }
+        List<SearchHit> hits = hits(found.get());
+        for (SearchHit hit : SearchHit.matching(track, hits, TRIES)) {
+            Optional<TimedWords> words = lyrics(hit);
             if (words.isPresent()) {
                 return words;
             }
         }
+        // Deezer often has word times only for one cut of a song (the radio edit, a remaster that fades earlier).
+        for (SearchHit hit : SearchHit.otherCuts(track, hits, TRIES)) {
+            Optional<TimedWords> words = lyrics(hit);
+            if (words.isPresent()) {
+                return Optional.of(words.get().asOtherCut());
+            }
+        }
         return Optional.empty();
+    }
+
+    private Optional<TimedWords> lyrics(SearchHit hit) throws IOException, InterruptedException {
+        JsonObject request = new JsonObject();
+        request.addProperty("query", QUERY);
+        JsonObject variables = new JsonObject();
+        variables.addProperty("id", hit.id());
+        request.add("variables", variables);
+        try {
+            Optional<String> body = web.postJson(LYRICS, request.toString(), "Authorization", "Bearer " + session());
+            if (body.isPresent()) {
+                checkErrors(body.get());
+            }
+            return body.flatMap(DeezerClient::parse);
+        } catch (IOException e) {
+            // A session Deezer no longer takes is fetched anew next time.
+            forgetSession();
+            throw e;
+        }
     }
 
     private synchronized String session() throws IOException, InterruptedException {
