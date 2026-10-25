@@ -300,7 +300,7 @@ public final class NowPlayingHud implements HudElement {
         nextWords = new String[0];
         wordTimes = new long[0];
         lyricLine = false;
-        changed(contentKey.startsWith("preview") ? contentKey : contentKey + "#", now);
+        changed(key, now);
     }
 
     /** The bar speaks in the same type as the lyrics, except handwriting, which is too busy at this size. */
