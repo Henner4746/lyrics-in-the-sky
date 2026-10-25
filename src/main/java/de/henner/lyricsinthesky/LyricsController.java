@@ -166,13 +166,24 @@ public final class LyricsController {
             return;
         }
         try {
-            Optional<Lyrics> lyrics = lrclib.find(now);
+            LrclibClient.Lookup lookup = lrclib.lookup(now);
+            Optional<Lyrics> lyrics = lookup.synced();
             lyrics.ifPresent(found -> saved.put(key, found));
             if (lyrics.isEmpty()) {
                 Optional<Lyrics> standIn = standIn(key, now);
                 if (standIn.isPresent()) {
                     cache.put(key, new CacheEntry(standIn, LookupState.FOUND, System.currentTimeMillis()));
                     LOGGER.info("Lyrics for '{}' by '{}': FOUND (LyricsPlus, LRCLIB has none)", now.title(), now.artist());
+                    return;
+                }
+                // Last: the text without times, spread over the song. Not kept on disk, so timed lyrics that turn up
+                // later on LRCLIB are found next time.
+                Optional<Lyrics> rough = lookup.plain().map(text -> Lyrics.estimated(text, now.durationMs()))
+                        .filter(found -> !found.isEmpty());
+                if (rough.isPresent()) {
+                    cache.put(key, new CacheEntry(rough, LookupState.FOUND, System.currentTimeMillis()));
+                    LOGGER.info("Lyrics for '{}' by '{}': FOUND (text without times, spread over the song)", now.title(),
+                            now.artist());
                     return;
                 }
             }
@@ -334,6 +345,8 @@ public final class LyricsController {
                 : entry == null ? LookupState.IDLE.name() : entry.state().name();
         if (entry != null && entry.lyrics().map(Lyrics::hasWordTiming).orElse(false)) {
             state += " (wortgenau)";
+        } else if (entry != null && entry.lyrics().map(Lyrics::isEstimated).orElse(false)) {
+            state += " (ohne Zeiten, ungefähr)";
         }
         return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms",
                 now.artist(), now.title(), now.app(), now.playing() ? "spielt" : "pausiert",

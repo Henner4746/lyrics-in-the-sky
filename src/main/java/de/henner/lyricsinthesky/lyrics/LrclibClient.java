@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -46,53 +47,126 @@ public final class LrclibClient {
     }
 
     /**
-     * Empty when LRCLIB has no synced lyrics for the track. Lyrics with their own word timestamps win over
-     * line-timed ones of the same song: only with them is every word exact instead of estimated.
+     * What LRCLIB has for a track.
+     *
+     * @param synced lyrics with times, empty when it has none
+     * @param plain  only when there are no synced lyrics: the text without times, if LRCLIB has that
      */
+    public record Lookup(Optional<Lyrics> synced, Optional<String> plain) {}
+
+    /** Synced lyrics only, see {@link #lookup}. */
     public Optional<Lyrics> find(NowPlaying track) throws IOException, InterruptedException {
-        String title = TrackNames.cleanTitle(track.title());
+        return lookup(track).synced();
+    }
+
+    /**
+     * Tries the exact lookup, then a search for each of the title's variants ("- Remastered 2011", "(Single Version)"
+     * and the like taken off), then a free search over artist and title. Lyrics with their own word timestamps win over
+     * line-timed ones of the same song: only with them is every word exact instead of estimated. Throws only when LRCLIB
+     * could not be asked at all.
+     */
+    public Lookup lookup(NowPlaying track) throws IOException, InterruptedException {
         String artist = TrackNames.primaryArtist(track.artist());
+        List<String> titles = TrackNames.titleVariants(track.title());
+        long duration = track.durationMs();
+        IOException failure = null;
+        boolean answered = false;
+        String plain = null;
 
         Optional<Lyrics> exact = Optional.empty();
-        if (track.durationMs() > 0) {
+        if (duration > 0) {
             Map<String, String> query = new LinkedHashMap<>();
-            query.put("track_name", title);
+            query.put("track_name", titles.get(0));
             query.put("artist_name", artist);
             if (!track.album().isBlank()) {
                 query.put("album_name", track.album());
             }
-            query.put("duration", Long.toString(Math.round(track.durationMs() / 1000.0)));
+            query.put("duration", Long.toString(Math.round(duration / 1000.0)));
             try {
-                exact = getObject("get", query).flatMap(LrclibClient::toLyrics);
+                Optional<JsonObject> record = getObject("get", query);
+                answered = true;
+                exact = record.flatMap(LrclibClient::toLyrics);
+                plain = record.filter(found -> hasText(found, "plainLyrics")).map(found -> found.get("plainLyrics").getAsString())
+                        .orElse(null);
             } catch (IOException e) {
                 // "get" may ask other sources first and time out or answer 503 when LRCLIB is busy; the search
                 // below only reads LRCLIB's own records and often still works.
                 LOGGER.debug("LRCLIB get failed, trying the search: {}", e.getMessage());
+                failure = e;
             }
             if (exact.isPresent() && (exact.get().hasWordTiming() || exact.get().isInstrumental())) {
-                return exact;
+                return new Lookup(exact, Optional.empty());
             }
         }
 
-        Map<String, String> query = new LinkedHashMap<>();
-        query.put("track_name", title);
-        query.put("artist_name", artist);
-        JsonArray results;
-        try {
-            results = getArray("search", query);
-        } catch (IOException e) {
-            // The search only looked for word timestamps; the line-timed lyrics found before still do.
-            if (exact.isPresent()) {
-                return exact;
+        Optional<Lyrics> found = Optional.empty();
+        for (String title : titles) {
+            Map<String, String> query = new LinkedHashMap<>();
+            query.put("track_name", title);
+            query.put("artist_name", artist);
+            try {
+                JsonArray results = getArray("search", query);
+                answered = true;
+                found = pick(results, duration).flatMap(LrclibClient::toLyrics);
+                plain = plain != null ? plain : pickPlain(results, duration);
+            } catch (IOException e) {
+                failure = e;
             }
-            throw e;
+            // The exact lookup already has line times; another search is only worth it for word times.
+            if (found.isPresent() || exact.isPresent()) {
+                break;
+            }
         }
-        Optional<JsonObject> best = pick(results, track.durationMs());
-        Optional<Lyrics> found = best.flatMap(LrclibClient::toLyrics);
-        if (exact.isPresent() && !found.map(Lyrics::hasWordTiming).orElse(false)) {
-            return exact;
+        if (found.isEmpty() && exact.isEmpty()) {
+            // A free search over artist and title finds songs stored under a slightly different name; its results
+            // must still name the song and the artist.
+            String bare = titles.get(titles.size() - 1);
+            try {
+                JsonArray results = getArray("search", Map.of("q", artist + " " + bare));
+                answered = true;
+                JsonArray sameSong = new JsonArray();
+                results.forEach(result -> {
+                    JsonObject candidate = result.getAsJsonObject();
+                    if (TrackNames.sameSong(bare, artist, string(candidate, "trackName"), string(candidate, "artistName"))) {
+                        sameSong.add(candidate);
+                    }
+                });
+                found = pick(sameSong, duration).flatMap(LrclibClient::toLyrics);
+                plain = plain != null ? plain : pickPlain(sameSong, duration);
+            } catch (IOException e) {
+                failure = e;
+            }
         }
-        return found.isPresent() ? found : exact;
+        if (!answered) {
+            throw failure;
+        }
+        Optional<Lyrics> synced = exact.isPresent() && !found.map(Lyrics::hasWordTiming).orElse(false) ? exact
+                : found.isPresent() ? found : exact;
+        return new Lookup(synced, synced.isPresent() ? Optional.empty() : Optional.ofNullable(plain));
+    }
+
+    /** The plain text of the result closest in length, for a song LRCLIB has no times for. */
+    static String pickPlain(JsonArray results, long durationMs) {
+        String best = null;
+        long bestDiff = Long.MAX_VALUE;
+        for (JsonElement element : results) {
+            JsonObject candidate = element.getAsJsonObject();
+            if (!hasText(candidate, "plainLyrics")) {
+                continue;
+            }
+            boolean hasDuration = candidate.has("duration") && !candidate.get("duration").isJsonNull();
+            long diff = durationMs > 0 && hasDuration
+                    ? Math.abs(Math.round(candidate.get("duration").getAsDouble() * 1000) - durationMs) : 0;
+            if (diff <= MAX_DURATION_DIFF_MS && diff < bestDiff) {
+                best = candidate.get("plainLyrics").getAsString();
+                bestDiff = diff;
+            }
+        }
+        return best;
+    }
+
+    private static String string(JsonObject record, String key) {
+        return hasText(record, key) ? record.get(key).getAsString() : "";
     }
 
     /**

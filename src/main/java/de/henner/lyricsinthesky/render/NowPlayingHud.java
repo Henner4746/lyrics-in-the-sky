@@ -67,6 +67,8 @@ public final class NowPlayingHud implements HudElement {
     private Style textStyle = Style.EMPTY;
     /** Highlight the words being sung as one group instead of only the current word. */
     private boolean groupHighlight;
+    /** The line's times were spread over the song from plain text; the icon says so. */
+    private boolean estimated;
 
     public static Bounds lastBounds() {
         return lastBounds;
@@ -139,7 +141,7 @@ public final class NowPlayingHud implements HudElement {
         int iconX = x0 + PADDING;
         int iconY = y0 + (HEIGHT - ICON) / 2;
         roundedRect(graphics, iconX, iconY, iconX + ICON, iconY + ICON, ICON / 2, ARGB.color(alpha, palette.accentEnd));
-        graphics.centeredText(font, "♪", iconX + ICON / 2 + 1, iconY + 2, ARGB.color(alpha, 0xFFFFFF));
+        graphics.centeredText(font, estimated ? "≈" : "♪", iconX + ICON / 2 + 1, iconY + 2, ARGB.color(alpha, 0xFFFFFF));
 
         int textX = iconX + ICON + GAP;
         int textRight = x0 + w - PADDING - EQ_WIDTH - GAP;
@@ -238,6 +240,7 @@ public final class NowPlayingHud implements HudElement {
                     wordTimes = lyrics.wordTimes(index, timeline.durationMs());
                     lineEndMs = lyrics.endOf(index, timeline.durationMs());
                     lyricLine = true;
+                    estimated = lyrics.isEstimated();
                     changed(key, now);
                 }
                 return;
@@ -287,6 +290,7 @@ public final class NowPlayingHud implements HudElement {
         nextWords = new String[0];
         wordTimes = new long[0];
         lyricLine = false;
+        estimated = false;
         changed(contentKey.startsWith("preview") ? contentKey : contentKey + "#", now);
     }
 

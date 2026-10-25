@@ -37,12 +37,48 @@ public final class Lyrics {
     private final long msPerChar;
     /** The LRC text these lyrics were parsed from, empty for an instrumental. */
     private final String lrc;
+    /** Times spread over the song from plain text, so only roughly where the lines are sung. */
+    private final boolean estimated;
+    /** First line of LRC whose times were estimated rather than timed by anyone. */
+    static final String ESTIMATED_MARK = "[re:estimated]";
 
     private Lyrics(List<Line> lines, boolean instrumental, String lrc) {
         this.lines = List.copyOf(lines);
         this.instrumental = instrumental;
         this.msPerChar = measurePace(this.lines);
         this.lrc = lrc;
+        this.estimated = lrc.startsWith(ESTIMATED_MARK);
+    }
+
+    /**
+     * Plain lyrics without any times, spread over the sung part of the song in proportion to the length of each line.
+     * Better than nothing when no one has timed the song, but only roughly where the lines are sung. Section labels
+     * such as "[Chorus]" are left out.
+     */
+    public static Lyrics estimated(String plain, long durationMs) {
+        List<String> text = plain.lines().map(String::strip)
+                .filter(line -> !line.isEmpty() && !line.matches("[\\[(].*[\\])]"))
+                .toList();
+        if (text.isEmpty() || durationMs <= 0) {
+            return parseLrc("");
+        }
+        // Most songs start and end without singing; a short song gets less of that.
+        long margin = Math.max(4_000, durationMs * 6 / 100);
+        long start = Math.min(margin, durationMs / 4);
+        long end = Math.max(start + text.size() * 1_000L, durationMs - margin);
+        long total = text.stream().mapToLong(line -> line.length() + 12).sum();
+        StringBuilder lrc = new StringBuilder(ESTIMATED_MARK).append('\n');
+        long weight = 0;
+        for (String line : text) {
+            lrc.append('[').append(WordTimeTransfer.stamp(start + (end - start) * weight / total)).append(']')
+                    .append(line).append('\n');
+            weight += line.length() + 12;
+        }
+        return parseLrc(lrc.toString());
+    }
+
+    public boolean isEstimated() {
+        return estimated;
     }
 
     /**

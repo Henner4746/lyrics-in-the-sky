@@ -55,6 +55,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     private static KeyMapping laterKey;
     /** Ticks until the settings open; set by the command, which runs while the chat screen is still closing. */
     private static int openSettingsIn = -1;
+    /** LyricsPlus was offered in chat this game session. */
+    private static boolean lyricsPlusOffered;
 
     /** {@code null} until the client is initialized. */
     public static LyricsController controller() {
@@ -89,6 +91,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             controller.tick();
             handleKeys(client);
+            offerLyricsPlus(client);
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> noteLrclib(client));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SkyLyricsRenderer.INSTANCE.reset());
@@ -160,6 +163,32 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         client.gui.hud.getChat().addClientSystemMessage(message);
         config.lrclibNoticeShown = true;
         config.save();
+    }
+
+    /**
+     * A song LRCLIB has no timed lyrics for, with LyricsPlus off: offer it once per game session, since it finds many
+     * of those songs. Nothing is sent to LyricsPlus until the player clicks.
+     */
+    private static void offerLyricsPlus(Minecraft client) {
+        if (lyricsPlusOffered || config.lyricsPlus || client.player == null || SelfTest.isEnabled()) {
+            return;
+        }
+        LyricsController.Timeline timeline = controller.timeline(System.currentTimeMillis());
+        if (timeline == null || timeline.trackKey().startsWith("demo")) {
+            return;
+        }
+        boolean missing = timeline.state() == LyricsController.LookupState.NOT_FOUND
+                || timeline.lyrics() != null && timeline.lyrics().isEstimated();
+        if (!missing) {
+            return;
+        }
+        lyricsPlusOffered = true;
+        MutableComponent message = prefix()
+                .append("Für „" + timeline.title() + "“ hat lrclib.net keine Lyrics mit Zeiten. „Wortgenau“ sucht zusätzlich "
+                        + "über LyricsPlus (inoffiziell, Apple Music und QQ Music) und bekommt dafür Titel, Künstler, Album "
+                        + "und Länge. ")
+                .append(button("[Einschalten]", "/skylyrics lyricsplus on", ChatFormatting.GREEN));
+        client.gui.hud.getChat().addClientSystemMessage(message);
     }
 
     private static MutableComponent button(String label, String command, ChatFormatting color) {
