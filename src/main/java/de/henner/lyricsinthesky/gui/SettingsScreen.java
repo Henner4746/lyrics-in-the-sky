@@ -2,6 +2,8 @@ package de.henner.lyricsinthesky.gui;
 
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.WordSourceInfo;
+import de.henner.lyricsinthesky.render.Glass;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
 import de.henner.lyricsinthesky.spotify.SpotifyAccount;
 import de.henner.lyricsinthesky.timing.SongTimings;
@@ -26,6 +28,7 @@ import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
 
 /**
@@ -52,21 +55,36 @@ public final class SettingsScreen extends Screen {
     private static final int LABEL = 0xFFB4B4B4;
     private static final int DIM = 0xFF8E8E8E;
     private static final int HOVER = 0xFFE2E2E2;
-    private static final Map<String, String> PALETTE_NAMES = Map.of(
-            "standard", "Standard", "rose", "Altrosa", "lavender", "Lavendel", "auto", "Je Song anders",
-            "aurora", "Polarlicht", "sunset", "Sonnenuntergang", "gold", "Gold", "sakura", "Kirschblüte",
-            "ocean", "Ozean", "white", "Weiß");
+    /** On glass over a bright sky the greys need more light to stand out. */
+    private static final int GLASS_LABEL = 0xFFD2D6DE;
+    private static final int GLASS_DIM = 0xFFAAB1BD;
+    /** Tint of a switch that is on in the glass theme: a clear cyan, like the glass palette's accent. */
+    private static final int ON_TINT = 0x4FC3F7;
+    private static final Map<String, String> PALETTE_NAMES = Map.ofEntries(
+            Map.entry("standard", "Standard"), Map.entry("rose", "Altrosa"), Map.entry("lavender", "Lavendel"),
+            Map.entry("auto", "Je Song anders"), Map.entry("aurora", "Polarlicht"), Map.entry("sunset", "Sonnenuntergang"),
+            Map.entry("gold", "Gold"), Map.entry("sakura", "Kirschblüte"), Map.entry("ocean", "Ozean"),
+            Map.entry("white", "Weiß"), Map.entry("glass", "Glas"), Map.entry("neon", "Neon"));
     private static final Map<String, String> STYLE_NAMES = Map.of(
             "elegant", "Elegant", "natural", "Natürlich 1:1", "flow", "Stapel", "classic", "Verspielt");
     private static final Map<String, String> FONT_NAMES = Map.of(
             "sans", "Modern", "script", "Handschrift", "minecraft", "Minecraft");
     private static final Map<String, String> MODE_NAMES = Map.of("sky", "Am Himmel", "around", "Um dich herum");
     private static final Map<String, String> PRESET_NAMES = Map.of(
-            "standard", "Standard", "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig");
+            "standard", "Standard", "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig",
+            "glass", "Glas");
+    private static final Map<String, String> THEME_NAMES = Map.of("classic", "Klassisch", "glass", "Liquid Glass");
+    /** The pages of the menu, chosen with the tabs under the title. */
+    private static final List<String> PAGES = List.of("general", "look", "sources");
+    private static final Map<String, String> PAGE_NAMES = Map.of("general", "Allgemein", "look", "Aussehen",
+            "sources", "Quellen");
     /** The bar's looks, and "off" for no bar. */
     private static final List<String> BAR_CHOICES = List.of("off", "pill", "karaoke", "plain", "title");
     private static final Map<String, String> BAR_NAMES = Map.of("off", "Aus", "pill", "Pille", "karaoke", "Karaoke",
             "plain", "Schlicht", "title", "Nur Titel");
+
+    /** The page shown, kept while the game runs so the menu opens where it was left. */
+    private static String page = "general";
 
     private final Screen parent;
     private final LyricsController controller;
@@ -81,7 +99,9 @@ public final class SettingsScreen extends Screen {
     private int panelBottom;
     private int titleY;
     private int spotifyHeaderY;
-    private int spotifyStatusY;
+    /** The line at the bottom: what the hovered option does, else the Spotify or lookup status. */
+    private int statusY;
+    private int sourcesNoteY;
     private int row = ROW;
     /** A preset was picked: every option shows new values, so the widgets are built again on the next tick. */
     private boolean rebuildPending;
@@ -106,33 +126,92 @@ public final class SettingsScreen extends Screen {
     @Override
     protected void init() {
         labelled.clear();
+        spotifyButton = null;
+        clientIdBox = null;
         int contentWidth = Math.min(380, width - 2 * PANEL_PADDING - 8);
         boolean twoColumns = contentWidth >= 330;
         int left = (width - contentWidth) / 2;
         int columnWidth = twoColumns ? (contentWidth - COLUMN_GAP) / 2 : contentWidth;
-        // Title, four choices, the switches and sliders, the Spotify block and the hint line must fit the screen;
-        // on short screens the rows move closer together.
-        int optionRows = 5 + (twoColumns ? 8 : 16);
-        int fixed = 10 + 18 + 16 + 16 + 16 + 12 + 6;
+        // Title, tabs, the choices across the full width, the switches and sliders, the Spotify block on the first
+        // page and the hint line must fit the screen; on short screens the rows move closer together.
+        int[] rows = switch (page) {
+            case "look" -> new int[] {3, 5, 4};
+            case "sources" -> new int[] {0, 6, 0};
+            default -> new int[] {3, 5, 6};
+        };
+        int optionRows = rows[0] + (twoColumns ? Math.max(rows[1], rows[2]) : rows[1] + rows[2]);
+        // Everything but the option rows: title and tabs, the gaps between the blocks, the Spotify block, the hint line.
+        int fixed = 10 + 18 + 16 + switch (page) {
+            case "look" -> 6 + 6;
+            case "sources" -> 2 * 11 + 2 + 6;
+            default -> 4 + 6 + 6 + 32;
+        } + 22 + 6;
         row = fixed + optionRows * ROW <= height ? ROW : fixed + optionRows * COMPACT_ROW <= height ? COMPACT_ROW : TIGHT_ROW;
         int y = 10;
         titleY = y;
         int small = 46;
         addRenderableWidget(new OutlineButton(font, text, left + contentWidth - small, y - 3, small, text("Fertig"), true,
-                this::onClose));
+                this::onClose, this::glass));
         addRenderableWidget(new OutlineButton(font, text, left + contentWidth - 2 * small - 6, y - 3, small, text("Demo"),
                 false, () -> {
                     controller.startDemo();
                     onClose();
-                }));
+                }, this::glass));
         addRenderableWidget(new OutlineButton(font, text, left + contentWidth - 3 * small - 12, y - 3, small, text("Leiste"),
                 false, () -> {
                     config.save();
                     minecraft.gui.setScreen(new HudEditScreen(this, config));
-                }));
+                }, this::glass));
         y += 18;
+        Choice tabs = new Choice(contentWidth, PAGES, PAGE_NAMES, () -> page, value -> {
+            page = value;
+            rebuildPending = true;
+        }, value -> "");
+        tabs.setPosition(left, y);
+        addRenderableWidget(tabs);
+        y += 16;
+        statusY = switch (page) {
+            case "look" -> look(left, y, contentWidth, columnWidth, twoColumns);
+            case "sources" -> sources(left, y, contentWidth);
+            default -> general(left, y, contentWidth, columnWidth, twoColumns);
+        };
+        panelLeft = left - PANEL_PADDING;
+        panelRight = left + contentWidth + PANEL_PADDING;
+        panelTop = 2;
+        panelBottom = statusY + 22 + 6;
+        if (spotifyButton != null) {
+            updateSpotifyButton();
+        }
+    }
 
-        // Choices across the full width: a whole look at once, then what is shown, how, and in which colors and type.
+    private boolean glass() {
+        return "glass".equals(config.theme);
+    }
+
+    private int label() {
+        return glass() ? GLASS_LABEL : LABEL;
+    }
+
+    private int dim() {
+        return glass() ? GLASS_DIM : DIM;
+    }
+
+    /** Switches to one of the pages ("general", "look", "sources"); for the self test. */
+    public void show(String name) {
+        if (PAGES.contains(name)) {
+            page = name;
+            rebuildPending = true;
+        }
+    }
+
+    /** The panel's bottom edge in GUI pixels, to check that it fits the screen; for the self test. */
+    public int panelBottom() {
+        return panelBottom;
+    }
+
+    /** What is shown and when: looks, timing, lookups, and the optional Spotify account. Returns the hint line's y. */
+    private int general(int left, int y, int contentWidth, int columnWidth, boolean twoColumns) {
+        // Choices across the full width: a whole look at once, then what is shown and how.
         int wide = contentWidth - LABEL_WIDTH;
         y = row("Vorlagen", left, y, new Choice(wide, SkyLyricsConfig.PRESETS, PRESET_NAMES,
                 () -> Objects.requireNonNullElse(config.currentPreset(), ""), value -> {
@@ -144,6 +223,7 @@ public final class SettingsScreen extends Screen {
                     case "around" -> "Um dich herum im Stil 1:1: Wörter fest in der Welt, Spieler und Blöcke stehen davor.";
                     case "party" -> "Große verspielte Wörter um dich herum, die im Takt wackeln und sich mit dir drehen.";
                     case "calm" -> "Der ruhige weiße Stapel am Himmel, ohne Songtitel.";
+                    case "glass" -> "Liquid Glass: klarer Stapel in Eisblau mit Leuchten, Menü und Leiste aus Glas.";
                     default -> "Eine Vorlage setzt Anzeige, Stil, Farben, Schrift und Schalter auf einmal.";
                 }));
         y += 4;
@@ -159,40 +239,19 @@ public final class SettingsScreen extends Screen {
                     case "flow" -> "Die aktuelle Zeile in der Mitte, die nächste schwach darunter; alles gleitet weich nach oben.";
                     default -> "Jede Zeile erscheint an einer anderen Stelle, mit wechselnden Animationen und Funkeln.";
                 }));
-        y = row("Schrift", left, y, new Choice(wide, SkyLyricsConfig.FONTS, FONT_NAMES, () -> config.font,
-                value -> config.font = value, value -> "Schrift der Songtexte und der Leiste."));
-        y = row("Farben", left, y, new Choice(wide, SkyLyricsConfig.PALETTES, PALETTE_NAMES, () -> config.palette,
-                value -> config.palette = value, value -> "standard".equals(value)
-                        ? "Altrosa am Himmel, Weiß zu Lavendel um dich herum."
-                        : "Farbverlauf der Schrift. Klicken für die nächste Farbe."));
         y += 6;
 
         // Sliders and switches, in two columns where there is room, else one below the other.
         int control = columnWidth - LABEL_WIDTH;
         int leftY = y;
-        leftY = row("Deckkraft", left, leftY, new Slider(control, 0.1, 1.0, 0.05, config.opacity,
-                value -> Math.round(value * 100) + " %", value -> config.opacity = (float) value,
-                "Wie durchsichtig die Schrift ist."));
-        leftY = row("Größe", left, leftY, new Slider(control, 0.3, 3.0, 0.05, config.scale,
-                value -> Math.round(value * 100) + " %", value -> config.scale = (float) value, "Größe der Schrift."));
-        leftY = row("Höhe", left, leftY, new Slider(control, 10, 70, 1, config.elevationDeg,
-                value -> Math.round(value) + "°", value -> config.elevationDeg = (float) value,
-                "Wie hoch die Zeilen am Himmel stehen. Im Stil 1:1 sitzen sie 10° tiefer, knapp über den Hügeln."));
         leftY = row("Timing", left, leftY, new Slider(control, -2000, 2000, 50, config.offsetMs,
                 value -> (value > 0 ? "+" : "") + Math.round(value) + " ms", value -> config.offsetMs = Math.round(value),
                 "Verschiebt alle Songtexte, falls dein Kopfhörer verzögert. Positiv zeigt sie früher."));
         leftY = row("Dieser Song", left, leftY, songTiming(control));
         leftY = row("Teilen", left, leftY, new Toggle(control, () -> config.shareTiming, value -> config.shareTiming = value,
                 "Teilt Song-Korrekturen anonym mit henrik.click; ab 10 gleichen gelten sie für alle Spieler."));
-        leftY = row("Songtexte", left, leftY, new Toggle(control, () -> Boolean.TRUE.equals(config.lrclibAllowed), value -> {
-            config.lrclibAllowed = value;
-            controller.retryLookups();
-        }, "Songtexte von lrclib.net. Gesendet werden nur Titel, Künstler, Album und Länge des Songs."));
-        leftY = row("Wortgenau", left, leftY, new Toggle(control, config::wordTimes, value -> {
-            config.setWordTimes(value);
-            controller.refreshWordTimes();
-        }, "Echte Wortzeiten von inoffiziellen Diensten (Grauzone: Deezer, LyricsPlus, NetEase, Kugou). Sie bekommen "
-                + "Titel, Künstler, Album, Länge und können jederzeit wegfallen. Einzeln unter „Quellen“."));
+        leftY = row("Songtexte", left, leftY, lrclibToggle(control));
+        leftY = row("Wortgenau", left, leftY, wordTimesToggle(control));
         int rightX = twoColumns ? left + columnWidth + COLUMN_GAP : left;
         int rightY = twoColumns ? y : leftY;
         rightY = row("Lyrics", rightX, rightY, new Toggle(control, () -> config.enabled, value -> config.enabled = value,
@@ -200,27 +259,13 @@ public final class SettingsScreen extends Screen {
         rightY = row("Hinter Bergen", rightX, rightY, new Toggle(control, () -> config.skyBehindTerrain,
                 value -> config.skyBehindTerrain = value,
                 "An: Berge, Bäume, Häuser und Wolken stehen vor der Schrift am Himmel. Aus: sie bleibt immer sichtbar."));
-        rightY = row("Im Takt", rightX, rightY, new Toggle(control, () -> config.beatBounce, value -> config.beatBounce = value,
-                "Bei jedem gesungenen Wort wackelt der Text kurz mit, bei langen Wörtern stärker."));
         rightY = row("Mitdrehen", rightX, rightY, new Toggle(control, () -> config.followAlong, value -> config.followAlong = value,
                 "Die Songtexte drehen sich schnell mit, wenn du dich umschaust, statt stehen zu bleiben."));
         rightY = row("Vor dem Blick", rightX, rightY, new Toggle(control, () -> config.followView, value -> config.followView = value,
                 "Neue Zeilen erscheinen dort, wo du gerade hinschaust."));
         rightY = row("Songtitel", rightX, rightY, new Toggle(control, () -> config.showTitleCard,
                 value -> config.showTitleCard = value, "Titel und Künstler, wenn ein neuer Song beginnt."));
-        rightY = row("Leiste", rightX, rightY, new Choice(control, BAR_CHOICES, BAR_NAMES,
-                () -> config.showHud ? config.hudStyle : "off", value -> {
-                    config.showHud = !"off".equals(value);
-                    if (config.showHud) {
-                        config.hudStyle = value;
-                    }
-                }, value -> switch (value) {
-                    case "off" -> "Keine Leiste. Verschieben kannst du sie über den Knopf „Leiste“ oben.";
-                    case "karaoke" -> "Zwei Zeilen in einem Kasten, jedes Wort füllt sich beim Singen mit Farbe.";
-                    case "plain" -> "Nur die Wörter mit Schatten, ohne Kasten; das gesungene Wort in Farbe.";
-                    case "title" -> "Nur Songtitel und Künstler, ohne Songtext.";
-                    default -> "Die runde Leiste mit der aktuellen Zeile; das gesungene Wort ist hinterlegt.";
-                }));
+        rightY = row("Leiste", rightX, rightY, barChoice(control));
         y = Math.max(leftY, rightY) + 6;
 
         // Optional Spotify account, for music that does not play on this PC.
@@ -230,10 +275,10 @@ public final class SettingsScreen extends Screen {
         clientIdBox = new EditBox(font, left, y + 3, contentWidth - 2 * buttonWidth - 18, 10, Component.literal("Spotify-Client-ID"));
         clientIdBox.setBordered(false);
         clientIdBox.setTextColor(WHITE);
-        clientIdBox.setTextColorUneditable(LABEL);
+        clientIdBox.setTextColorUneditable(label());
         clientIdBox.setMaxLength(64);
         clientIdBox.setValue(config.spotifyClientId);
-        clientIdBox.setHint(text("Client-ID deiner Spotify-App").copy().withColor(DIM));
+        clientIdBox.setHint(text("Client-ID deiner Spotify-App").copy().withColor(dim()));
         clientIdBox.setResponder(value -> {
             config.spotifyClientId = value.trim();
             updateSpotifyButton();
@@ -248,19 +293,106 @@ public final class SettingsScreen extends Screen {
                         spotify.connect();
                     }
                     updateSpotifyButton();
-                }));
+                }, this::glass));
         addRenderableWidget(new OutlineButton(font, text, left + contentWidth - 2 * buttonWidth - 6, y, buttonWidth,
-                text("App anlegen"), false, () -> Browser.open(SpotifyAccount.DASHBOARD_URL)));
-        y += 16;
-        // One line for the Spotify status, or for what the hovered option does while one is hovered.
-        spotifyStatusY = y;
-        y += 12;
+                text("App anlegen"), false, () -> Browser.open(SpotifyAccount.DASHBOARD_URL), this::glass));
+        return y + 16;
+    }
 
-        panelLeft = left - PANEL_PADDING;
-        panelRight = left + contentWidth + PANEL_PADDING;
-        panelTop = 2;
-        panelBottom = y + 6;
-        updateSpotifyButton();
+    /** How the lyrics and the bar look: theme, type, colors, sizes, glow. Returns the hint line's y. */
+    private int look(int left, int y, int contentWidth, int columnWidth, boolean twoColumns) {
+        int wide = contentWidth - LABEL_WIDTH;
+        y = row("Theme", left, y, new Choice(wide, SkyLyricsConfig.THEMES, THEME_NAMES, () -> config.theme, value -> {
+            config.theme = value;
+            rebuildPending = true;
+        }, value -> "glass".equals(value)
+                ? "Menü und Leiste aus Glas wie bei iOS 26: durchscheinend, heller Rand, weicher Schatten. Die Welt hinter "
+                        + "dem Menü wird weichgezeichnet."
+                : "Schlichtes Schwarz-Weiß, die Welt hinter dem Menü bleibt scharf."));
+        y = row("Schrift", left, y, new Choice(wide, SkyLyricsConfig.FONTS, FONT_NAMES, () -> config.font,
+                value -> config.font = value, value -> "Schrift der Songtexte und der Leiste."));
+        y = row("Farben", left, y, new Choice(wide, SkyLyricsConfig.PALETTES, PALETTE_NAMES, () -> config.palette,
+                value -> config.palette = value, value -> switch (value) {
+                    case "standard" -> "Altrosa am Himmel, Weiß zu Lavendel um dich herum.";
+                    case "glass" -> "Klares Weiß zu Eisblau, gesungene Wörter in Cyan bis Flieder.";
+                    case "neon" -> "Leuchtendes Magenta und Cyan wie Neonröhren, am schönsten nachts.";
+                    default -> "Farbverlauf der Schrift. Klicken für die nächste Farbe.";
+                }));
+        y += 6;
+        int control = columnWidth - LABEL_WIDTH;
+        int leftY = y;
+        leftY = row("Deckkraft", left, leftY, new Slider(control, 0.1, 1.0, 0.05, config.opacity,
+                value -> Math.round(value * 100) + " %", value -> config.opacity = (float) value,
+                "Wie durchsichtig die Schrift ist."));
+        leftY = row("Größe", left, leftY, new Slider(control, 0.3, 3.0, 0.05, config.scale,
+                value -> Math.round(value * 100) + " %", value -> config.scale = (float) value, "Größe der Schrift."));
+        leftY = row("Höhe", left, leftY, new Slider(control, 10, 70, 1, config.elevationDeg,
+                value -> Math.round(value) + "°", value -> config.elevationDeg = (float) value,
+                "Wie hoch die Zeilen am Himmel stehen. Im Stil 1:1 sitzen sie 10° tiefer, knapp über den Hügeln."));
+        leftY = row("Leuchten", left, leftY, new Slider(control, 0, 2, 0.05, config.glow,
+                value -> Math.round(value * 100) + " %", value -> config.glow = (float) value,
+                "Leuchten um die Schrift bei Nacht, weicher Schatten bei Tag. Über 100 % kommt eine dunkle Kontur dazu."));
+        leftY = row("Im Takt", left, leftY, new Toggle(control, () -> config.beatBounce, value -> config.beatBounce = value,
+                "Bei jedem gesungenen Wort wackelt der Text kurz mit, bei langen Wörtern stärker."));
+        int rightX = twoColumns ? left + columnWidth + COLUMN_GAP : left;
+        int rightY = twoColumns ? y : leftY;
+        rightY = row("Leiste", rightX, rightY, barChoice(control));
+        rightY = row("Leistengröße", rightX, rightY, new Slider(control, 0.75, 1.5, 0.05, config.hudScale,
+                value -> Math.round(value * 100) + " %", value -> config.hudScale = (float) value,
+                "Wie groß die Now-Playing-Leiste ist."));
+        rightY = row("Hintergrund", rightX, rightY, new Slider(control, 0, 1, 0.05, config.hudOpacity,
+                value -> Math.round(value * 100) + " %", value -> config.hudOpacity = (float) value,
+                "Wie dicht der Hintergrund der Leiste ist; bei 0 % bleibt nur der Rand, die Schrift bleibt immer gleich."));
+        rightY = row("Rundung", rightX, rightY, new Slider(control, 0, 1, 0.05, config.hudRoundness,
+                value -> Math.round(value * 100) + " %", value -> config.hudRoundness = (float) value,
+                "Wie rund die Ecken der Leiste sind: 0 % eckig, 100 % eine Kapsel."));
+        return Math.max(leftY, rightY) + 6;
+    }
+
+    /** Where lyrics and word times come from: lrclib.net and the unofficial services. Returns the hint line's y. */
+    private int sources(int left, int y, int contentWidth) {
+        sourcesNoteY = y;
+        y += 2 * 11 + 2;
+        int control = contentWidth - LABEL_WIDTH;
+        y = row("lrclib.net", left, y, lrclibToggle(control));
+        y = row("Grauzone", left, y, wordTimesToggle(control));
+        for (String name : SkyLyricsConfig.WORD_SOURCES) {
+            y = row("  " + WordSourceInfo.label(name), left, y, new Toggle(control, () -> config.wordSource(name), value -> {
+                config.setWordSource(name, value);
+                controller.refreshWordTimes();
+            }, WordSourceInfo.hint(name)));
+        }
+        return y + 6;
+    }
+
+    private Toggle lrclibToggle(int width) {
+        return new Toggle(width, () -> Boolean.TRUE.equals(config.lrclibAllowed), value -> {
+            config.lrclibAllowed = value;
+            controller.retryLookups();
+        }, "Songtexte von lrclib.net, offen und frei. Gesendet werden nur Titel, Künstler, Album und Länge des Songs.");
+    }
+
+    private Toggle wordTimesToggle(int width) {
+        return new Toggle(width, config::wordTimes, value -> {
+            config.setWordTimes(value);
+            controller.refreshWordTimes();
+        }, "Echte Wortzeiten von inoffiziellen Diensten (Grauzone): schaltet alle unter „Quellen“ ein oder aus. "
+                + "Sie bekommen Titel und Künstler und können jederzeit wegfallen.");
+    }
+
+    private Choice barChoice(int width) {
+        return new Choice(width, BAR_CHOICES, BAR_NAMES, () -> config.showHud ? config.hudStyle : "off", value -> {
+            config.showHud = !"off".equals(value);
+            if (config.showHud) {
+                config.hudStyle = value;
+            }
+        }, value -> switch (value) {
+            case "off" -> "Keine Leiste. Verschieben kannst du sie über den Knopf „Leiste“ oben.";
+            case "karaoke" -> "Zwei Zeilen in einem Kasten, jedes Wort füllt sich beim Singen mit Farbe.";
+            case "plain" -> "Nur die Wörter mit Schatten, ohne Kasten; das gesungene Wort in Farbe.";
+            case "title" -> "Nur Songtitel und Künstler, ohne Songtext.";
+            default -> "Die runde Leiste mit der aktuellen Zeile; das gesungene Wort ist hinterlegt.";
+        });
     }
 
     /**
@@ -313,15 +445,22 @@ public final class SettingsScreen extends Screen {
             rebuildWidgets();
         }
         // The login finishes in the browser; pick up the new state when it does.
-        if (spotify.state() != shownState) {
+        if (spotifyButton != null && spotify.state() != shownState) {
             updateSpotifyButton();
         }
     }
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
-        // A plain black panel instead of the usual blur, so the lyrics behind stay visible while adjusting.
-        graphics.fill(panelLeft, panelTop, panelRight, panelBottom, PANEL);
+        if (glass()) {
+            // Liquid Glass: the world behind softly blurred (Minecraft blurs only the whole screen, and only as strong
+            // as the game's own menu blur setting), the panel a pane of glass floating on it.
+            graphics.blurBeforeThisStratum();
+            Glass.pane(graphics, panelLeft, panelTop, panelRight, panelBottom, 16, 1f, 1.35f);
+        } else {
+            // A plain black panel instead of the usual blur, so the lyrics behind stay visible while adjusting.
+            graphics.fill(panelLeft, panelTop, panelRight, panelBottom, PANEL);
+        }
     }
 
     @Override
@@ -330,30 +469,64 @@ public final class SettingsScreen extends Screen {
         int left = panelLeft + PANEL_PADDING;
         int right = panelRight - PANEL_PADDING;
         graphics.text(font, text("Lyrics in the Sky"), left, titleY, WHITE, false);
-        graphics.fill(left, titleY + 13, right, titleY + 14, LINE);
+        if (!glass()) {
+            graphics.fill(left, titleY + 13, right, titleY + 14, LINE);
+        }
 
         Hinted hovered = null;
         for (Labelled entry : labelled) {
             boolean hover = ((AbstractWidget) entry.widget()).isHoveredOrFocused();
-            graphics.text(font, text(entry.label()), entry.x(), entry.y() + 3, hover ? WHITE : LABEL, false);
+            graphics.text(font, text(entry.label()), entry.x(), entry.y() + 3, hover ? WHITE : label(), false);
             if (hover) {
                 hovered = entry.widget();
             }
         }
 
-        graphics.fill(left, spotifyHeaderY - 5, right, spotifyHeaderY - 4, LINE);
-        graphics.text(font, fit("Spotify · optional, für Musik vom Handy & Co.", right - left), left, spotifyHeaderY, LABEL, false);
-        graphics.fill(clientIdBox.getX(), clientIdBox.getY() + 11, clientIdBox.getX() + clientIdBox.getWidth(),
-                clientIdBox.getY() + 12, clientIdBox.isFocused() ? WHITE : DIM);
+        if ("sources".equals(page)) {
+            graphics.text(font, fit("lrclib.net ist offen und frei. Grauzone: inoffizielle Dienste ohne Konto,",
+                    right - left), left, sourcesNoteY, label(), false);
+            graphics.text(font, fit("mit echten Wortzeiten. Sie bekommen Titel und Künstler, können wegfallen.",
+                    right - left), left, sourcesNoteY + 11, label(), false);
+        }
+        if (clientIdBox != null) {
+            graphics.fill(left, spotifyHeaderY - 5, right, spotifyHeaderY - 4, LINE);
+            graphics.text(font, fit("Spotify · optional, für Musik vom Handy & Co.", right - left), left, spotifyHeaderY,
+                    label(), false);
+            graphics.fill(clientIdBox.getX(), clientIdBox.getY() + 11, clientIdBox.getX() + clientIdBox.getWidth(),
+                    clientIdBox.getY() + 12, clientIdBox.isFocused() ? WHITE : dim());
+        }
         if (hovered != null) {
-            // What the hovered option does, in one line instead of a coloured tooltip.
-            graphics.text(font, fit(hovered.hint(), right - left), left, spotifyStatusY, WHITE, false);
-        } else {
+            // What the hovered option does, in up to two lines instead of a coloured tooltip.
+            String hint = hovered.hint();
+            int split = hintStart(hint, right - left);
+            graphics.text(font, fit(hint.substring(0, split).strip(), right - left), left, statusY, WHITE, false);
+            if (split < hint.length()) {
+                graphics.text(font, fit(hint.substring(split), right - left), left, statusY + 10, WHITE, false);
+            }
+        } else if ("general".equals(page)) {
             boolean connected = spotify.isConnected();
             String status = connected ? spotify.statusText()
                     : spotify.statusText() + " · Ohne Konto läuft Musik auf diesem PC automatisch.";
-            graphics.text(font, fit(status, right - left), left, spotifyStatusY, connected ? WHITE : DIM, false);
+            graphics.text(font, fit(status, right - left), left, statusY, connected ? WHITE : dim(), false);
+        } else if ("sources".equals(page)) {
+            graphics.text(font, fit(controller.status(), right - left), left, statusY, dim(), false);
+        } else {
+            graphics.text(font, fit("Änderungen siehst du sofort, am Himmel und an der Leiste.", right - left), left,
+                    statusY, dim(), false);
         }
+    }
+
+    /** Where the second line of a hint starts: after as many words as fit the first line. */
+    private int hintStart(String hint, int maxWidth) {
+        if (font.width(text(hint)) <= maxWidth) {
+            return hint.length();
+        }
+        int end = 0;
+        int next;
+        while ((next = hint.indexOf(' ', end + 1)) > 0 && font.width(text(hint.substring(0, next))) <= maxWidth) {
+            end = next;
+        }
+        return end == 0 ? hint.length() : end + 1;
     }
 
     private FormattedCharSequence fit(String value, int maxWidth) {
@@ -483,7 +656,7 @@ public final class SettingsScreen extends Screen {
             hovered = isHovered() ? at(mouseX) : null;
             String chosen = current.get();
             if (!allFit()) {
-                String label = "‹ " + name(chosen) + " ›";
+                String label = "‹ " + (values.contains(chosen) ? name(chosen) : "Eigene") + " ›";
                 draw(graphics, label, getX(), isHovered() ? WHITE : HOVER);
                 return;
             }
@@ -492,9 +665,13 @@ public final class SettingsScreen extends Screen {
                 String name = name(value);
                 int w = widthOf(name);
                 boolean selected = value.equals(chosen);
-                int color = selected ? WHITE : value.equals(hovered) ? HOVER : DIM;
+                int color = selected ? WHITE : value.equals(hovered) ? HOVER : dim();
+                if (selected && glass()) {
+                    // The chosen value sits in a small capsule of glass.
+                    Glass.pane(graphics, x - 5, getY(), x + w + 5, getY() + Math.min(12, row), 6, 1f, 1.3f);
+                }
                 draw(graphics, name, x, color);
-                if (selected) {
+                if (selected && !glass()) {
                     // Right under the letters, which on the tightest rows is the last pixel of the row.
                     int underline = getY() + Math.min(12, row);
                     graphics.fill(x, underline, x + w, underline + 1, WHITE);
@@ -534,14 +711,28 @@ public final class SettingsScreen extends Screen {
             boolean on = current.getAsBoolean();
             int x = getX();
             int y = getY() + 3;
-            int frame = on ? WHITE : isHovered() ? HOVER : DIM;
+            if (glass()) {
+                // An iOS-like switch: a capsule, tinted when on, with a round white knob.
+                int top = y - 1;
+                if (on) {
+                    Glass.fill(graphics, x, top, x + 18, top + 10, 5, ARGB.color(0.9f, ON_TINT));
+                    Glass.rim(graphics, x, top, x + 18, top + 10, 5, 0.9f);
+                } else {
+                    Glass.pane(graphics, x, top, x + 18, top + 10, 5, 1f, isHovered() ? 1.4f : 1f);
+                }
+                int knob = on ? x + 9 : x + 1;
+                Glass.fill(graphics, knob, top + 1, knob + 8, top + 9, 4, 0xFFFFFFFF);
+                draw(graphics, on ? "An" : "Aus", x + 24, on ? WHITE : isHovered() ? HOVER : dim());
+                return;
+            }
+            int frame = on ? WHITE : isHovered() ? HOVER : dim();
             graphics.outline(x, y, 16, 8, frame);
             if (on) {
                 graphics.fill(x + 8, y + 1, x + 15, y + 7, WHITE);
             } else {
                 graphics.fill(x + 2, y + 2, x + 6, y + 6, frame);
             }
-            draw(graphics, on ? "An" : "Aus", x + 22, on ? WHITE : isHovered() ? HOVER : DIM);
+            draw(graphics, on ? "An" : "Aus", x + 22, on ? WHITE : isHovered() ? HOVER : dim());
         }
 
         @Override
@@ -602,7 +793,16 @@ public final class SettingsScreen extends Screen {
             int lineY = getY() + 7;
             int track = trackWidth() - 8;
             int knob = x + (int) Math.round((value - min) / (max - min) * track);
-            graphics.fill(x, lineY, x + track, lineY + 1, DIM);
+            if (glass()) {
+                // A thin glass groove, filled white up to a round glass knob.
+                Glass.fill(graphics, x, lineY - 1, x + track + 2, lineY + 2, 1, ARGB.color(0.30f, 0xFFFFFF));
+                Glass.fill(graphics, x, lineY - 1, knob + 1, lineY + 2, 1, isHovered() ? WHITE : HOVER);
+                Glass.fill(graphics, knob - 3, lineY - 3, knob + 5, lineY + 5, 4, ARGB.color(0.25f, 0x000000));
+                Glass.fill(graphics, knob - 3, lineY - 4, knob + 5, lineY + 4, 4, 0xFFFFFFFF);
+                graphics.text(font, text(label.apply(value)), x + trackWidth(), getY() + 3, WHITE, false);
+                return;
+            }
+            graphics.fill(x, lineY, x + track, lineY + 1, dim());
             graphics.fill(x, lineY, knob, lineY + 1, isHovered() ? WHITE : HOVER);
             graphics.fill(knob, lineY - 3, knob + 2, lineY + 4, WHITE);
             graphics.text(font, text(label.apply(value)), x + trackWidth(), getY() + 3, WHITE, false);

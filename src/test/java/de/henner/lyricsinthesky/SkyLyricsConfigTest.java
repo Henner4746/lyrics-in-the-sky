@@ -36,6 +36,19 @@ class SkyLyricsConfigTest {
     }
 
     @Test
+    void lookValuesAreKeptInRange(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("lyricsinthesky.json");
+        Files.writeString(file, "{\"theme\": \"chrome\", \"hudScale\": 9, \"hudOpacity\": -1, \"hudRoundness\": 0.4, "
+                + "\"glow\": 5}", StandardCharsets.UTF_8);
+        SkyLyricsConfig config = SkyLyricsConfig.load(file);
+        assertEquals("glass", config.theme);
+        assertEquals(1.5f, config.hudScale);
+        assertEquals(0f, config.hudOpacity);
+        assertEquals(0.4f, config.hudRoundness);
+        assertEquals(2f, config.glow);
+    }
+
+    @Test
     void unknownValuesFallBackToTheDefaults(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("lyricsinthesky.json");
         Files.writeString(file, "{\"style\": \"neon\", \"palette\": \"rainbow\", \"mode\": \"moon\"}", StandardCharsets.UTF_8);

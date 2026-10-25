@@ -210,6 +210,7 @@ public final class SkyLyricsRenderer {
         float dt = lastFrameNanos == 0 ? 0f : Math.min(0.25f, (now - lastFrameNanos) / 1e9f);
         lastFrameNanos = now;
         SkyLyricsConfig config = controller.config();
+        GlyphEffects.strength = config.glow;
         var camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
         updateAnchor(camera.yRot, dt, config.followView);
         // "Turn along": a stiff spring after the view, so the lyrics keep up with turns without jerking.

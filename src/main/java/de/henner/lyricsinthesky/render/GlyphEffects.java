@@ -24,6 +24,12 @@ final class GlyphEffects {
         }
     }
 
+    /**
+     * The player's "Leuchten": 1 as designed, 0 for none, 2 twice as strong. Read while the glyphs of a frame are made,
+     * set once per frame from the config.
+     */
+    static volatile float strength = 1f;
+
     private GlyphEffects() {}
 
     /**
@@ -34,13 +40,14 @@ final class GlyphEffects {
      */
     static void emit(TextRenderable glyph, Matrix4f pose, int color, float alpha, int glowColor, float glowAlpha,
             float dayness, float blur, boolean overlay, List<SkyGlyph> out) {
-        if (dayness > 0.05f) {
+        float strength = GlyphEffects.strength;
+        if (dayness > 0.05f && strength > 0.01f) {
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.55f, 0.75f, 0f),
-                    ARGB.color(alpha * 0.38f * dayness, DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
+                    ARGB.color(Math.min(1f, alpha * 0.38f * dayness * strength), DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(1.0f, 1.3f, 0f),
-                    ARGB.color(alpha * 0.2f * dayness, DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
+                    ARGB.color(Math.min(1f, alpha * 0.2f * dayness * strength), DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
         }
-        int glow = ARGB.color(alpha * glowAlpha, glowColor);
+        int glow = ARGB.color(Math.min(1f, alpha * glowAlpha * strength), glowColor);
         for (int i = 0; i < GLOW_COPIES; i++) {
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(GLOW_COS[i] * GLOW_PX, GLOW_SIN[i] * GLOW_PX, 0f),
                     glow, SkyGlyph.LAYER_GLOW, overlay));
@@ -66,8 +73,18 @@ final class GlyphEffects {
      */
     static void emitPlain(TextRenderable glyph, Matrix4f pose, int top, int bottom, float alpha, float shadow, float blur,
             boolean overlay, boolean occluded, List<SkyGlyph> out) {
+        float strength = GlyphEffects.strength;
+        shadow *= strength;
+        if (strength > 1.01f) {
+            // Above the designed strength: a soft dark ring as well, which reads like an outline on a bright sky.
+            int ring = ARGB.color(Math.min(1f, alpha * 0.14f * (strength - 1f)), DAY_HALO);
+            for (int i = 0; i < GLOW_COPIES; i++) {
+                out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(GLOW_COS[i] * GLOW_PX, GLOW_SIN[i] * GLOW_PX, 0f),
+                        ring, ring, SkyGlyph.LAYER_GLOW, overlay, occluded));
+            }
+        }
         if (shadow > 0.01f) {
-            int dark = ARGB.color(alpha * shadow, DAY_HALO);
+            int dark = ARGB.color(Math.min(1f, alpha * shadow), DAY_HALO);
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.45f, 0.6f, 0f), dark, dark, SkyGlyph.LAYER_GLOW,
                     overlay, occluded));
         }

@@ -24,7 +24,7 @@ public final class SkyLyricsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     /** "standard": rose in the sky, white to lavender around the player; "auto": a different palette per song. */
     public static final List<String> PALETTES = List.of("standard", "rose", "lavender", "auto", "aurora", "sunset", "gold",
-            "sakura", "ocean", "white");
+            "sakura", "ocean", "white", "glass", "neon");
     /** "sans": a round modern sans-serif (Poppins), "script": handwriting (Kalam), "minecraft": the game font. */
     public static final List<String> FONTS = List.of("sans", "script", "minecraft");
     /** "sky": far away in the sky behind everything, like the sun. "around": close around the player, always visible. */
@@ -43,7 +43,12 @@ public final class SkyLyricsConfig {
      * "calm" the quiet white stack. They set the look only, never timing, lookups, the Spotify login or whether the
      * lyrics are on.
      */
-    public static final List<String> PRESETS = List.of("standard", "sky", "around", "party", "calm");
+    public static final List<String> PRESETS = List.of("standard", "sky", "around", "party", "calm", "glass");
+    /**
+     * Looks of the menu and the now-playing bar: "classic" the plain black-and-white panel and dark bar, "glass" Liquid
+     * Glass, frosted see-through glass with a bright rim and a soft shadow, like Apple's iOS 26.
+     */
+    public static final List<String> THEMES = List.of("classic", "glass");
     /**
      * Looks of the now-playing bar: "pill" the rounded bar with the line and the word being sung, "karaoke" two lines
      * in a box with every word filling up as it is sung, "plain" just the words with a shadow, "title" only the song.
@@ -102,6 +107,16 @@ public final class SkyLyricsConfig {
     public String hudStyle = "pill";
     /** One of {@link #HUD_ANCHORS}. */
     public String hudAnchor = "top";
+    /** One of {@link #THEMES}. */
+    public String theme = "glass";
+    /** Size of the bar, 0.75 to 1.5. */
+    public float hudScale = 1f;
+    /** How solid the bar's background is, 0 (only the text) to 1. */
+    public float hudOpacity = 1f;
+    /** How round the bar's corners are, 0 (square) to 1 (a pill). */
+    public float hudRoundness = 1f;
+    /** Strength of the glow at night and the soft shadow by day around the lyrics, 0 to 2. */
+    public float glow = 1f;
     /**
      * Where the bar was moved to by hand, in GUI pixels: its middle right of the screen's middle, and its edge away
      * from the anchor edge (down from the top, up from the bottom).
@@ -207,6 +222,13 @@ public final class SkyLyricsConfig {
         if (hudAnchor == null || !HUD_ANCHORS.contains(hudAnchor)) {
             hudAnchor = "top";
         }
+        if (theme == null || !THEMES.contains(theme)) {
+            theme = "glass";
+        }
+        hudScale = Float.isFinite(hudScale) ? Math.max(0.75f, Math.min(1.5f, hudScale)) : 1f;
+        hudOpacity = Float.isFinite(hudOpacity) ? Math.max(0f, Math.min(1f, hudOpacity)) : 1f;
+        hudRoundness = Float.isFinite(hudRoundness) ? Math.max(0f, Math.min(1f, hudRoundness)) : 1f;
+        glow = Float.isFinite(glow) ? Math.max(0f, Math.min(2f, glow)) : 1f;
         // The bar is kept on screen when drawn; this only keeps the numbers sane.
         hudOffsetX = Math.max(-4000, Math.min(4000, hudOffsetX));
         hudOffsetY = Math.max(-4000, Math.min(4000, hudOffsetY));
@@ -259,6 +281,7 @@ public final class SkyLyricsConfig {
         followView = defaults.followView;
         showTitleCard = defaults.showTitleCard;
         showHud = defaults.showHud;
+        glow = defaults.glow;
         switch (preset) {
             case "sky" -> style = "natural";
             case "around" -> {
@@ -278,6 +301,13 @@ public final class SkyLyricsConfig {
                 palette = "white";
                 opacity = 0.7f;
                 showTitleCard = false;
+            }
+            case "glass" -> {
+                style = "flow";
+                palette = "glass";
+                glow = 1.4f;
+                // Also the menu and the bar in glass; the other looks leave the theme as it is.
+                theme = "glass";
             }
             default -> {
                 // "standard": the defaults as set above.
@@ -299,6 +329,6 @@ public final class SkyLyricsConfig {
 
     private Object[] look() {
         return new Object[] {mode, style, palette, font, opacity, scale, elevationDeg, skyBehindTerrain, beatBounce,
-                followAlong, followView, showTitleCard, showHud};
+                followAlong, followView, showTitleCard, showHud, glow};
     }
 }

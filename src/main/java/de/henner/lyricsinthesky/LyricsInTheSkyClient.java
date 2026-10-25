@@ -273,7 +273,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                             + "height <10-70>, palette <name>, "
                             + "font <sans|script|minecraft>, follow <on|off>, title <on|off>, hud <on|off>, "
                             + "behind <on|off>, beat <on|off>, along <on|off>, preset <standard|sky|around|party|calm>, "
-                            + "bar <pill|karaoke|plain|title>, barpos <top|bottom>, "
+                            + "bar <pill|karaoke|plain|title>, barpos <top|bottom>, theme <classic|glass>, "
+                            + "barsize <0.75-1.5>, barbg <0-1>, barround <0-1>, glow <0-2>, "
                             + "lrclib <on|off>, wortgenau <on|off>, source <deezer|lyricsplus|netease|kugou> <on|off>, "
                             + "spotify <connect|disconnect>"))
                     .then(ClientCommands.literal("status").executes(context ->
@@ -336,6 +337,11 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(toggle("beat", (c, value) -> c.beatBounce = value, "Im Takt wackeln"))
                     .then(toggle("along", (c, value) -> c.followAlong = value, "Mitdrehen"))
                     .then(choice("preset", SkyLyricsConfig.PRESETS, SkyLyricsConfig::applyPreset, "Vorlage "))
+                    .then(choice("theme", SkyLyricsConfig.THEMES, (c, value) -> c.theme = value, "Theme "))
+                    .then(number("barsize", 0.75f, 1.5f, (c, value) -> c.hudScale = value, "Leistengröße"))
+                    .then(number("barbg", 0f, 1f, (c, value) -> c.hudOpacity = value, "Hintergrund der Leiste"))
+                    .then(number("barround", 0f, 1f, (c, value) -> c.hudRoundness = value, "Rundung der Leiste"))
+                    .then(number("glow", 0f, 2f, (c, value) -> c.glow = value, "Leuchten"))
                     .then(choice("bar", SkyLyricsConfig.HUD_STYLES, (c, value) -> {
                         c.hudStyle = value;
                         c.showHud = true;
@@ -376,6 +382,17 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             }, "Wortzeiten von " + WordSourceInfo.label(name)));
         }
         return node;
+    }
+
+    /** {@code name <value>} for a setting between {@code min} and {@code max}; replies with the value in percent. */
+    private static LiteralArgumentBuilder<FabricClientCommandSource> number(String name, float min, float max,
+            Setter<Float> setter, String label) {
+        return ClientCommands.literal(name)
+                .then(ClientCommands.argument("value", FloatArgumentType.floatArg(min, max))
+                        .executes(context -> {
+                            float value = FloatArgumentType.getFloat(context, "value");
+                            return set(context, c -> setter.apply(c, value), label + " " + Math.round(value * 100) + " %");
+                        }));
     }
 
     private interface Setter<T> {

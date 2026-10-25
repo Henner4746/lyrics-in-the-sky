@@ -1,6 +1,7 @@
 package de.henner.lyricsinthesky.gui;
 
 import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.render.Glass;
 import de.henner.lyricsinthesky.render.HudLayout;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
@@ -51,13 +52,18 @@ public final class HudEditScreen extends Screen {
         // In the middle of the screen, where the bar never sits by default.
         panelTop = height / 2 - 20;
         int y = panelTop + 22;
-        addRenderableWidget(new OutlineButton(font, text, x, y, buttonWidth, text("Oben"), false, () -> moveTo("top")));
+        addRenderableWidget(new OutlineButton(font, text, x, y, buttonWidth, text("Oben"), false, () -> moveTo("top"),
+                this::glass));
         addRenderableWidget(new OutlineButton(font, text, x + buttonWidth + gap, y, buttonWidth, text("Unten"), false,
-                () -> moveTo("bottom")));
+                () -> moveTo("bottom"), this::glass));
         styleButton = addRenderableWidget(new OutlineButton(font, text, x + 2 * (buttonWidth + gap), y, buttonWidth,
-                styleLabel(), false, this::nextStyle));
+                styleLabel(), false, this::nextStyle, this::glass));
         addRenderableWidget(new OutlineButton(font, text, x + 3 * (buttonWidth + gap), y, buttonWidth, text("Fertig"), true,
-                this::onClose));
+                this::onClose, this::glass));
+    }
+
+    private boolean glass() {
+        return "glass".equals(config.theme);
     }
 
     private Component styleLabel() {
@@ -82,7 +88,11 @@ public final class HudEditScreen extends Screen {
         // Only a small panel behind the buttons; the rest stays clear so the bar and the game show as they are.
         int panelWidth = 4 * 74 + 3 * 6 + 24;
         int left = (width - panelWidth) / 2;
-        graphics.fill(left, panelTop, left + panelWidth, panelTop + 44, PANEL);
+        if (glass()) {
+            Glass.pane(graphics, left, panelTop, left + panelWidth, panelTop + 44, 14, 1f, 1.2f);
+        } else {
+            graphics.fill(left, panelTop, left + panelWidth, panelTop + 44, PANEL);
+        }
     }
 
     @Override
@@ -93,7 +103,12 @@ public final class HudEditScreen extends Screen {
         NowPlayingHud.Bounds bar = NowPlayingHud.lastBounds();
         if (bar != null) {
             boolean over = dragging || bar.contains(mouseX, mouseY);
-            graphics.outline(bar.x() - 2, bar.y() - 2, bar.width() + 4, bar.height() + 4, over ? 0xFFFFFFFF : FRAME);
+            if (glass()) {
+                Glass.outline(graphics, bar.x() - 3, bar.y() - 3, bar.x() + bar.width() + 3, bar.y() + bar.height() + 3,
+                        Math.round((bar.height() + 6) / 2f * config.hudRoundness), over ? 0xFFFFFFFF : FRAME);
+            } else {
+                graphics.outline(bar.x() - 2, bar.y() - 2, bar.width() + 4, bar.height() + 4, over ? 0xFFFFFFFF : FRAME);
+            }
         }
     }
 

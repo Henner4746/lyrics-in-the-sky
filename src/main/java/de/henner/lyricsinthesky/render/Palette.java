@@ -17,7 +17,11 @@ enum Palette {
     GOLD(0xFFFFFF, 0xFFE0A0, 0xFFE27A, 0xFFB347, 0xFFD27A),
     SAKURA(0xFFF3F8, 0xFFC0DC, 0xFF9ED2, 0xFFC4A8, 0xFFB0D8),
     OCEAN(0xF0FBFF, 0xA8D8FF, 0x6FD3FF, 0x8C9CFF, 0x7FC8FF),
-    WHITE(0xFFFFFF, 0xE6ECFF, 0xFFFFFF, 0xDDE8FF, 0xCFE0FF);
+    WHITE(0xFFFFFF, 0xE6ECFF, 0xFFFFFF, 0xDDE8FF, 0xCFE0FF),
+    /** Clear white turning icy blue, with a cyan-to-lilac accent: goes with the Liquid Glass theme. */
+    GLASS(0xFFFFFF, 0xD3EAFF, 0x9EE9FF, 0xC7B5FF, 0xBFE6FF),
+    /** Bright magenta and cyan, like neon tubes at night. */
+    NEON(0xFFFFFF, 0xFFC2F4, 0x2EF2FF, 0xFF45D8, 0xFF5CE1);
 
     /** Color at the top and at the bottom of every letter. */
     final int text;

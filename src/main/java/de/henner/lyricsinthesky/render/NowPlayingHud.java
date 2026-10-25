@@ -18,8 +18,9 @@ import net.minecraft.util.ARGB;
 
 /**
  * The "now playing" bar: song or current lyric line with the word being sung, in one of four looks (see
- * {@link SkyLyricsConfig#HUD_STYLES}), at the top or at the bottom above the hotbar wherever the player moved it.
- * Everything eases in and out.
+ * {@link SkyLyricsConfig#HUD_STYLES}), at the top or at the bottom above the hotbar wherever the player moved it,
+ * classic dark or as Liquid Glass ({@link Glass}), in the size, roundness and density the player chose. Everything
+ * eases in and out.
  */
 public final class NowPlayingHud implements HudElement {
     private static final int HEIGHT = 18;
@@ -74,6 +75,11 @@ public final class NowPlayingHud implements HudElement {
     private boolean groupHighlight;
     /** The line's times were spread over the song from plain text; the icon says so. */
     private boolean estimated;
+    private boolean glass;
+    /** The player's density of the bar's background, 0 to 1. */
+    private float density = 1f;
+    /** The player's roundness, 0 (square) to 1 (capsule). */
+    private float roundness = 1f;
 
     public static Bounds lastBounds() {
         return lastBounds;
@@ -133,25 +139,51 @@ public final class NowPlayingHud implements HudElement {
         }
         width = width < 0 ? targetWidth : width + (targetWidth - width) * (1f - (float) Math.exp(-dt / 0.12f));
         int w = Math.round(width);
+        float scale = config.hudScale;
+        glass = "glass".equals(config.theme);
+        density = config.hudOpacity;
+        roundness = config.hudRoundness;
+        int shownWidth = Math.round(w * scale);
+        int shownHeight = Math.round(height * scale);
         HudLayout.Position at = HudLayout.place(config.hudAnchor, config.hudOffsetX, config.hudOffsetY,
-                graphics.guiWidth(), graphics.guiHeight(), w, height);
-        lastBounds = new Bounds(at.x(), at.y(), w, height);
+                graphics.guiWidth(), graphics.guiHeight(), shownWidth, shownHeight);
+        lastBounds = new Bounds(at.x(), at.y(), shownWidth, shownHeight);
         float slide = Easing.outCubic((now - contentChangedNanos) / 1e6f / LINE_SLIDE_MS);
         lastShown = new Shown(String.join(" ", words), lyricLine, alpha * slide);
+        // Drawn at 0/0 in its own size and scaled into place; scissors follow the scale.
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(at.x(), at.y());
+        graphics.pose().scale(scale, scale);
         switch (style) {
-            case "karaoke" -> drawKaraoke(graphics, font, at.x(), at.y(), w, slide);
-            case "plain" -> drawPlain(graphics, font, at.x(), at.y(), w, slide);
-            default -> drawPill(graphics, font, at.x(), at.y(), w, slide, now);
+            case "karaoke" -> drawKaraoke(graphics, font, 0, 0, w, slide);
+            case "plain" -> drawPlain(graphics, font, 0, 0, w, slide);
+            default -> drawPill(graphics, font, 0, 0, w, slide, now);
+        }
+        graphics.pose().popMatrix();
+    }
+
+    /** The bar's background: dark with a faint frame, or a pane of glass. */
+    private void background(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int maxRadius) {
+        int radius = Math.round(maxRadius * roundness);
+        if (glass) {
+            Glass.pane(graphics, x0, y0, x1, y1, radius, alpha, density);
+        } else {
+            Glass.fill(graphics, x0, y0, x1, y1, radius, ARGB.color(alpha * 0.62f * density, 0x0E0F1A));
+            Glass.outline(graphics, x0, y0, x1, y1, radius, ARGB.color(alpha * 0.16f * Math.max(0.4f, density), 0xFFFFFF));
         }
     }
 
     private void drawPill(GuiGraphicsExtractor graphics, Font font, int x0, int y0, int w, float slide, long now) {
-        roundedRect(graphics, x0, y0, x0 + w, y0 + HEIGHT, HEIGHT / 2, ARGB.color(alpha * 0.62f, 0x0E0F1A));
-        roundedRectOutline(graphics, x0, y0, x0 + w, y0 + HEIGHT, HEIGHT / 2, ARGB.color(alpha * 0.16f, 0xFFFFFF));
+        background(graphics, x0, y0, x0 + w, y0 + HEIGHT, HEIGHT / 2);
 
         int iconX = x0 + PADDING;
         int iconY = y0 + (HEIGHT - ICON) / 2;
-        roundedRect(graphics, iconX, iconY, iconX + ICON, iconY + ICON, ICON / 2, ARGB.color(alpha, palette.accentEnd));
+        Glass.fill(graphics, iconX, iconY, iconX + ICON, iconY + ICON, Math.round(ICON / 2f * Math.max(0.35f, roundness)),
+                ARGB.color(alpha, palette.accentEnd));
+        if (glass) {
+            Glass.rim(graphics, iconX, iconY, iconX + ICON, iconY + ICON, Math.round(ICON / 2f * Math.max(0.35f, roundness)),
+                    alpha * 0.8f);
+        }
         graphics.centeredText(font, estimated ? "≈" : "♪", iconX + ICON / 2 + 1, iconY + 2, ARGB.color(alpha, 0xFFFFFF));
 
         int textX = iconX + ICON + GAP;
@@ -171,6 +203,13 @@ public final class NowPlayingHud implements HudElement {
         int current = currentWord();
         int cursor = x0 + 2;
         int y = y0 + 1 + Math.round((1f - slide) * 4f);
+        if (glass) {
+            // Glass keeps "plain" plain: only a thin frosted ribbon behind the words.
+            float keep = density;
+            density *= 0.5f;
+            background(graphics, x0 - 4, y0 - 2, x0 + w + 4, y0 + PLAIN_HEIGHT + 1, (PLAIN_HEIGHT + 3) / 2);
+            density = keep;
+        }
         graphics.enableScissor(x0 - 2, y0 - 2, x0 + w + 2, y0 + PLAIN_HEIGHT + 2);
         for (int i = 0; i < words.length; i++) {
             Component word = Component.literal(words[i]).withStyle(textStyle);
@@ -184,8 +223,7 @@ public final class NowPlayingHud implements HudElement {
 
     /** Two lines in a box: the current one fills up word by word as it is sung, the next one waits faintly below. */
     private void drawKaraoke(GuiGraphicsExtractor graphics, Font font, int x0, int y0, int w, float slide) {
-        roundedRect(graphics, x0, y0, x0 + w, y0 + KARAOKE_HEIGHT, 6, ARGB.color(alpha * 0.62f, 0x0E0F1A));
-        roundedRectOutline(graphics, x0, y0, x0 + w, y0 + KARAOKE_HEIGHT, 6, ARGB.color(alpha * 0.16f, 0xFFFFFF));
+        background(graphics, x0, y0, x0 + w, y0 + KARAOKE_HEIGHT, 12);
         int rise = Math.round((1f - slide) * 6f);
         graphics.enableScissor(x0 + 2, y0 + 1, x0 + w - 2, y0 + KARAOKE_HEIGHT - 1);
         drawFilling(graphics, font, x0 + (w - textWidth(font, words)) / 2, y0 + 5 + rise, alpha * slide);
@@ -344,7 +382,13 @@ public final class NowPlayingHud implements HudElement {
                 cursor += wordWidth + space;
             }
             float fresh = Easing.outCubic((positionMs - wordTimes[first]) / 180f);
-            roundedRect(graphics, left - 3, y - 3, right + 3, y + 10, 4, ARGB.color(opacity * 0.85f * fresh, palette.accentEnd));
+            int radius = Math.round(6.5f * roundness);
+            Glass.fill(graphics, left - 3, y - 3, right + 3, y + 10, radius,
+                    ARGB.color(opacity * (glass ? 0.62f : 0.85f) * fresh, palette.accentEnd));
+            if (glass) {
+                // A drop of tinted glass sliding under the word.
+                Glass.rim(graphics, left - 3, y - 3, right + 3, y + 10, radius, opacity * fresh * 0.9f);
+            }
         }
         int cursor = x;
         for (int i = 0; i < words.length; i++) {
@@ -388,35 +432,6 @@ public final class NowPlayingHud implements HudElement {
             int bx = x + bar * 3 + 1;
             int bottom = y0 + HEIGHT / 2 + 5;
             graphics.fill(bx, bottom - barHeight, bx + 2, bottom, ARGB.color(alpha, palette.accent(bar / 3f)));
-        }
-    }
-
-    /** Pill-shaped fill built from horizontal strips; GUI rendering has no rounded rectangles of its own. */
-    private static void roundedRect(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int radius, int color) {
-        if (ARGB.alpha(color) == 0) {
-            return;
-        }
-        int height = y1 - y0;
-        radius = Math.min(radius, Math.min((x1 - x0) / 2, height / 2));
-        for (int row = 0; row < height; row++) {
-            float dy = Math.max(0f, Math.max(radius - row - 0.5f, row + 0.5f - (height - radius)));
-            int inset = radius == 0 ? 0 : Math.round(radius - (float) Math.sqrt(Math.max(0f, radius * radius - dy * dy)));
-            graphics.fill(x0 + inset, y0 + row, x1 - inset, y0 + row + 1, color);
-        }
-    }
-
-    private static void roundedRectOutline(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int radius, int color) {
-        int height = y1 - y0;
-        radius = Math.min(radius, Math.min((x1 - x0) / 2, height / 2));
-        for (int row = 0; row < height; row++) {
-            float dy = Math.max(0f, Math.max(radius - row - 0.5f, row + 0.5f - (height - radius)));
-            int inset = Math.round(radius - (float) Math.sqrt(Math.max(0f, radius * radius - dy * dy)));
-            if (row == 0 || row == height - 1) {
-                graphics.fill(x0 + inset, y0 + row, x1 - inset, y0 + row + 1, color);
-            } else {
-                graphics.fill(x0 + inset, y0 + row, x0 + inset + 1, y0 + row + 1, color);
-                graphics.fill(x1 - inset - 1, y0 + row, x1 - inset, y0 + row + 1, color);
-            }
         }
     }
 }
