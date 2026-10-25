@@ -89,10 +89,10 @@ Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 
 | File | Caption |
 |---|---|
-| `gallery-1-demo.gif` | Words pop in one by one in the sky at dusk (built-in demo text) |
+| `gallery-1-demo.gif` | Sung words floating around the player at dusk, staying in place while the camera turns (built-in demo text) |
 | `gallery-2-settings.png` | Settings on Right Shift |
-| `gallery-3-around-you.png` | "Around you" mode: lines float at eye level |
-| `gallery-4-daylight.png` | A line in the sky by day, with the now-playing pill on top |
+| `gallery-3-around-you.png` | "Around you": every word floats on its own around the player |
+| `gallery-4-sky.png` | "In the sky": a line building up at night, with the now-playing pill on top |
 
 All images are in-game screenshots of the mod itself; none are AI-generated images.
 

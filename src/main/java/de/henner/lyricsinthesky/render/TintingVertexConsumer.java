@@ -7,34 +7,44 @@ import net.minecraft.util.ARGB;
  * Multiplies every vertex color with a tint and premultiplies alpha, so glyphs can be faded and colored
  * individually. The sky text pipelines blend with premultiplied alpha, which keeps the anti-aliased edges
  * of TrueType glyphs free of dark fringes.
+ *
+ * <p>The tint can differ between the top and the bottom of a glyph: Minecraft emits every glyph quad as
+ * top-left, bottom-left, bottom-right, top-right, so the vertex index tells which edge a vertex is on.
  */
 public final class TintingVertexConsumer implements VertexConsumer {
     private VertexConsumer delegate;
-    private float red = 1f;
-    private float green = 1f;
-    private float blue = 1f;
-    private float alpha = 1f;
+    private int top = 0xFFFFFFFF;
+    private int bottom = 0xFFFFFFFF;
+    private int vertex;
 
     public TintingVertexConsumer wrap(VertexConsumer delegate, int argb) {
+        return wrap(delegate, argb, argb);
+    }
+
+    /** Tints each following glyph from {@code argbTop} at its top edge to {@code argbBottom} at its bottom edge. */
+    public TintingVertexConsumer wrap(VertexConsumer delegate, int argbTop, int argbBottom) {
         this.delegate = delegate;
-        this.red = ARGB.red(argb) / 255f;
-        this.green = ARGB.green(argb) / 255f;
-        this.blue = ARGB.blue(argb) / 255f;
-        this.alpha = ARGB.alpha(argb) / 255f;
+        this.top = argbTop;
+        this.bottom = argbBottom;
+        this.vertex = 0;
         return this;
     }
 
     @Override
     public VertexConsumer addVertex(float x, float y, float z) {
         delegate.addVertex(x, y, z);
+        vertex++;
         return this;
     }
 
     @Override
     public VertexConsumer setColor(int r, int g, int b, int a) {
-        float outAlpha = a / 255f * alpha;
-        delegate.setColor(channel(r * red * outAlpha), channel(g * green * outAlpha), channel(b * blue * outAlpha),
-                channel(255f * outAlpha));
+        // The color belongs to the vertex just added: 1st and 4th of each quad are on top, 2nd and 3rd below.
+        int corner = (vertex - 1) & 3;
+        int tint = corner == 1 || corner == 2 ? bottom : top;
+        float outAlpha = a / 255f * ARGB.alpha(tint) / 255f;
+        delegate.setColor(channel(r * ARGB.red(tint) / 255f * outAlpha), channel(g * ARGB.green(tint) / 255f * outAlpha),
+                channel(b * ARGB.blue(tint) / 255f * outAlpha), channel(255f * outAlpha));
         return this;
     }
 

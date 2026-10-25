@@ -31,8 +31,13 @@ public final class SettingsScreen extends Screen {
     private static final int MUTED = 0xFF9AA0B4;
     private static final int ACCENT = 0xFF7CF7E4;
     private static final Map<String, String> PALETTE_NAMES = Map.of(
-            "auto", "Automatisch", "aurora", "Polarlicht", "sunset", "Sonnenuntergang", "gold", "Gold",
-            "sakura", "Kirschblüte", "ocean", "Ozean", "white", "Weiß");
+            "video", "Wie im Video", "rose", "Altrosa", "lavender", "Lavendel", "auto", "Je Song anders",
+            "aurora", "Polarlicht", "sunset", "Sonnenuntergang", "gold", "Gold", "sakura", "Kirschblüte",
+            "ocean", "Ozean", "white", "Weiß");
+    private static final Map<String, String> STYLE_NAMES = Map.of(
+            "video", "Wie im Video", "flow", "Stapel", "classic", "Verspielt");
+    private static final Map<String, String> FONT_NAMES = Map.of(
+            "sans", "Modern", "script", "Handschrift", "minecraft", "Minecraft");
 
     private final Screen parent;
     private final LyricsController controller;
@@ -70,13 +75,22 @@ public final class SettingsScreen extends Screen {
         options.add(CycleButton.<String>builder(mode -> Component.literal("sky".equals(mode) ? "Am Himmel" : "Um dich herum"), config.mode)
                 .withValues(SkyLyricsConfig.MODES)
                 .withTooltip(mode -> Tooltip.create(Component.literal("sky".equals(mode)
-                        ? "Weit oben am Himmel, Bäume und Häuser in der Nähe verdecken die Zeilen."
-                        : "Nah um dich herum auf Augenhöhe, immer sichtbar wie ein Hologramm.")))
+                        ? "Am Himmel knapp über dem Horizont; Bäume und Häuser in der Nähe verdecken die Zeilen."
+                        : "Um dich herum: jedes Wort schwebt einzeln an einem festen Platz in deiner Nähe.")))
                 .create(0, 0, columnWidth, 20, Component.literal("Anzeige"), (button, value) -> config.mode = value));
+        options.add(CycleButton.<String>builder(style -> Component.literal(STYLE_NAMES.getOrDefault(style, style)), config.style)
+                .withValues(SkyLyricsConfig.STYLES)
+                .withTooltip(style -> Tooltip.create(Component.literal(switch (style) {
+                    case "video" -> "Wie in den Vorbild-Videos: am Himmel bauen sich die Zeilen Wort für Wort auf, "
+                            + "um dich herum schweben einzelne Wörter.";
+                    case "flow" -> "Die aktuelle Zeile in der Mitte, die nächste schwach darunter; alles gleitet weich nach oben.";
+                    default -> "Jede Zeile erscheint an einer anderen Stelle, mit wechselnden Animationen und Funkeln.";
+                })))
+                .create(0, 0, columnWidth, 20, Component.literal("Stil"), (button, value) -> config.style = value));
         options.add(CycleButton.<String>builder(name -> Component.literal(PALETTE_NAMES.getOrDefault(name, name)), config.palette)
                 .withValues(SkyLyricsConfig.PALETTES)
                 .create(0, 0, columnWidth, 20, Component.literal("Farben"), (button, value) -> config.palette = value));
-        options.add(CycleButton.<String>builder(font -> Component.literal("script".equals(font) ? "Handschrift" : "Minecraft"), config.font)
+        options.add(CycleButton.<String>builder(font -> Component.literal(FONT_NAMES.getOrDefault(font, font)), config.font)
                 .withValues(SkyLyricsConfig.FONTS)
                 .create(0, 0, columnWidth, 20, Component.literal("Schrift"), (button, value) -> config.font = value));
         options.add(new Slider(columnWidth, 0.1, 1.0, 0.05, config.opacity,

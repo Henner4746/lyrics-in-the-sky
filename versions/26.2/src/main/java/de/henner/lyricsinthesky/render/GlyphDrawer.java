@@ -93,7 +93,8 @@ final class GlyphDrawer {
                     RenderType type = group.getKey().type();
                     BufferBuilder builder = new BufferBuilder(bytes, PrimitiveTopology.QUADS, type.format());
                     for (SkyGlyph glyph : group.getValue()) {
-                        glyph.renderable().render(glyph.pose(), TINT.wrap(builder, glyph.argb()), FULL_BRIGHT, false);
+                        glyph.renderable().render(glyph.pose(), TINT.wrap(builder, glyph.argb(), glyph.argbBottom()),
+                                FULL_BRIGHT, false);
                     }
                     MeshData mesh = builder.build();
                     if (mesh == null) {

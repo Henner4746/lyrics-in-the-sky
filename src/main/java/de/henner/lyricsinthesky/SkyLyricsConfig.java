@@ -17,28 +17,41 @@ import org.slf4j.LoggerFactory;
 public final class SkyLyricsConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    public static final List<String> PALETTES = List.of("auto", "aurora", "sunset", "gold", "sakura", "ocean", "white");
-    public static final List<String> FONTS = List.of("script", "minecraft");
+    /** "video": the colors of the look each mode is modelled on; "auto": a different palette per song. */
+    public static final List<String> PALETTES = List.of("video", "rose", "lavender", "auto", "aurora", "sunset", "gold",
+            "sakura", "ocean", "white");
+    /** "sans": a round modern sans-serif (Poppins), "script": handwriting (Kalam), "minecraft": the game font. */
+    public static final List<String> FONTS = List.of("sans", "script", "minecraft");
     /** "sky": far away in the sky, hidden by nearby blocks. "around": close around the player, always visible. */
     public static final List<String> MODES = List.of("sky", "around");
+    /**
+     * "video": the look of the videos the mod is modelled on – in the sky word groups building up a line near
+     * the horizon, around the player single words floating at fixed spots. "flow": the current line in the
+     * middle, the next one faintly below, gliding up from line to line. "classic": every line pops up at its
+     * own spot with varied animations.
+     */
+    public static final List<String> STYLES = List.of("video", "flow", "classic");
+    public static final float DEFAULT_ELEVATION = 16f;
 
     public boolean enabled = true;
     /** One of {@link #MODES}. */
     public String mode = "sky";
+    /** One of {@link #STYLES}. */
+    public String style = "video";
     /** Positive values show lyrics earlier, negative values later. */
     public long offsetMs = 0;
     /** {@code null} until the player answered the first-start question about lrclib.net. */
     public Boolean lrclibAllowed = null;
     /** Base height of the lyrics above the horizon, in degrees. */
-    public float elevationDeg = 30f;
+    public float elevationDeg = DEFAULT_ELEVATION;
     /** Size multiplier for the text. */
     public float scale = 1f;
     /** 0 = invisible, 1 = fully opaque. */
     public float opacity = 0.82f;
-    /** One of {@link #PALETTES}; "auto" picks one per song. */
-    public String palette = "auto";
+    /** One of {@link #PALETTES}. */
+    public String palette = "video";
     /** One of {@link #FONTS}. */
-    public String font = "script";
+    public String font = "sans";
     /** Let new lines appear in front of the player after they turn away. */
     public boolean followView = true;
     /** Show title and artist in the sky when a new song starts. */
@@ -105,13 +118,16 @@ public final class SkyLyricsConfig {
         scale = Math.max(0.3f, Math.min(3f, scale));
         opacity = Math.max(0.1f, Math.min(1f, opacity));
         if (palette == null || !PALETTES.contains(palette)) {
-            palette = "auto";
+            palette = "video";
         }
         if (font == null || !FONTS.contains(font)) {
-            font = "script";
+            font = "sans";
         }
         if (mode == null || !MODES.contains(mode)) {
             mode = "sky";
+        }
+        if (style == null || !STYLES.contains(style)) {
+            style = "video";
         }
         spotifyClientId = spotifyClientId == null ? "" : spotifyClientId.trim();
     }

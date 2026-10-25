@@ -14,44 +14,50 @@
 
 [English version](README.md)
 
-<img src="preview/preview.gif" width="720" alt="Songtext erscheint Wort für Wort am Minecraft-Himmel in der Dämmerung">
+<img src="preview/preview.gif" width="720" alt="Gesungene Wörter schweben in der Dämmerung um den Spieler und bleiben stehen, während die Kamera sich dreht">
 
 </div>
 
 Lass auf deinem PC Musik laufen, egal ob Spotify, Amazon Music, YouTube Music oder ein anderer Player. Die
-synchronisierten Songtexte erscheinen dann beim Spielen am Himmel: Jedes Wort ploppt im Takt in weicher
-Handschrift auf, jede Zeile an einer anderen Stelle, und wenn sie vorbei ist, verweht sie wie eine Wolke.
+synchronisierten Songtexte erscheinen dann beim Spielen in der Welt: Wort für Wort am Himmel aufgebaut oder
+als einzelne Wörter, die rund um dich schweben.
 
 ## Funktionen
 
 - **Wort für Wort synchron.** Genaue Wortzeiten, wenn die Lyrics sie haben; sonst verteilt die Mod die
   Wörter nach Länge über die Zeile.
-- **Wirklich am Himmel.** Zeilen verhalten sich wie die Sonne: Sie wandern mit, stecken nie in Wänden,
-  verschwinden hinter nahen Bäumen und Häusern und stehen vor den Wolken.
-- **Viel Bewegung.** Sechs Einblendungen (aufploppen, hochschweben, Zoom, Wirbel, Fallen, Schreibmaschine),
-  vier Ausblendungen (verschwimmen, aufsteigen, zerstreuen, zersplittern), Funken, weicher Glow bei Nacht
-  und Schatten am Tag.
-- **Jede Zeile woanders,** verteilt um deine Blickrichtung; lange Zeilen brechen versetzt auf zwei Reihen
-  um, ein betontes Wort wird größer.
-- **Zwei Anzeigemodi:** *am Himmel* (weit weg, nahe Blöcke verdecken die Zeilen) oder *um dich herum* (nah
-  auf Augenhöhe, kreist langsam, immer sichtbar wie ein Hologramm).
-- **Titelkarte** am Himmel, wenn ein neuer Song beginnt.
+- **Am Himmel:** Wortgruppen in unterschiedlichen Größen bauen jede Zeile knapp über dem Horizont auf, auf
+  versetzten, leicht ansteigenden Reihen, etwas von dir weggedreht, sodass die Zeile räumlich wirkt. Jede
+  Gruppe blendet im Takt ein, die Zeile blendet weich aus, wenn die nächste woanders beginnt. Nahe Bäume und
+  Häuser verdecken sie wie die Sonne.
+- **Um dich herum:** Jedes gesungene Wort schwebt einzeln an einem festen Platz in deiner Nähe – groß,
+  kursiv, leicht gedreht – und bleibt dort, während du läufst oder kämpfst, bis es nach ein paar Sekunden
+  verblasst. Zum Songstart hängt eine „Now Playing“-Karte vor dir.
+- **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder sechs weiteren Paletten, oder je Song
+  anders.
+- **Drei Stile:** *Wie im Video* (die beiden Looks oben), *Stapel* (aktuelle Zeile in der Mitte, die nächste
+  schwach darunter, alles gleitet weich nach oben) und *Verspielt* (Aufploppen, Zoom, Wirbel und mehr, mit
+  Funken).
 - **Now-Playing-Pille** oben mit aktueller Zeile, markiertem Wort und kleinem Equalizer.
-- **Einstellungen mit der rechten Umschalttaste** und Live-Vorschau: sechs Farbpaletten, Handschrift oder
-  Minecraft-Schrift, Größe, Höhe, Deckkraft, Timing und mehr.
+- **Einstellungen mit der rechten Umschalttaste** und Live-Vorschau: Stil, Farben, Schrift (modern,
+  Handschrift oder Minecraft), Größe, Höhe, Deckkraft, Timing und mehr.
 - **Keine Anmeldung nötig** für Musik auf dem PC. **Optional Spotify-Login** für Musik vom Handy, von der
   Konsole oder einem anderen Spotify-Connect-Gerät.
 
 <table>
 <tr>
-<td><img src="preview/einstellungen.png" alt="Einstellungen auf der rechten Umschalttaste"></td>
+<td><img src="preview/am-himmel.png" alt="Eine Songzeile baut sich am Nachthimmel auf"></td>
 <td><img src="preview/um-dich-herum.png" alt="Lyrics schweben um den Spieler herum"></td>
+<td><img src="preview/einstellungen.png" alt="Einstellungen auf der rechten Umschalttaste"></td>
 </tr>
 <tr>
+<td align="center">Am Himmel</td>
+<td align="center">Um dich herum</td>
 <td align="center">Einstellungen (rechte Umschalttaste)</td>
-<td align="center">Modus „um dich herum“</td>
 </tr>
 </table>
+
+Ganzes Vorschauvideo: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-the-sky-preview.mp4)
 
 ## Voraussetzungen
 
@@ -64,7 +70,7 @@ Handschrift auf, jede Zeile an einer anderen Stelle, und wenn sie vorbei ist, ve
 
 ## Installation
 
-1. `lyrics-in-the-sky-1.1.0+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
+1. `lyrics-in-the-sky-1.2.0+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
 2. Spiel starten, Musik starten, Welt betreten.
 3. Beim ersten Mal fragt die Mod im Chat, ob sie lrclib.net nach Songtexten fragen darf. **[Erlauben]**
    klicken.
@@ -104,8 +110,9 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics opacity <0.1–1>` | Deckkraft (Standard 0.82) |
 | `/skylyrics scale <0.3–3>` | Textgröße |
 | `/skylyrics height <10–70>` | Höhe über dem Horizont in Grad |
-| `/skylyrics palette <name>` | `auto`, `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
-| `/skylyrics font <script\|minecraft>` | Handschrift oder Minecraft-Schrift |
+| `/skylyrics palette <name>` | `video`, `rose`, `lavender`, `auto` (je Song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
+| `/skylyrics font <sans\|script\|minecraft>` | moderne Schrift, Handschrift oder Minecraft-Schrift |
+| `/skylyrics style <video\|flow\|classic>` | Look: wie im Video, Stapel oder verspielt |
 | `/skylyrics follow <on\|off>` | neue Zeilen erscheinen dort, wo du hinschaust |
 | `/skylyrics title <on\|off>` | Songtitel am Himmel beim Songwechsel |
 | `/skylyrics hud <on\|off>` | Now-Playing-Pille oben |
@@ -137,9 +144,9 @@ flowchart LR
 - **Optionaler Spotify-Login** über Spotifys offizielle Web API mit Authorization Code + PKCE: kein
   Client-Secret, der Browser kehrt zu einer kleinen Seite zurück, die die Mod auf `127.0.0.1:43217` ausliefert,
   und die Tokens liegen in `config/lyricsinthesky/spotify.json` auf deinem PC.
-- **Darstellung:** Der Text wird relativ zur Kamera gezeichnet, nach der Welt und vor der Hand, mit eigenen
-  transparenten Text-Pipelines – im Himmelsmodus 48 Blöcke entfernt mit Tiefentest, im Modus „um dich herum“
-  6 Blöcke entfernt ohne Tiefentest.
+- **Darstellung:** Der Text wird nach der Welt und vor der Hand gezeichnet, mit eigenen transparenten
+  Text-Pipelines und Farbverlauf je Buchstabe – am Himmel 48 Blöcke entfernt mit Tiefentest, um dich herum als
+  Wörter, die 5 bis 9 Blöcke entfernt fest in der Welt stehen und über allem gezeichnet werden.
 
 ## Datenschutz und faire Nutzung
 
@@ -182,5 +189,8 @@ Regeln für Beiträge: [CONTRIBUTING.md](CONTRIBUTING.md). Versionen: [CHANGELOG
 
 ## Lizenz
 
-Code: [MIT](LICENSE). Schrift [Kalam](https://fonts.google.com/specimen/Kalam) © Indian Type Foundry,
-[SIL Open Font License 1.1](src/main/resources/assets/lyricsinthesky/font/ofl.txt).
+Code: [MIT](LICENSE). Schriften unter der SIL Open Font License 1.1:
+[Poppins](https://fonts.google.com/specimen/Poppins) © The Poppins Project Authors
+([Lizenz](src/main/resources/assets/lyricsinthesky/font/poppins-ofl.txt)) und
+[Kalam](https://fonts.google.com/specimen/Kalam) © Indian Type Foundry
+([Lizenz](src/main/resources/assets/lyricsinthesky/font/ofl.txt)).

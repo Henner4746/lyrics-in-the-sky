@@ -38,6 +38,17 @@ final class Placements {
         return new Placement(yaw, elevation, jitter(5f));
     }
 
+    /**
+     * The video look: lines close above the horizon, spread a little wider to the sides and less in height
+     * than the classic slots.
+     */
+    Placement nextLow(float anchorYaw, float baseElevation) {
+        Placement sky = next(anchorYaw, baseElevation);
+        float yawOffset = Mth.wrapDegrees(sky.yaw() - anchorYaw) * 1.15f;
+        float elevation = clamp(baseElevation + (sky.elevation() - baseElevation) * 0.55f, 5f, 45f);
+        return new Placement(anchorYaw + yawOffset, elevation, sky.roll() * 0.5f);
+    }
+
     Placement title(float anchorYaw, float baseElevation) {
         return new Placement(anchorYaw, clamp(baseElevation + 10f, 12f, 74f), 0f);
     }

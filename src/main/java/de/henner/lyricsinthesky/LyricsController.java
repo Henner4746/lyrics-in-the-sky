@@ -52,6 +52,7 @@ public final class LyricsController {
     private volatile String trackKey;
     private volatile long demoStartedAtMs;
     private volatile NowPlaying simulated;
+    private volatile boolean sourcesMuted;
 
     public LyricsController(NowPlayingSource source, LrclibClient lrclib, SkyLyricsConfig config) {
         this.source = source;
@@ -68,9 +69,14 @@ public final class LyricsController {
         simulated = track;
     }
 
+    /** Development only: ignore whatever really plays on this PC or account, e.g. while recording a video. */
+    public void muteSources() {
+        sourcesMuted = true;
+    }
+
     /** Called every client tick: notices track changes and starts lookups. */
     public void tick() {
-        NowPlaying now = simulated != null ? simulated : source.current();
+        NowPlaying now = simulated != null ? simulated : sourcesMuted ? null : source.current();
         track = now;
         if (now == null) {
             trackKey = null;

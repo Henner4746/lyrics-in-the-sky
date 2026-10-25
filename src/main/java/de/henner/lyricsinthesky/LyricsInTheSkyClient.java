@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import de.henner.lyricsinthesky.dev.SelfTest;
+import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
@@ -94,6 +95,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         registerCommands();
         if (SelfTest.isEnabled()) {
             SelfTest.register(controller, lrclib);
+        }
+        if (Showcase.isEnabled()) {
+            Showcase.register(controller);
         }
     }
 
@@ -184,6 +188,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                         return reply(context, "Demo läuft 37 Sekunden – schau in den Himmel.");
                     }))
                     .then(choice("mode", SkyLyricsConfig.MODES, (c, value) -> c.mode = value, "Anzeige "))
+                    .then(choice("style", SkyLyricsConfig.STYLES, (c, value) -> c.style = value, "Stil "))
                     .then(ClientCommands.literal("spotify")
                             .then(ClientCommands.literal("connect").executes(context -> {
                                 if (config.spotifyClientId.isBlank()) {

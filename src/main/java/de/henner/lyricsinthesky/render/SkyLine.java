@@ -65,21 +65,8 @@ final class SkyLine {
     private static final float ROW_GAP_PX = 15f;
     private static final float WORD_GAP_PX = 4.5f;
     private static final float EMPHASIS_SCALE = 1.38f;
-    private static final float GLOW_PX = 0.6f;
-    private static final int GLOW_COPIES = 8;
-    private static final int BLUR_COPIES = 6;
-    private static final int DAY_HALO = 0x0A0C18;
     private static final long SPARKLE_LIFE_MS = 850;
     private static final String SPARKLE = "✦";
-    private static final float[] GLOW_COS = new float[GLOW_COPIES];
-    private static final float[] GLOW_SIN = new float[GLOW_COPIES];
-
-    static {
-        for (int i = 0; i < GLOW_COPIES; i++) {
-            GLOW_COS[i] = (float) Math.cos(i * Math.PI * 2 / GLOW_COPIES);
-            GLOW_SIN[i] = (float) Math.sin(i * Math.PI * 2 / GLOW_COPIES);
-        }
-    }
 
     private static final class Word {
         final FormattedCharSequence text;
@@ -328,7 +315,7 @@ final class SkyLine {
             base.translate(0f, -Easing.inCubic(exitU) * 26f, 0f).scale(1f + 0.12f * exitU);
         }
 
-        int glowColor = ARGB.srgbLerp(frame.nightness(), DAY_HALO, palette.nightGlow);
+        int glowColor = ARGB.srgbLerp(frame.nightness(), GlyphEffects.DAY_HALO, palette.nightGlow);
         // A firmer dark halo by day keeps light text readable against a bright sky.
         float glowAlpha = 0.21f - 0.08f * frame.nightness();
         float halfHeight = frame.font().lineHeight / 2f;
@@ -339,7 +326,7 @@ final class SkyLine {
             Word word = words.get(wi);
             float wordT = wallClock ? life - wi * TITLE_WORD_STAGGER_MS : songPosition - word.appearMs;
             glyphs.clear();
-            collectGlyphs(frame.font(), word.text, glyphs);
+            GlyphEffects.collect(frame.font(), word.text, glyphs);
             if (wordT < 0f) {
                 glyphIndex += glyphs.size();
                 continue;
@@ -381,38 +368,11 @@ final class SkyLine {
                         .rotateZ((float) Math.toRadians(entryAnim.rotation + exitAnim.rotation))
                         .scale(Math.max(0f, entryAnim.scale * exitAnim.scale))
                         .translate(-cx, -cy, 0f);
-                emit(glyph, pose, color, alpha, glowColor, glowAlpha, 1f - frame.nightness(),
-                        entryAnim.blur + exitAnim.blur, out);
+                GlyphEffects.emit(glyph, pose, color, alpha, glowColor, glowAlpha, 1f - frame.nightness(),
+                        entryAnim.blur + exitAnim.blur, look.overlay(), out);
             }
         }
         renderSparkles(frame, base, exitU, out);
-    }
-
-    private void emit(TextRenderable glyph, Matrix4f pose, int color, float alpha, int glowColor, float glowAlpha,
-            float dayness, float blur, List<SkyGlyph> out) {
-        boolean overlay = look.overlay();
-        if (dayness > 0.05f) {
-            // Soft drop shadow by day, so light text stays readable in front of white clouds.
-            int shadow = ARGB.color(alpha * 0.38f * dayness, DAY_HALO);
-            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.55f, 0.75f, 0f), shadow, SkyGlyph.LAYER_GLOW, overlay));
-            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(1.0f, 1.3f, 0f), ARGB.color(alpha * 0.2f * dayness,
-                    DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
-        }
-        int glow = ARGB.color(alpha * glowAlpha, glowColor);
-        for (int i = 0; i < GLOW_COPIES; i++) {
-            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(GLOW_COS[i] * GLOW_PX, GLOW_SIN[i] * GLOW_PX, 0f),
-                    glow, SkyGlyph.LAYER_GLOW, overlay));
-        }
-        if (blur > 0.05f) {
-            // Cheap blur: a ring of faint copies that collapses onto the glyph as it settles.
-            int ghost = ARGB.color(alpha * 0.22f, color);
-            for (int i = 0; i < BLUR_COPIES; i++) {
-                double angle = i * Math.PI * 2 / BLUR_COPIES + 0.4;
-                out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate((float) Math.cos(angle) * blur,
-                        (float) Math.sin(angle) * blur, 0f), ghost, SkyGlyph.LAYER_BLUR, overlay));
-            }
-        }
-        out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, color), SkyGlyph.LAYER_TEXT, overlay));
     }
 
     private void entryAnim(float u, int index) {
@@ -504,7 +464,7 @@ final class SkyLine {
             return;
         }
         List<TextRenderable> star = new ArrayList<>(1);
-        collectGlyphs(frame.font(), Component.literal(SPARKLE).withStyle(frame.sparkleStyle()).getVisualOrderText(), star);
+        GlyphEffects.collect(frame.font(), Component.literal(SPARKLE).withStyle(frame.sparkleStyle()).getVisualOrderText(), star);
         if (star.isEmpty()) {
             return;
         }
@@ -531,15 +491,6 @@ final class SkyLine {
                     .translate(-cx, -cy, 0f);
             out.add(new SkyGlyph(glyph, pose, ARGB.color(alpha, sparkle.color()), SkyGlyph.LAYER_TEXT, look.overlay()));
         }
-    }
-
-    private static void collectGlyphs(Font font, FormattedCharSequence text, List<TextRenderable> out) {
-        font.prepareText(text, 0f, 0f, 0xFFFFFFFF, false, false, 0).visit(new Font.GlyphVisitor() {
-            @Override
-            public void acceptRenderable(TextRenderable renderable) {
-                out.add(renderable);
-            }
-        });
     }
 
     /**

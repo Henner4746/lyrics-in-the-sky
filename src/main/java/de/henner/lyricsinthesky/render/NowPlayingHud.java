@@ -10,6 +10,8 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import net.minecraft.util.ARGB;
 
 /**
@@ -38,6 +40,7 @@ public final class NowPlayingHud implements HudElement {
     private long positionMs;
     private boolean playing;
     private Palette palette = Palette.AURORA;
+    private Style textStyle = Style.EMPTY;
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -88,7 +91,9 @@ public final class NowPlayingHud implements HudElement {
     }
 
     private void update(LyricsController.Timeline timeline, SkyLyricsConfig config, long now) {
-        palette = Palette.pick(config.palette, timeline.trackKey());
+        palette = Palette.pick(config.palette, timeline.trackKey(), "around".equals(config.mode));
+        // The pill speaks in the same type as the lyrics, except handwriting, which is too busy at this size.
+        textStyle = "sans".equals(config.font) ? SkyLyricsRenderer.regularStyle("sans") : Style.EMPTY;
         positionMs = timeline.positionMs();
         playing = timeline.playing();
         Lyrics lyrics = timeline.lyrics();
@@ -123,16 +128,23 @@ public final class NowPlayingHud implements HudElement {
         contentChangedNanos = now;
     }
 
+    /** Measured word by word, exactly as {@link #drawWords} places them, so the last word is never cut off. */
     private int textWidth(Font font) {
-        return font.width(String.join(" ", words));
+        int space = font.width(Component.literal(" ").withStyle(textStyle));
+        int width = 0;
+        for (int i = 0; i < words.length; i++) {
+            width += font.width(Component.literal(words[i]).withStyle(textStyle)) + (i > 0 ? space : 0);
+        }
+        return width;
     }
 
     private void drawWords(GuiGraphicsExtractor graphics, Font font, int x, int y, float opacity) {
-        int space = font.width(" ");
+        int space = font.width(Component.literal(" ").withStyle(textStyle));
         int current = currentWord();
         int cursor = x;
         for (int i = 0; i < words.length; i++) {
-            int wordWidth = font.width(words[i]);
+            Component word = Component.literal(words[i]).withStyle(textStyle);
+            int wordWidth = font.width(word);
             boolean sung = !lyricLine || i <= current;
             if (lyricLine && i == current) {
                 // Highlight pill behind the word being sung, fading in as the word starts.
@@ -141,7 +153,7 @@ public final class NowPlayingHud implements HudElement {
                         ARGB.color(opacity * 0.85f * fresh, palette.accentEnd));
             }
             int color = sung ? 0xFFFFFF : 0x9AA0B4;
-            graphics.text(font, words[i], cursor, y, ARGB.color(opacity * (sung ? 1f : 0.85f), color), false);
+            graphics.text(font, word, cursor, y, ARGB.color(opacity * (sung ? 1f : 0.85f), color), false);
             cursor += wordWidth + space;
         }
     }

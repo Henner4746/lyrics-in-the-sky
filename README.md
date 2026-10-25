@@ -14,44 +14,49 @@
 
 [Deutsche Version](README.de.md)
 
-<img src="preview/preview.gif" width="720" alt="Lyrics appearing word by word in the Minecraft sky at dusk">
+<img src="preview/preview.gif" width="720" alt="Sung words floating around the player at dusk, staying in place while the camera turns">
 
 </div>
 
 Play music on your PC – Spotify, Amazon Music, YouTube Music or any other player – and its synced lyrics
-appear in the sky while you play. Each word pops in on the beat in soft handwriting, every line shows up in
-a different spot, and when the line is over it dissolves like a cloud.
+appear in the world while you play: built up word by word in the sky, or as single words floating all around
+you.
 
 ## Features
 
 - **Synced word by word.** Exact word timing when the lyrics have it, otherwise the words are spread over
   the line by length.
-- **Lives in the sky.** Lines are drawn like the sun: they follow you, never clip into walls, hide behind
-  nearby trees and houses and stay in front of clouds.
-- **Lots of motion.** Six entry animations (pop, rise, zoom, swirl, drop, typewriter), four exits
-  (dissolve, float away, scatter, shatter), sparkles, a soft glow at night and a shadow by day.
-- **Different spot for every line,** spread around where you are looking; long lines wrap into two
-  staggered rows and one stressed word is drawn bigger.
-- **Two display modes:** *in the sky* (far away, nearby blocks cover it) or *around you* (close at eye
-  level, slowly circling, always visible like a hologram).
-- **Title card** in the sky when a new song starts.
+- **In the sky:** word groups of different sizes build up each line close above the horizon, on staggered,
+  gently rising rows turned slightly away from you, so the line reads with depth. Every group fades in as it
+  is sung, the line fades out when the next one starts somewhere else. Nearby trees and houses cover it, like
+  the sun.
+- **Around you:** every sung word floats on its own at a fixed spot near you – big, slanted, slightly
+  turned – and stays there while you walk or fight, until it fades out a couple of seconds later. A "now
+  playing" card hangs in front of you when a song starts.
+- **Colors of your choice:** gradient text in rose, lavender or six more palettes, or a different one per song.
+- **Three styles:** *Wie im Video* (the two looks above), *Stapel* (the current line in the middle, the next
+  one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and more, with sparkles).
 - **Now-playing pill** at the top of the screen with the current line, the sung word highlighted and a
   little equalizer.
-- **Settings screen on Right Shift** with live preview: six color palettes, handwriting or Minecraft font,
-  size, height, opacity, timing and more.
+- **Settings screen on Right Shift** with live preview: style, colors, font (modern, handwriting or
+  Minecraft), size, height, opacity, timing and more.
 - **No login needed** for music on your PC. **Optional Spotify login** for music on your phone, console or
   any other Spotify Connect device.
 
 <table>
 <tr>
-<td><img src="preview/einstellungen.png" alt="Settings screen on Right Shift"></td>
+<td><img src="preview/am-himmel.png" alt="A lyric line building up in the night sky"></td>
 <td><img src="preview/um-dich-herum.png" alt="Lyrics floating around the player"></td>
+<td><img src="preview/einstellungen.png" alt="Settings screen on Right Shift"></td>
 </tr>
 <tr>
+<td align="center">In the sky</td>
+<td align="center">Around you</td>
 <td align="center">Settings on Right Shift</td>
-<td align="center">"Around you" mode</td>
 </tr>
 </table>
+
+Full preview video: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-the-sky-preview.mp4)
 
 ## Requirements
 
@@ -64,7 +69,7 @@ a different spot, and when the line is over it dissolves like a cloud.
 
 ## Installation
 
-1. Put `lyrics-in-the-sky-1.1.0+mc26.3.jar` (or `…+mc26.2.jar`) and Fabric API into your `mods` folder.
+1. Put `lyrics-in-the-sky-1.2.0+mc26.3.jar` (or `…+mc26.2.jar`) and Fabric API into your `mods` folder.
 2. Start the game, start some music, join a world.
 3. The first time, the mod asks in chat whether it may look up lyrics on lrclib.net. Click **[Erlauben]**.
 4. Press **Right Shift** for the settings. Want to see it without music? Click *Demo abspielen* there or run
@@ -99,12 +104,13 @@ working automatically through the media session on your PC.
 | `/skylyrics demo` | 37-second demo with built-in text |
 | `/skylyrics on` · `off` | Show or hide the lyrics |
 | `/skylyrics mode <sky\|around>` | In the sky or around you |
+| `/skylyrics style <video\|flow\|classic>` | Look: as in the videos, gliding stack, or playful |
 | `/skylyrics offset <ms>` | Fix delay; positive shows lyrics earlier |
 | `/skylyrics opacity <0.1–1>` | Transparency (default 0.82) |
 | `/skylyrics scale <0.3–3>` | Text size |
 | `/skylyrics height <10–70>` | Height above the horizon in degrees |
-| `/skylyrics palette <name>` | `auto`, `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
-| `/skylyrics font <script\|minecraft>` | Handwriting or the Minecraft font |
+| `/skylyrics palette <name>` | `video`, `rose`, `lavender`, `auto` (per song), `aurora`, `sunset`, `gold`, `sakura`, `ocean`, `white` |
+| `/skylyrics font <sans\|script\|minecraft>` | Modern, handwriting or the Minecraft font |
 | `/skylyrics follow <on\|off>` | New lines appear where you are looking |
 | `/skylyrics title <on\|off>` | Song title in the sky when a song starts |
 | `/skylyrics hud <on\|off>` | Now-playing pill at the top |
@@ -136,9 +142,9 @@ flowchart LR
 - **Optional Spotify login** uses Spotify's official Web API with Authorization Code + PKCE: no client
   secret, the browser returns to a tiny page served by the mod on `127.0.0.1:43217`, and the tokens are kept in
   `config/lyricsinthesky/spotify.json` on your PC.
-- **Drawing:** the text is rendered relative to the camera, after the world and before your hand, with its
-  own transparent text pipelines – 48 blocks out with depth test in the sky mode, 6 blocks out without depth
-  test in the around-you mode.
+- **Drawing:** the text is rendered after the world and before your hand, with its own transparent text
+  pipelines and a color gradient per letter – in the sky 48 blocks out with depth test, around you as words
+  anchored in the world 5 to 9 blocks away, drawn on top of everything.
 
 ## Privacy and fair use
 
@@ -180,5 +186,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules and [CHANGELOG.md](C
 
 ## License
 
-Code: [MIT](LICENSE). Font [Kalam](https://fonts.google.com/specimen/Kalam) © Indian Type Foundry,
-[SIL Open Font License 1.1](src/main/resources/assets/lyricsinthesky/font/ofl.txt).
+Code: [MIT](LICENSE). Fonts under the SIL Open Font License 1.1:
+[Poppins](https://fonts.google.com/specimen/Poppins) © The Poppins Project Authors
+([license](src/main/resources/assets/lyricsinthesky/font/poppins-ofl.txt)) and
+[Kalam](https://fonts.google.com/specimen/Kalam) © Indian Type Foundry
+([license](src/main/resources/assets/lyricsinthesky/font/ofl.txt)).

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.0 – 2026-10-25
+
+- **New look in both modes, modelled on two well-known lyrics-mod videos** (style *Wie im Video*, the new
+  default):
+  - **In the sky:** word groups of different sizes build up line by line close above the horizon, on
+    staggered, gently rising rows turned slightly away from you, so each line reads with depth. Every group
+    fades in as it is sung; the line fades out softly when the next one starts somewhere else.
+  - **Around you:** every sung word floats on its own at a fixed spot near you, big, slanted and slightly
+    turned. Words stay where they are while you walk or fight, and fade out after a couple of seconds. A
+    "now playing" card hangs in front of you when a song starts.
+- **Gradient text colors**, changeable in the settings: *Wie im Video* (rose in the sky, white to lavender
+  around you), rose, lavender, per-song colors and the previous palettes.
+- **New font *Modern*** (Poppins, SIL Open Font License) as default, also in the now-playing pill. Handwriting
+  and the Minecraft font remain selectable.
+- **Two more styles:** *Stapel* (the current line in the middle, the next one faintly below, gliding up from
+  line to line) and *Verspielt* (the varied animations of 1.0). `/skylyrics style <video|flow|classic>`.
+
 ## 1.1.0 – 2026-10-25
 
 - **Settings screen** on Right Shift (or `/skylyrics settings`): every option with live preview, the world
