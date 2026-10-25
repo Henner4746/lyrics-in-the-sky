@@ -183,6 +183,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                             + "offset <ms>, opacity <0.1-1>, scale <0.3-3>, height <10-70>, palette <name>, "
                             + "font <sans|script|minecraft>, follow <on|off>, title <on|off>, hud <on|off>, "
                             + "behind <on|off>, beat <on|off>, along <on|off>, preset <standard|sky|around|party|calm>, "
+                            + "bar <pill|karaoke|plain|title>, barpos <top|bottom>, "
                             + "lrclib <on|off>, spotify <connect|disconnect>"))
                     .then(ClientCommands.literal("status").executes(context ->
                             reply(context, controller.status() + " | " + spotify.statusText())))
@@ -238,6 +239,15 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(toggle("beat", (c, value) -> c.beatBounce = value, "Im Takt wackeln"))
                     .then(toggle("along", (c, value) -> c.followAlong = value, "Mitdrehen"))
                     .then(choice("preset", SkyLyricsConfig.PRESETS, SkyLyricsConfig::applyPreset, "Vorlage "))
+                    .then(choice("bar", SkyLyricsConfig.HUD_STYLES, (c, value) -> {
+                        c.hudStyle = value;
+                        c.showHud = true;
+                    }, "Leiste "))
+                    .then(choice("barpos", SkyLyricsConfig.HUD_ANCHORS, (c, value) -> {
+                        c.hudAnchor = value;
+                        c.hudOffsetX = 0;
+                        c.hudOffsetY = 0;
+                    }, "Leiste "))
                     .then(toggle("lrclib", (c, value) -> {
                         c.lrclibAllowed = value;
                         controller.retryLookups();

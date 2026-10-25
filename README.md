@@ -121,7 +121,9 @@ working automatically through the media session on your PC.
 | `/skylyrics font <sans\|script\|minecraft>` | Modern, handwriting or the Minecraft font |
 | `/skylyrics follow <on\|off>` | New lines appear where you are looking |
 | `/skylyrics title <on\|off>` | Song title in the sky when a song starts |
-| `/skylyrics hud <on\|off>` | Now-playing pill at the top |
+| `/skylyrics hud <on\|off>` | Now-playing bar on or off |
+| `/skylyrics bar <pill\|karaoke\|plain\|title>` | Look of the bar |
+| `/skylyrics barpos <top\|bottom>` | Bar at the top or above the hotbar (move it freely with the "Leiste" button in the settings) |
 | `/skylyrics behind <on\|off>` | In the sky behind mountains and clouds, or in front of everything |
 | `/skylyrics beat <on\|off>` | Wobble on every sung word |
 | `/skylyrics along <on\|off>` | Lyrics turn along with your view |
