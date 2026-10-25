@@ -50,6 +50,11 @@ public final class SelfTest {
     private static final double BAR_EDITOR_SHOT = 47.9;
     private static final double BAR_EDITOR_CLOSE = 48.5;
     private static String[] barBefore;
+    /** While the song plays: its own timing is set and taken back, and the settings show its slider. */
+    private static final double SONG_TIMING = 41.5;
+    private static final double SONG_SETTINGS_OPEN = 42.0;
+    private static final double SONG_SETTINGS_SHOT = 42.6;
+    private static final double SONG_SETTINGS_CLOSE = 43.1;
     private static final double QUIT_AT = 49.0;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
@@ -153,6 +158,7 @@ public final class SelfTest {
         }
         if (!Boolean.getBoolean("lyricsinthesky.selftest.record")) {
             barSteps(minecraft, controller.config());
+            songTimingSteps(minecraft, controller);
         }
         for (double shot : SIMULATION_SHOTS) {
             if (atSecond(shot)) {
@@ -213,6 +219,35 @@ public final class SelfTest {
             if (minecraft.gui.screen() instanceof HudEditScreen editor) {
                 editor.onClose();
             }
+        }
+    }
+
+    /** A timing for this song only moves its lyrics by exactly that much; nothing is shared from the self test. */
+    private static void songTimingSteps(Minecraft minecraft, LyricsController controller) {
+        if (atSecond(SONG_TIMING)) {
+            LyricsController.Song song = controller.currentSong();
+            if (song == null) {
+                LOGGER.info("SELFTEST song timing: NO song with lyrics");
+                return;
+            }
+            long nowMs = System.currentTimeMillis();
+            long before = controller.timeline(nowMs).positionMs();
+            controller.setSongOffset(song, 500);
+            long after = controller.timeline(nowMs).positionMs();
+            String status = controller.status();
+            controller.setSongOffset(song, null);
+            long back = controller.timeline(nowMs).positionMs();
+            LOGGER.info("SELFTEST song timing: {} (+{} ms, back {} ms), id {}, status: {}",
+                    after - before == 500 && back == before ? "ok" : "WRONG", after - before, back - before, song.id(), status);
+        }
+        if (atSecond(SONG_SETTINGS_OPEN)) {
+            LyricsInTheSkyClient.openSettings(minecraft);
+        }
+        if (atSecond(SONG_SETTINGS_SHOT)) {
+            shoot(minecraft, "settings with song");
+        }
+        if (atSecond(SONG_SETTINGS_CLOSE) && minecraft.gui.screen() != null) {
+            minecraft.gui.screen().onClose();
         }
     }
 
