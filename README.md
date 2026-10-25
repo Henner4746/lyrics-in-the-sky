@@ -34,14 +34,19 @@ you.
   turned – and stays there while you walk or fight, until it fades out a couple of seconds later. A "now
   playing" card hangs in front of you when a song starts.
 - **Colors of your choice:** gradient text in rose, lavender or six more palettes, or a different one per song.
-- **Four styles:** *Elegant* (the two looks above), *Natürlich* (the same as if it really stood in the world:
+- **Four styles:** *Elegant* (the two looks above), *Natürlich 1:1* (the same as if it really stood in the world:
   lines right above the hills, players and blocks in front of the words around you, the words being sung
   highlighted as a group), *Stapel* (the current line in the middle, the next
   one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and more, with sparkles).
 - **Now-playing pill** at the top of the screen with the current line, the sung word highlighted and a
   little equalizer.
-- **Settings screen on Right Shift** with live preview: style, colors, font (modern, handwriting or
-  Minecraft), size, height, opacity, timing and more.
+- **Presets:** Standard, Himmel 1:1, Um dich 1:1, Party and Ruhig set the whole look with one click.
+- **Turn along** (optional): the lyrics follow your view closely instead of staying where they appeared.
+- **Wobble on the beat** (optional): every sung word gives the lyrics a little kick, long words a stronger one.
+- **Behind the hills or always visible:** in the sky the text stands behind mountains, trees and clouds like
+  the sun; one switch puts it in front of everything instead.
+- **Settings screen on Right Shift**, minimal in black and white, with live preview: mode, style, colors, font
+  (modern, handwriting or Minecraft), size, height, opacity, timing and more.
 - **No login needed** for music on your PC. **Optional Spotify login** for music on your phone, console or
   any other Spotify Connect device.
 
@@ -73,7 +78,8 @@ Full preview video: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-th
 
 1. Put `lyrics-in-the-sky-1.2.0+mc26.3.jar` (or `…+mc26.2.jar`) and Fabric API into your `mods` folder.
 2. Start the game, start some music, join a world.
-3. The first time, the mod asks in chat whether it may look up lyrics on lrclib.net. Click **[Erlauben]**.
+3. Lyrics come from lrclib.net, which is on from the start; the first time, a note in chat says what is sent
+   and offers to switch it off.
 4. Press **Right Shift** for the settings. Want to see it without music? Click *Demo abspielen* there or run
    `/skylyrics demo`.
 
@@ -116,6 +122,10 @@ working automatically through the media session on your PC.
 | `/skylyrics follow <on\|off>` | New lines appear where you are looking |
 | `/skylyrics title <on\|off>` | Song title in the sky when a song starts |
 | `/skylyrics hud <on\|off>` | Now-playing pill at the top |
+| `/skylyrics behind <on\|off>` | In the sky behind mountains and clouds, or in front of everything |
+| `/skylyrics beat <on\|off>` | Wobble on every sung word |
+| `/skylyrics along <on\|off>` | Lyrics turn along with your view |
+| `/skylyrics preset <standard\|sky\|around\|party\|calm>` | Set a whole look at once |
 | `/skylyrics lrclib <on\|off>` | Allow or forbid lyrics lookups on lrclib.net |
 | `/skylyrics spotify <connect\|disconnect>` | Connect or disconnect the optional Spotify account |
 
@@ -153,7 +163,8 @@ flowchart LR
 - No login needed. The optional Spotify login only reads what is playing (`user-read-currently-playing`,
   `user-read-playback-state`) and can be disconnected at any time.
 - No cookies, no unofficial or internal APIs.
-- Lookups only after you allow them; they can be switched off with `/skylyrics lrclib off`.
+- Lookups are on from the start, with a note in chat the first time; switch them off in the settings or
+  with `/skylyrics lrclib off`.
 - Lyrics are fetched while playing and kept in memory only. This project does not ship or host any lyrics.
 - Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 

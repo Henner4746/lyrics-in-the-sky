@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.Mth;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -20,7 +21,19 @@ import org.joml.Vector3f;
  * font every frame so a resource reload can never leave stale textures behind.
  */
 final class SkyLine {
-    enum Entry { FADE_UP, POP, ZOOM, SWIRL, DROP, TYPE }
+    /**
+     * How a glyph arrives. {@code leadMs}: how long the animation takes until the glyph is readable (about 60 %
+     * opacity), so it can start that much early and the word is readable right when it is sung.
+     */
+    enum Entry {
+        FADE_UP(140), POP(125), ZOOM(175), SWIRL(140), DROP(105), TYPE(0);
+
+        final long leadMs;
+
+        Entry(long leadMs) {
+            this.leadMs = leadMs;
+        }
+    }
 
     enum Exit { DISSOLVE, RISE, SCATTER, SHATTER }
 
@@ -29,6 +42,8 @@ final class SkyLine {
      *
      * @param blocksPerPixelAt100 text size as blocks per font pixel if the text were 100 blocks away
      * @param maxWidthAt100       widest line, in blocks at 100 blocks distance
+     * @param kick                wobble on the beat of the singing; {@link Beat.Kick#NONE} when switched off
+     * @param alongYaw            "turn along": the view direction the lyrics follow closely, NaN when switched off
      */
     record Frame(
             long nowNanos,
@@ -38,7 +53,15 @@ final class SkyLine {
             float opacity,
             float nightness,
             Font font,
-            Style sparkleStyle) {}
+            Style sparkleStyle,
+            Beat.Kick kick,
+            float alongYaw) {
+
+        /** How far a line placed around {@code placement}'s direction turns along with the view now, in degrees. */
+        float alongShift(Placements.Placement placement) {
+            return Float.isNaN(alongYaw) ? 0f : Mth.wrapDegrees(alongYaw - placement.anchor());
+        }
+    }
 
     /**
      * Where and how a line lives.
@@ -64,6 +87,9 @@ final class SkyLine {
     private static final float EMPHASIS_SCALE = 1.38f;
     private static final long SPARKLE_LIFE_MS = 850;
     private static final String SPARKLE = "✦";
+    /** Wobble on the beat at full strength: growth and tilt in degrees. */
+    private static final float KICK_SCALE = 0.05f;
+    private static final float KICK_TILT_DEG = 1.6f;
 
     private static final class Word {
         final FormattedCharSequence text;
@@ -304,10 +330,12 @@ final class SkyLine {
         float bob = (float) Math.sin(life * 0.0011 + seed % 97) * 0.5f;
         float drift = Math.min(life / 1000f * 0.12f, 1.2f);
         float orbit = (Easing.hash(seed, 13) < 0.5f ? -1f : 1f) * look.orbitDegS() * life / 1000f;
-        Matrix4f base = bannerBasis(placement.yaw() + orbit, placement.elevation(), look.distance())
-                .rotateZ((float) Math.toRadians(placement.roll()))
+        // On the beat the line kicks around its middle; the title card and a line on its way out stay calm.
+        Beat.Kick kick = wallClock || exitStartNanos >= 0 ? Beat.Kick.NONE : frame.kick();
+        Matrix4f base = bannerBasis(placement.yaw() + frame.alongShift(placement) + orbit, placement.elevation(), look.distance())
+                .rotateZ((float) Math.toRadians(placement.roll() + KICK_TILT_DEG * kick.tilt()))
                 .translate(0f, (bob - drift) * atDistance, 0f)
-                .scale(blocksPerPixel);
+                .scale(blocksPerPixel * (1f + KICK_SCALE * kick.strength()));
         if (exit == Exit.RISE && exitU > 0f) {
             base.translate(0f, -Easing.inCubic(exitU) * 26f, 0f).scale(1f + 0.12f * exitU);
         }
@@ -321,9 +349,12 @@ final class SkyLine {
 
         for (int wi = 0; wi < words.size(); wi++) {
             Word word = words.get(wi);
-            float wordT = wallClock ? life - wi * TITLE_WORD_STAGGER_MS : songPosition - word.appearMs;
             glyphs.clear();
             GlyphEffects.collect(frame.font(), word.text, glyphs);
+            // In time: the entry starts early by as long as it needs to become readable, and the letters, which
+            // arrive one after another, are centred on the moment the word is sung.
+            float wordT = wallClock ? life - wi * TITLE_WORD_STAGGER_MS
+                    : songPosition + entry.leadMs + (glyphs.size() - 1) * GLYPH_STAGGER_MS / 2f - word.appearMs;
             if (wordT < 0f) {
                 glyphIndex += glyphs.size();
                 continue;

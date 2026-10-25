@@ -30,20 +30,24 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 
 - Lyrics synced word by word: exact word timing when the lyrics have it, otherwise at the pace the song is sung; skipping within a song shows up at once
 - Colors of your choice: gradient text in rose, lavender or six more palettes, or a different one per song
-- Four styles: *Elegant* (the two looks above, default), *Natürlich* (the same as if it really stood in the world: lines right above the hills, players and blocks in front of the words around you), *Stapel* (the current line in the middle, the next one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and sparkles)
+- Four styles: *Elegant* (the two looks above, default), *Natürlich 1:1* (the same as if it really stood in the world: lines right above the hills, players and blocks in front of the words around you), *Stapel* (the current line in the middle, the next one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and sparkles)
 - Fonts: modern (Poppins), handwriting (Kalam) or the Minecraft font
 - A "now playing" pill at the top of the screen with the word being sung highlighted
-- Settings screen on **Right Shift** with live preview: mode, style, colors, font, size, height, opacity, timing and more
+- Presets: Standard, Himmel 1:1, Um dich 1:1, Party and Ruhig set the whole look with one click
+- Optional: the lyrics turn along with your view instead of staying where they appeared
+- Optional wobble on the beat: every sung word gives the lyrics a little kick
+- In the sky behind mountains and clouds like the sun, or switched to always visible
+- Settings screen on **Right Shift**, minimal in black and white, with live preview: mode, style, colors, font, size, height, opacity, timing and more
 - Works without any login for music on your PC; an optional Spotify login also covers music on your phone, console or other Spotify Connect devices
 
 ## How to use
 
 1. Install Fabric Loader (0.18.4 or newer for 26.2, 0.19.3 or newer for 26.3) and Fabric API, then put the mod into your `mods` folder.
 2. Start some music on your PC and join a world.
-3. The first time, the mod asks in chat whether it may look up lyrics on lrclib.net. Click **[Erlauben]** (allow).
+3. Lyrics come from lrclib.net, which is on from the start; the first time, a note in chat says what is sent and offers to switch it off.
 4. Press **Right Shift** for the settings, or run `/skylyrics demo` to see it without music.
 
-Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around`, `style elegant|natural|flow|classic`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `opacity`, `scale`, `height`, `follow`, `title`, `hud`, `lrclib on|off`, `spotify connect|disconnect`.
+Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around`, `style elegant|natural|flow|classic`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `opacity`, `scale`, `height`, `follow`, `title`, `hud`, `behind on|off`, `beat on|off`, `along on|off`, `preset <name>`, `lrclib on|off`, `spotify connect|disconnect`.
 
 ## Optional: Spotify login
 
@@ -65,7 +69,7 @@ No client secret is needed (the login uses PKCE).
 
 This mod connects to the internet. Everything it sends is listed here:
 
-- **lrclib.net** (only after you allow it in chat or in the settings): the title, artist, album and length of the song that is playing, to look up its synced lyrics. Nothing else is sent; lyrics are kept in memory only and never saved.
+- **lrclib.net** (on from the start, with a note in chat the first time; switch it off in the settings or with `/skylyrics lrclib off`): the title, artist, album and length of the song that is playing, to look up its synced lyrics. Nothing else is sent; lyrics are kept in memory only and never saved.
 - **Spotify Web API** (only if you connect your Spotify account): reads which song is playing (scopes `user-read-currently-playing` and `user-read-playback-state`). Login runs through Spotify's official consent page; the tokens stay in `config/lyricsinthesky/spotify.json` on your PC and you can disconnect at any time.
 - **Your PC's media session:** on Windows a small PowerShell script bundled in the mod (`lyricsinthesky/smtc-helper.ps1`, readable inside the jar) reads the system media session – the same information Windows shows in its volume overlay. On Linux the mod asks MPRIS via `gdbus`. This stays on your PC.
 
@@ -89,7 +93,11 @@ Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 
 - New look in both modes: in the sky, word groups of different sizes build up each line near the horizon with depth; around you, every sung word floats on its own at a fixed spot and fades out after a few seconds
 - The sky text stands behind everything, like the sun: mountains, trees, houses and clouds are in front of it
-- Better sync: words follow the pace the song is sung at, and skipping within a song shows up at once
+- Better sync: words follow the pace the song is sung at and are readable exactly when sung, word-timed lyrics win, and skipping within a song shows up at once
+- Presets for a whole look at once, optional turning along with your view
+- Optional wobble on the beat, a switch for the sky text to stand behind the hills or in front of everything
+- Lyrics from lrclib.net on from the start, with a note in chat
+- New minimal black-and-white settings screen
 - Runs on Fabric Loader 0.18.4+ (26.2) and 0.19.3+ (26.3)
 - Gradient text colors, changeable in the settings (rose, lavender, per-song and more)
 - New default font Poppins, also in the now-playing pill

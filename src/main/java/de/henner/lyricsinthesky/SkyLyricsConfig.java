@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import org.slf4j.Logger;
@@ -32,6 +33,13 @@ public final class SkyLyricsConfig {
      * from line to line. "classic": every line pops up at its own spot with varied animations.
      */
     public static final List<String> STYLES = List.of("elegant", "natural", "flow", "classic");
+    /**
+     * One-click looks for the settings screen and {@code /skylyrics preset}: "standard" the defaults, "sky" and
+     * "around" the 1:1 style in each mode, "party" big playful words around the player that wobble on the beat,
+     * "calm" the quiet white stack. They set the look only, never timing, lookups, the Spotify login or whether the
+     * lyrics are on.
+     */
+    public static final List<String> PRESETS = List.of("standard", "sky", "around", "party", "calm");
     public static final float DEFAULT_ELEVATION = 16f;
 
     public boolean enabled = true;
@@ -41,8 +49,10 @@ public final class SkyLyricsConfig {
     public String style = "elegant";
     /** Positive values show lyrics earlier, negative values later. */
     public long offsetMs = 0;
-    /** {@code null} until the player answered the first-start question about lrclib.net. */
-    public Boolean lrclibAllowed = null;
+    /** Lyrics lookups on lrclib.net; on unless the player switched them off. */
+    public Boolean lrclibAllowed = true;
+    /** The one-time chat note on what is sent to lrclib.net has been shown. */
+    public boolean lrclibNoticeShown = false;
     /** Base height of the lyrics above the horizon, in degrees. */
     public float elevationDeg = DEFAULT_ELEVATION;
     /** Size multiplier for the text. */
@@ -59,6 +69,12 @@ public final class SkyLyricsConfig {
     public boolean showTitleCard = true;
     /** Show the "now playing" pill at the top of the screen. */
     public boolean showHud = true;
+    /** In the sky: mountains, trees and clouds stand in front of the text; off, it is drawn on top of everything. */
+    public boolean skyBehindTerrain = true;
+    /** The lyrics give a little kick on every sung word. */
+    public boolean beatBounce = false;
+    /** The lyrics turn along with the view, closely behind, instead of staying where they appeared. */
+    public boolean followAlong = false;
     /**
      * Client ID of the player's own Spotify developer app, needed for "Connect with Spotify". Not a secret:
      * the login uses PKCE, so no client secret is involved.
@@ -125,6 +141,10 @@ public final class SkyLyricsConfig {
         if ("video".equals(style)) {
             style = "elegant";
         }
+        // Before 1.2.0 lookups waited for an answer in chat ("null"); now they are on unless switched off.
+        if (lrclibAllowed == null) {
+            lrclibAllowed = true;
+        }
         if (palette == null || !PALETTES.contains(palette)) {
             palette = "standard";
         }
@@ -138,5 +158,63 @@ public final class SkyLyricsConfig {
             style = "elegant";
         }
         spotifyClientId = spotifyClientId == null ? "" : spotifyClientId.trim();
+    }
+
+    public void applyPreset(String preset) {
+        SkyLyricsConfig defaults = new SkyLyricsConfig();
+        mode = defaults.mode;
+        style = defaults.style;
+        palette = defaults.palette;
+        font = defaults.font;
+        opacity = defaults.opacity;
+        scale = defaults.scale;
+        elevationDeg = defaults.elevationDeg;
+        skyBehindTerrain = defaults.skyBehindTerrain;
+        beatBounce = defaults.beatBounce;
+        followAlong = defaults.followAlong;
+        followView = defaults.followView;
+        showTitleCard = defaults.showTitleCard;
+        showHud = defaults.showHud;
+        switch (preset) {
+            case "sky" -> style = "natural";
+            case "around" -> {
+                mode = "around";
+                style = "natural";
+            }
+            case "party" -> {
+                mode = "around";
+                style = "classic";
+                palette = "auto";
+                scale = 1.15f;
+                beatBounce = true;
+                followAlong = true;
+            }
+            case "calm" -> {
+                style = "flow";
+                palette = "white";
+                opacity = 0.7f;
+                showTitleCard = false;
+            }
+            default -> {
+                // "standard": the defaults as set above.
+            }
+        }
+    }
+
+    /** The preset whose look is set right now, or {@code null} when the settings were changed by hand. */
+    public String currentPreset() {
+        for (String preset : PRESETS) {
+            SkyLyricsConfig probe = new SkyLyricsConfig();
+            probe.applyPreset(preset);
+            if (Arrays.equals(probe.look(), look())) {
+                return preset;
+            }
+        }
+        return null;
+    }
+
+    private Object[] look() {
+        return new Object[] {mode, style, palette, font, opacity, scale, elevationDeg, skyBehindTerrain, beatBounce,
+                followAlong, followView, showTitleCard, showHud};
     }
 }

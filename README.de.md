@@ -35,14 +35,20 @@ als einzelne Wörter, die rund um dich schweben.
   verblasst. Zum Songstart hängt eine „Now Playing“-Karte vor dir.
 - **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder sechs weiteren Paletten, oder je Song
   anders.
-- **Vier Stile:** *Elegant* (die beiden Looks oben), *Natürlich* (dasselbe, als stünde es wirklich in der Welt:
+- **Vier Stile:** *Elegant* (die beiden Looks oben), *Natürlich 1:1* (dasselbe, als stünde es wirklich in der Welt:
   Zeilen knapp über den Hügeln, Spieler und Blöcke vor den Wörtern um dich herum, die gesungenen Wörter als
   Gruppe markiert), *Stapel* (aktuelle Zeile in der Mitte, die nächste
   schwach darunter, alles gleitet weich nach oben) und *Verspielt* (Aufploppen, Zoom, Wirbel und mehr, mit
   Funken).
 - **Now-Playing-Pille** oben mit aktueller Zeile, markiertem Wort und kleinem Equalizer.
-- **Einstellungen mit der rechten Umschalttaste** und Live-Vorschau: Stil, Farben, Schrift (modern,
-  Handschrift oder Minecraft), Größe, Höhe, Deckkraft, Timing und mehr.
+- **Vorlagen:** Standard, Himmel 1:1, Um dich 1:1, Party und Ruhig setzen den ganzen Look mit einem Klick.
+- **Mitdrehen** (optional): Die Songtexte folgen deinem Blick dicht, statt stehen zu bleiben.
+- **Im Takt wackeln** (optional): Jedes gesungene Wort gibt dem Text einen kleinen Kick, lange Wörter einen
+  stärkeren.
+- **Hinter Bergen oder immer sichtbar:** Am Himmel steht die Schrift wie die Sonne hinter Bergen, Bäumen und
+  Wolken; ein Schalter holt sie vor alles.
+- **Einstellungen mit der rechten Umschalttaste**, schlicht in Schwarz-Weiß, mit Live-Vorschau: Anzeige,
+  Stil, Farben, Schrift (modern, Handschrift oder Minecraft), Größe, Höhe, Deckkraft, Timing und mehr.
 - **Keine Anmeldung nötig** für Musik auf dem PC. **Optional Spotify-Login** für Musik vom Handy, von der
   Konsole oder einem anderen Spotify-Connect-Gerät.
 
@@ -74,7 +80,8 @@ Ganzes Vorschauvideo: [preview/lyrics-in-the-sky-preview.mp4](preview/lyrics-in-
 
 1. `lyrics-in-the-sky-1.2.0+mc26.3.jar` (oder `…+mc26.2.jar`) und Fabric API in den `mods`-Ordner legen.
 2. Spiel starten, Musik starten, Welt betreten.
-3. Beim ersten Mal fragt die Mod im Chat, ob sie lrclib.net nach Songtexten fragen darf. **[Erlauben]**
+3. Die Songtexte kommen von lrclib.net, das ist von Anfang an an. Beim ersten Mal sagt ein Hinweis im Chat,
+   was gesendet wird, und bietet das Ausschalten an.
    klicken.
 4. **Rechte Umschalttaste** öffnet die Einstellungen. Ohne Musik ausprobieren: dort *Demo abspielen* oder
    `/skylyrics demo`.
@@ -117,6 +124,10 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics style <elegant\|natural\|flow\|classic>` | Look: elegant, natürlich, Stapel oder verspielt |
 | `/skylyrics follow <on\|off>` | neue Zeilen erscheinen dort, wo du hinschaust |
 | `/skylyrics title <on\|off>` | Songtitel am Himmel beim Songwechsel |
+| `/skylyrics behind <on\|off>` | Am Himmel hinter Bergen und Wolken oder vor allem |
+| `/skylyrics beat <on\|off>` | Bei jedem gesungenen Wort wackeln |
+| `/skylyrics along <on\|off>` | Songtexte drehen sich mit deinem Blick |
+| `/skylyrics preset <standard\|sky\|around\|party\|calm>` | Ganzen Look auf einmal setzen |
 | `/skylyrics hud <on\|off>` | Now-Playing-Pille oben |
 | `/skylyrics lrclib <on\|off>` | Abfrage bei lrclib.net erlauben oder verbieten |
 | `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
@@ -155,7 +166,8 @@ flowchart LR
 - Keine Anmeldung nötig. Der optionale Spotify-Login liest nur, was gerade läuft
   (`user-read-currently-playing`, `user-read-playback-state`), und lässt sich jederzeit trennen.
 - Keine Cookies, keine inoffiziellen oder internen Schnittstellen.
-- Abfragen erst nach deiner Erlaubnis; abschalten mit `/skylyrics lrclib off`.
+- Abfragen sind von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten in den Einstellungen oder
+  mit `/skylyrics lrclib off`.
 - Lyrics werden beim Abspielen geholt und nur im Speicher gehalten. Das Projekt liefert oder hostet keine
   Songtexte.
 - Nicht verbunden mit Mojang, Microsoft, Spotify, Amazon oder LRCLIB.

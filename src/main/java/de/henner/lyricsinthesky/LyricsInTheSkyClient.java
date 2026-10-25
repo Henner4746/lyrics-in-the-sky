@@ -87,7 +87,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             controller.tick();
             handleKeys(client);
         });
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> askForLrclib(client));
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> noteLrclib(client));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SkyLyricsRenderer.INSTANCE.reset());
         HudElementRegistry.attachElementBefore(VanillaHudElements.BOSS_BAR,
                 Identifier.fromNamespaceAndPath(MOD_ID, "now_playing"), new NowPlayingHud());
@@ -142,18 +142,21 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         client.gui.hud.getChat().addClientSystemMessage(prefix().append(offsetText()));
     }
 
-    /** First world join after install: explain what is sent to lrclib.net and let the player decide. */
-    private static void askForLrclib(Minecraft client) {
-        if (config.lrclibAllowed != null || SelfTest.isEnabled()) {
+    /**
+     * First world join after install: lyrics lookups are on from the start, so say once what is sent to lrclib.net
+     * and offer to switch them off.
+     */
+    private static void noteLrclib(Minecraft client) {
+        if (config.lrclibNoticeShown || !Boolean.TRUE.equals(config.lrclibAllowed) || SelfTest.isEnabled()) {
             return;
         }
         MutableComponent message = prefix()
-                .append("Für Songtexte fragt die Mod lrclib.net. Gesendet werden nur Titel, Künstler, Album und Länge "
+                .append("Songtexte kommen von lrclib.net. Gesendet werden nur Titel, Künstler, Album und Länge "
                         + "des laufenden Songs. ")
-                .append(button("[Erlauben]", "/skylyrics lrclib on", ChatFormatting.GREEN))
-                .append(" ")
-                .append(button("[Nein danke]", "/skylyrics lrclib off", ChatFormatting.GRAY));
+                .append(button("[Ausschalten]", "/skylyrics lrclib off", ChatFormatting.GRAY));
         client.gui.hud.getChat().addClientSystemMessage(message);
+        config.lrclibNoticeShown = true;
+        config.save();
     }
 
     private static MutableComponent button(String label, String command, ChatFormatting color) {
@@ -174,9 +177,11 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             LiteralArgumentBuilder<FabricClientCommandSource> root = ClientCommands.literal("skylyrics")
                     .executes(context -> reply(context, "Einstellungen: Rechte Umschalttaste oder /skylyrics settings. "
-                            + "Befehle: status, demo, on, off, mode <sky|around>, offset <ms>, opacity <0.1-1>, "
-                            + "scale <0.3-3>, height <10-70>, palette <name>, font <script|minecraft>, "
-                            + "follow <on|off>, title <on|off>, hud <on|off>, lrclib <on|off>, spotify <connect|disconnect>"))
+                            + "Befehle: status, demo, on, off, mode <sky|around>, style <elegant|natural|flow|classic>, "
+                            + "offset <ms>, opacity <0.1-1>, scale <0.3-3>, height <10-70>, palette <name>, "
+                            + "font <sans|script|minecraft>, follow <on|off>, title <on|off>, hud <on|off>, "
+                            + "behind <on|off>, beat <on|off>, along <on|off>, preset <standard|sky|around|party|calm>, "
+                            + "lrclib <on|off>, spotify <connect|disconnect>"))
                     .then(ClientCommands.literal("status").executes(context ->
                             reply(context, controller.status() + " | " + spotify.statusText())))
                     .then(ClientCommands.literal("settings").executes(context -> {
@@ -227,6 +232,10 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(toggle("follow", (c, value) -> c.followView = value, "Zeilen folgen dem Blick"))
                     .then(toggle("title", (c, value) -> c.showTitleCard = value, "Songtitel am Himmel"))
                     .then(toggle("hud", (c, value) -> c.showHud = value, "Now-Playing-Anzeige"))
+                    .then(toggle("behind", (c, value) -> c.skyBehindTerrain = value, "Am Himmel hinter Bergen"))
+                    .then(toggle("beat", (c, value) -> c.beatBounce = value, "Im Takt wackeln"))
+                    .then(toggle("along", (c, value) -> c.followAlong = value, "Mitdrehen"))
+                    .then(choice("preset", SkyLyricsConfig.PRESETS, SkyLyricsConfig::applyPreset, "Vorlage "))
                     .then(toggle("lrclib", (c, value) -> {
                         c.lrclibAllowed = value;
                         controller.retryLookups();

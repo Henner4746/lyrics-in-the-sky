@@ -27,8 +27,11 @@ import net.minecraft.util.Mth;
 public final class SkyLyricsRenderer {
     public static final SkyLyricsRenderer INSTANCE = new SkyLyricsRenderer();
 
-    /** Lines start appearing slightly before their timestamp so the first word is readable on the beat. */
-    private static final long PREROLL_MS = 150;
+    /**
+     * A line is set up this long before its timestamp, so the first word's entry, which starts early by up to
+     * about a quarter second, is already readable when it is sung.
+     */
+    private static final long PREROLL_MS = 300;
     private static final long TITLE_MS = 5_000;
     /** The title card waits this long for the lyrics lookup, so it can say whether lyrics were found. */
     private static final long TITLE_DELAY_MS = 900;
@@ -40,6 +43,10 @@ public final class SkyLyricsRenderer {
     private static final float FOLLOW_TIME_CONSTANT_S = 0.25f;
     /** How quickly the gliding stack follows the view, rad/s of its spring: it trails turns by about a second. */
     private static final float FLOW_AIM_OMEGA = 4f;
+    /** With "turn along" the stack keeps up within about a quarter second. */
+    private static final float FAST_FLOW_AIM_OMEGA = 14f;
+    /** "Turn along": the lyrics follow the view with this stiffness, about a tenth of a second behind. */
+    private static final float ALONG_OMEGA = 14f;
     /** A new stack starts fading in this long after the old one began to leave. */
     private static final long FLOW_HANDOVER_MS = 550;
     private static final FontDescription SCRIPT = new FontDescription.Resource(
@@ -65,6 +72,7 @@ public final class SkyLyricsRenderer {
     private String flowDoneKey;
     private final FlowSchedule.Spring flowYaw = new FlowSchedule.Spring(FLOW_AIM_OMEGA);
     private final FlowSchedule.Spring flowElevation = new FlowSchedule.Spring(FLOW_AIM_OMEGA);
+    private final FlowSchedule.Spring alongYaw = new FlowSchedule.Spring(ALONG_OMEGA);
     private String trackKey;
     private long trackStartNanos;
     private long lineCounter;
@@ -90,10 +98,17 @@ public final class SkyLyricsRenderer {
     public void renderSky(RenderTarget target, float skyLuminance) {
         List<SkyGlyph> glyphs = collect(skyLuminance);
         skyPassRan = true;
+        boolean behind = behindTerrain();
         List<SkyGlyph> sky = new ArrayList<>(glyphs.size());
         List<SkyGlyph> front = new ArrayList<>();
         for (SkyGlyph glyph : glyphs) {
-            (glyph.overlay() ? front : sky).add(glyph);
+            if (glyph.overlay()) {
+                front.add(glyph);
+            } else if (behind) {
+                sky.add(glyph);
+            } else {
+                front.add(onTop(glyph));
+            }
         }
         inFront = front;
         if (!sky.isEmpty()) {
@@ -107,11 +122,39 @@ public final class SkyLyricsRenderer {
      */
     public void renderInFront(RenderTarget target, float skyLuminance) {
         List<SkyGlyph> glyphs = skyPassRan ? inFront : collect(skyLuminance);
+        if (!skyPassRan && !behindTerrain()) {
+            glyphs = glyphs.stream().map(glyph -> glyph.overlay() ? glyph : onTop(glyph)).toList();
+        }
         skyPassRan = false;
         inFront = List.of();
         if (!glyphs.isEmpty()) {
             GlyphDrawer.draw(target, glyphs, GlyphDrawer.FRONT_SLOT);
         }
+    }
+
+    /** Whether the sky text stands behind mountains, trees and clouds (the setting), or in front of everything. */
+    private static boolean behindTerrain() {
+        LyricsController controller = LyricsInTheSkyClient.controller();
+        return controller == null || controller.config().skyBehindTerrain;
+    }
+
+    /** A sky glyph drawn after the world, on top of everything, for when the sky text should never be hidden. */
+    private static SkyGlyph onTop(SkyGlyph glyph) {
+        return new SkyGlyph(glyph.renderable(), glyph.pose(), glyph.argb(), glyph.argbBottom(), glyph.layer(), true, false);
+    }
+
+    /** The wobble from the word being sung now. */
+    private static Beat.Kick kick(LyricsController.Timeline timeline) {
+        Lyrics lyrics = timeline.lyrics();
+        if (lyrics == null || lyrics.isEmpty()) {
+            return Beat.Kick.NONE;
+        }
+        int index = lyrics.indexAt(timeline.positionMs() + Beat.LEAD_MS);
+        if (index < 0) {
+            return Beat.Kick.NONE;
+        }
+        return Beat.at(lyrics.lines().get(index).words(), lyrics.wordTimes(index, timeline.durationMs()),
+                timeline.positionMs());
     }
 
     /** Advances all lines to this frame and lays out their glyphs. */
@@ -127,6 +170,13 @@ public final class SkyLyricsRenderer {
         SkyLyricsConfig config = controller.config();
         var camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
         updateAnchor(camera.yRot, dt, config.followView);
+        // "Turn along": a stiff spring after the view, so the lyrics keep up with turns without jerking.
+        if (config.followAlong) {
+            alongYaw.step(alongYaw.value() + Mth.wrapDegrees(camera.yRot - alongYaw.value()), dt);
+        } else {
+            alongYaw.reset();
+        }
+        flowYaw.omega(config.followAlong ? FAST_FLOW_AIM_OMEGA : FLOW_AIM_OMEGA);
         // xRot is negative when looking up.
         viewElevation = config.followView ? -camera.xRot : 0f;
         boolean around = "around".equals(config.mode);
@@ -183,7 +233,9 @@ public final class SkyLyricsRenderer {
 
         float nightness = 1f - Easing.smoothstep(0.12f, 0.45f, skyLuminance);
         SkyLine.Frame frame = new SkyLine.Frame(now, lastSongPositionMs, BLOCKS_PER_PIXEL_AT_100 * config.scale,
-                MAX_WIDTH_AT_100 * config.scale, config.opacity * pauseDim, nightness, minecraft.font, Style.EMPTY);
+                MAX_WIDTH_AT_100 * config.scale, config.opacity * pauseDim, nightness, minecraft.font, Style.EMPTY,
+                config.beatBounce && timeline != null && timeline.playing() ? kick(timeline) : Beat.Kick.NONE,
+                config.followAlong ? alongYaw.value() : Float.NaN);
         List<SkyGlyph> glyphs = new ArrayList<>(2048);
         for (LyricFlow leaving : leavingFlows) {
             leaving.render(frame, glyphs);
@@ -351,7 +403,7 @@ public final class SkyLyricsRenderer {
         }
     }
 
-    static Style regularStyle(String font) {
+    public static Style regularStyle(String font) {
         return switch (font) {
             case "script" -> Style.EMPTY.withFont(SCRIPT);
             case "sans" -> Style.EMPTY.withFont(SANS);

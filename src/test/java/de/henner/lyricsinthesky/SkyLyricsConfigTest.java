@@ -28,4 +28,42 @@ class SkyLyricsConfigTest {
         assertEquals("standard", config.palette);
         assertEquals("sky", config.mode);
     }
+
+    @Test
+    void presetsSetTheLookAndAreRecognised() {
+        SkyLyricsConfig config = new SkyLyricsConfig();
+        assertEquals("standard", config.currentPreset());
+        config.offsetMs = 300;
+        config.lrclibAllowed = false;
+        config.enabled = false;
+        config.applyPreset("party");
+        assertEquals("around", config.mode);
+        assertEquals("classic", config.style);
+        assertEquals(true, config.beatBounce);
+        assertEquals(true, config.followAlong);
+        assertEquals("party", config.currentPreset());
+        // Timing, lookups and on/off are personal and stay as they were.
+        assertEquals(300, config.offsetMs);
+        assertEquals(Boolean.FALSE, config.lrclibAllowed);
+        assertEquals(false, config.enabled);
+        config.scale = 2f;
+        assertEquals(null, config.currentPreset());
+        config.applyPreset("sky");
+        assertEquals("natural", config.style);
+        assertEquals("sky", config.mode);
+        assertEquals("sky", config.currentPreset());
+    }
+
+    @Test
+    void aConfigWithOnlyAFewSettingsKeepsTheDefaultsForTheRest(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("lyricsinthesky.json");
+        Files.writeString(file, "{\"style\": \"natural\", \"lrclibAllowed\": true}", StandardCharsets.UTF_8);
+        SkyLyricsConfig config = SkyLyricsConfig.load(file);
+        assertEquals("natural", config.style);
+        assertEquals(Boolean.TRUE, config.lrclibAllowed);
+        assertEquals("standard", config.palette);
+        assertEquals(SkyLyricsConfig.DEFAULT_ELEVATION, config.elevationDeg, 1e-6);
+        assertEquals(true, config.skyBehindTerrain);
+        assertEquals(false, config.beatBounce);
+    }
 }

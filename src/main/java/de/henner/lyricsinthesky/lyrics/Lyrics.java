@@ -161,6 +161,11 @@ public final class Lyrics {
         return msPerChar;
     }
 
+    /** Whether any line has its own word timestamps (enhanced LRC), so words are exact rather than estimated. */
+    public boolean hasWordTiming() {
+        return lines.stream().anyMatch(line -> line.wordStartsMs() != null);
+    }
+
     public boolean isInstrumental() {
         return instrumental;
     }

@@ -7,7 +7,11 @@ import net.minecraft.util.Mth;
 
 /** Picks a different spot in the sky for every line, spread around where the player is looking. */
 final class Placements {
-    record Placement(float yaw, float elevation, float roll) {}
+    /**
+     * @param anchor the view direction the line was placed around; with "turn along" the line keeps its offset from
+     *               where the player looks now instead of from this direction
+     */
+    record Placement(float yaw, float elevation, float roll, float anchor) {}
 
     /** Offsets from the view direction: yaw degrees, elevation degrees. */
     private static final float[][] SLOTS = {
@@ -44,7 +48,7 @@ final class Placements {
         }
         float yaw = anchorYaw + SLOTS[slot][0] + jitter(4f);
         float elevation = clamp(baseElevation + SLOTS[slot][1] + jitter(3f), 12f, 74f);
-        return new Placement(yaw, elevation, jitter(5f));
+        return new Placement(yaw, elevation, jitter(5f), anchorYaw);
     }
 
     /**
@@ -55,7 +59,7 @@ final class Placements {
         Placement sky = next(anchorYaw, baseElevation);
         float yawOffset = Mth.wrapDegrees(sky.yaw() - anchorYaw) * 1.15f;
         float elevation = clamp(baseElevation + (sky.elevation() - baseElevation) * 0.55f, 5f, 45f);
-        return new Placement(anchorYaw + yawOffset, elevation, sky.roll() * 0.5f);
+        return new Placement(anchorYaw + yawOffset, elevation, sky.roll() * 0.5f, anchorYaw);
     }
 
     /**
@@ -69,11 +73,11 @@ final class Placements {
         horizonSide = horizonSide > 0 ? -1 : 1;
         float yawOffset = horizonSide * (HORIZON_MIN_SIDE + random.nextFloat() * HORIZON_SIDE_SPREAD);
         float elevation = clamp(baseElevation - 2f + random.nextFloat() * 6f, 1f, 40f);
-        return new Placement(anchorYaw + yawOffset, elevation, jitter(2.5f));
+        return new Placement(anchorYaw + yawOffset, elevation, jitter(2.5f), anchorYaw);
     }
 
     Placement title(float anchorYaw, float baseElevation) {
-        return new Placement(anchorYaw, clamp(baseElevation + 10f, 12f, 74f), 0f);
+        return new Placement(anchorYaw, clamp(baseElevation + 10f, 12f, 74f), 0f, anchorYaw);
     }
 
     /**
@@ -86,11 +90,11 @@ final class Placements {
         Placement sky = next(anchorYaw, 30f);
         float yawOffset = Mth.wrapDegrees(sky.yaw() - anchorYaw) * 1.35f;
         float elevation = clamp(viewElevation * 0.8f + (sky.elevation() - 30f) * 0.5f, -45f, 60f);
-        return new Placement(anchorYaw + yawOffset, elevation, sky.roll() * 0.6f);
+        return new Placement(anchorYaw + yawOffset, elevation, sky.roll() * 0.6f, anchorYaw);
     }
 
     Placement titleAround(float anchorYaw, float viewElevation) {
-        return new Placement(anchorYaw, clamp(viewElevation * 0.8f + 6f, -45f, 60f), 0f);
+        return new Placement(anchorYaw, clamp(viewElevation * 0.8f + 6f, -45f, 60f), 0f, anchorYaw);
     }
 
     private float jitter(float range) {

@@ -43,6 +43,10 @@ final class FloatingWords {
     /** Words sung longer ago than this when first noticed (joining mid-song, seeking) are skipped. */
     private static final long LATE_LIMIT_MS = 900;
     private static final float RISE_BLOCKS = 0.16f;
+    /** Wobble on the beat at full strength: growth, tilt in degrees, lift in blocks. */
+    private static final float KICK_SCALE = 0.07f;
+    private static final float KICK_TILT_DEG = 2.5f;
+    private static final float KICK_LIFT_BLOCKS = 0.05f;
 
     private record Row(FormattedCharSequence text, float width, float scale) {}
 
@@ -270,14 +274,32 @@ final class FloatingWords {
             if (alpha < 0.01f) {
                 continue;
             }
+            // On the beat every word still standing kicks along, words left and right of the view tilting to
+            // opposite sides; words fading out stay calm.
+            Beat.Kick kick = floater.leaveNanos < 0 ? frame.kick() : Beat.Kick.NONE;
+            float side = floater.yawOffset < 0f ? -1f : 1f;
             // Glides up into place, drifts up a little more as it fades, and floats gently in between.
             float lift = -(1f - Easing.outQuint(age / FADE_IN_MS)) * RISE_BLOCKS + fadeOut * RISE_BLOCKS
-                    + (float) Math.sin(age * 0.0012f + floater.yawOffset) * 0.03f;
-            float scale = BLOCKS_PER_PIXEL * (0.9f + 0.1f * in) * (1f + 0.05f * fadeOut);
-            Matrix4f pose = SkyLine.bannerBasis(floater.faceYaw, floater.faceElevation, 0f)
-                    .setTranslation((float) (floater.x - camX), (float) (floater.y + lift - camY), (float) (floater.z - camZ))
+                    + (float) Math.sin(age * 0.0012f + floater.yawOffset) * 0.03f + KICK_LIFT_BLOCKS * kick.strength();
+            float scale = BLOCKS_PER_PIXEL * (0.9f + 0.1f * in) * (1f + 0.05f * fadeOut) * (1f + KICK_SCALE * kick.strength());
+            // "Turn along": the word circles around the player by as much as the view turned since it appeared.
+            double dx = floater.x - camX;
+            double dz = floater.z - camZ;
+            float faceYaw = floater.faceYaw;
+            if (!Float.isNaN(frame.alongYaw())) {
+                float turned = Mth.wrapDegrees(frame.alongYaw() - (floater.faceYaw - floater.yawOffset));
+                double radians = Math.toRadians(turned);
+                double cos = Math.cos(radians);
+                double sin = Math.sin(radians);
+                double turnedX = dx * cos - dz * sin;
+                dz = dz * cos + dx * sin;
+                dx = turnedX;
+                faceYaw += turned;
+            }
+            Matrix4f pose = SkyLine.bannerBasis(faceYaw, floater.faceElevation, 0f)
+                    .setTranslation((float) dx, (float) (floater.y + lift - camY), (float) dz)
                     .rotateY((float) Math.toRadians(floater.twist))
-                    .rotateZ((float) Math.toRadians(floater.roll))
+                    .rotateZ((float) Math.toRadians(floater.roll + KICK_TILT_DEG * side * kick.tilt()))
                     .scale(scale);
             float blur = (1f - in) * 1.6f + fadeOut * 1.6f;
             float top = -floater.height / 2f;

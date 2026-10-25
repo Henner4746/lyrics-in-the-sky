@@ -19,11 +19,26 @@
   around you), rose, lavender, per-song colors and the previous palettes.
 - **New font *Modern*** (Poppins, SIL Open Font License) as default, also in the now-playing pill. Handwriting
   and the Minecraft font remain selectable.
-- **Three more styles:** *Natürlich* (the elegant look as if it really stood in the world: lines right above the
+- **Three more styles:** *Natürlich 1:1* (the elegant look as if it really stood in the world: lines right above the
   hills, players and blocks in front of the words around you, which prefer spots with nothing in the way, and
   the words being sung highlighted as a group in the now-playing pill), *Stapel* (the current line in the
   middle, the next one faintly below, gliding up from line to line) and *Verspielt* (the varied animations of
   1.0). `/skylyrics style <elegant|natural|flow|classic>`.
+- **Wobble on the beat** (switch, off by default): every sung word gives the lyrics a short kick, long words
+  a stronger one, tilting to alternate sides. `/skylyrics beat on`.
+- **Presets:** Standard, Himmel 1:1, Um dich 1:1, Party and Ruhig set the whole look with one click in the
+  settings or with `/skylyrics preset`; timing, lookups and the Spotify login stay as they are.
+- **Turn along** (switch, off by default): the lyrics follow the view about a tenth of a second behind
+  instead of staying where they appeared. `/skylyrics along on`.
+- **Behind the hills or always visible:** a switch for the sky text, `/skylyrics behind off` puts it in front
+  of everything.
+- **Exact on the word:** every style fades a word in early by as long as its animation needs, so it is
+  readable right when it is sung (the playful style lagged by up to a third of a second). Lyrics with their
+  own word timestamps on LRCLIB win over line-timed ones.
+- **Fixed:** a lyrics search failed when one of LRCLIB's results had no length.
+- **LRCLIB on from the start**, with a one-time note in chat on what is sent and a button to switch it off.
+- **New settings screen:** minimal, black and white, every choice visible at once, the hovered option
+  explained in one line; fits small windows.
 - **Runs on older Fabric Loaders:** 0.18.4 or newer for 26.2 and 0.19.3 or newer for 26.3, the same as Fabric API
   itself needs (was 0.20.1).
 

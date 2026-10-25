@@ -20,6 +20,10 @@ final class ArcLine {
     private static final long FADE_IN_MS = 260;
     /** Words start fading in this much before they are sung, so they are readable right on the beat. */
     private static final long LEAD_MS = 80;
+    /** Wobble on the beat at full strength: growth, tilt in degrees, lift in font pixels. */
+    private static final float KICK_SCALE = 0.05f;
+    private static final float KICK_TILT_DEG = 1.6f;
+    private static final float KICK_LIFT_PX = 1.2f;
     static final long EXIT_MS = 520;
     private static final float ROW_WIDTH_PX = 104f;
     private static final float ROW_INDENT_PX = 20f;
@@ -185,11 +189,14 @@ final class ArcLine {
         double tilt = Math.toRadians(Math.abs(slope + placement.roll()));
         float drop = (float) (halfWidth * Math.sin(tilt) + halfHeight * Math.cos(tilt)) * blocksPerPixel * 1.15f;
         float lowest = (float) Math.toDegrees(Math.atan2(drop, look.distance())) + horizonMargin;
-        Matrix4f base = SkyLine.bannerBasis(placement.yaw(), Math.max(placement.elevation(), lowest), look.distance())
+        // On the beat: the line being sung swells, lifts and tilts a little around its middle; one fading out stays calm.
+        Beat.Kick kick = exitStartNanos < 0 ? frame.kick() : Beat.Kick.NONE;
+        Matrix4f base = SkyLine.bannerBasis(placement.yaw() + frame.alongShift(placement),
+                        Math.max(placement.elevation(), lowest), look.distance())
                 .rotateY((float) Math.toRadians(twist))
-                .rotateZ((float) Math.toRadians(slope + placement.roll()))
-                .scale(blocksPerPixel)
-                .translate(0f, -6f * leave, 0f);
+                .rotateZ((float) Math.toRadians(slope + placement.roll() + KICK_TILT_DEG * kick.tilt()))
+                .scale(blocksPerPixel * (1f + KICK_SCALE * kick.strength()))
+                .translate(0f, -6f * leave - KICK_LIFT_PX * kick.strength(), 0f);
         for (Piece piece : pieces) {
             float t = song + LEAD_MS - piece.appearMs;
             if (t < 0f) {

@@ -113,13 +113,18 @@ final class FlowSchedule {
      * stack glides into place and never bounces.
      */
     static final class Spring {
-        private final float omega;
+        private float omega;
         private float value;
         private float velocity;
         private boolean started;
 
         /** @param omega stiffness in rad/s; the spring is mostly settled after about 4 / omega seconds */
         Spring(float omega) {
+            this.omega = omega;
+        }
+
+        /** Changes the stiffness, e.g. to follow faster; the current motion carries on smoothly. */
+        void omega(float omega) {
             this.omega = omega;
         }
 

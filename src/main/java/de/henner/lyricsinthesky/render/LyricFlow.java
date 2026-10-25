@@ -39,6 +39,9 @@ final class LyricFlow {
     private static final long FADE_IN_MS = 600;
     static final long LEAVE_MS = 900;
     private static final float LEAVE_RISE_PX = 22f;
+    /** Wobble on the beat at full strength: growth and tilt in degrees of the line in the middle. */
+    private static final float KICK_SCALE = 0.05f;
+    private static final float KICK_TILT_DEG = 1.4f;
     private static final long TITLE_WORD_STAGGER_MS = 90;
     private static final float TITLE_SCALE = 1.2f;
     /** A song title may be this much wider than a lyric row before it wraps, so it rarely breaks mid-title. */
@@ -352,6 +355,8 @@ final class LyricFlow {
         float glowAlpha = 0.21f - 0.08f * frame.nightness();
         float dayness = 1f - frame.nightness();
         float halfHeight = frame.font().lineHeight / 2f;
+        // On the beat the line in the middle kicks; the others, and a stack gliding away, stay calm.
+        Beat.Kick kick = leaveStartNanos < 0 ? frame.kick() : Beat.Kick.NONE;
 
         for (int e = Math.max(0, (int) Math.floor(position) - 2); e < Math.min(entries.size(), (int) position + 4); e++) {
             Entry entry = entries.get(e);
@@ -364,7 +369,10 @@ final class LyricFlow {
             float limit = entry.item.kind() == FlowSchedule.Kind.TITLE ? maxRowPx * TITLE_ROOM : maxRowPx;
             float fit = entry.width > limit ? limit / entry.width : 1f;
             float blur = FlowSchedule.blur(d) + 1.6f * leaveU;
-            Matrix4f entryPose = new Matrix4f(base).translate(0f, entry.center, 0f).scale(FlowSchedule.scale(d) * fit);
+            float near = Math.max(0f, 1f - Math.abs(d));
+            Matrix4f entryPose = new Matrix4f(base).translate(0f, entry.center, 0f)
+                    .rotateZ((float) Math.toRadians(KICK_TILT_DEG * kick.tilt() * near))
+                    .scale(FlowSchedule.scale(d) * fit * (1f + KICK_SCALE * kick.strength() * near));
             renderEntry(entry, entryPose, frame, sinceCreated, lineAlpha, blur, glowColor, glowAlpha, dayness, halfHeight, out);
         }
     }

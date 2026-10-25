@@ -153,6 +153,12 @@ public final class SelfTest {
             minecraft.player.connection.sendUnattendedCommand("skylyrics opacity 0.77", null);
             LOGGER.info("SELFTEST unattended command: {}", controller.config().opacity == 0.77f ? "ok"
                     : "NOT handled (opacity still " + before + ")");
+            // A preset sets the whole look at once and is recognised as set.
+            String style = controller.config().style;
+            minecraft.player.connection.sendUnattendedCommand("skylyrics preset party", null);
+            LOGGER.info("SELFTEST preset: {}", "party".equals(controller.config().currentPreset()) ? "ok"
+                    : "NOT applied (preset " + controller.config().currentPreset() + ")");
+            controller.config().style = style;
         }
         if (atSecond(QUIT_AT)) {
             minecraft.stop();
