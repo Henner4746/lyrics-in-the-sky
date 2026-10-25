@@ -56,8 +56,11 @@ public final class DeezerClient implements WordTimeSource {
             request.add("variables", variables);
             Optional<TimedWords> words;
             try {
-                words = web.postJson(LYRICS, request.toString(), "Authorization", "Bearer " + session())
-                        .flatMap(DeezerClient::parse);
+                Optional<String> body = web.postJson(LYRICS, request.toString(), "Authorization", "Bearer " + session());
+                if (body.isPresent()) {
+                    checkErrors(body.get());
+                }
+                words = body.flatMap(DeezerClient::parse);
             } catch (IOException e) {
                 // A session Deezer no longer takes is fetched anew next time.
                 forgetSession();
@@ -85,6 +88,23 @@ public final class DeezerClient implements WordTimeSource {
 
     private synchronized void forgetSession() {
         session = null;
+    }
+
+    /**
+     * Deezer answers problems with HTTP 200 and an error list. A song it does not know is no problem; anything else
+     * (an expired or refused session, a changed API) is, so that it is not kept as "no word times".
+     */
+    static void checkErrors(String body) throws IOException {
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        if (!root.has("errors") || !root.get("errors").isJsonArray()) {
+            return;
+        }
+        for (JsonElement error : root.getAsJsonArray("errors")) {
+            String type = error.isJsonObject() ? text(error.getAsJsonObject(), "type") : "";
+            if (!type.endsWith("NotFoundError")) {
+                throw new IOException("Deezer refused: " + (type.isEmpty() ? "unknown error" : type));
+            }
+        }
     }
 
     static List<SearchHit> hits(String body) {

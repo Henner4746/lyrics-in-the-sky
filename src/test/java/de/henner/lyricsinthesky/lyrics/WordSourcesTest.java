@@ -1,6 +1,7 @@
 package de.henner.lyricsinthesky.lyrics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
@@ -90,6 +91,14 @@ class WordSourcesTest {
         assertEquals(5600, words.lines().get(0).words().get(1).startMs());
         assertTrue(DeezerClient.parse("{\"data\":{\"track\":{\"lyrics\":{\"synchronizedWordByWordLines\":null}}}}").isEmpty());
         assertTrue(DeezerClient.parse("{\"errors\":[{\"message\":\"nope\"}],\"data\":{\"track\":null}}").isEmpty());
+    }
+
+    @Test
+    void aRefusedDeezerSessionIsAnErrorButAnUnknownSongIsNot() throws Exception {
+        DeezerClient.checkErrors("{\"errors\":[{\"type\":\"TrackNotFoundError\"}],\"data\":{\"track\":null}}");
+        DeezerClient.checkErrors("{\"data\":{\"track\":{\"lyrics\":null}}}");
+        assertThrows(java.io.IOException.class, () -> DeezerClient.checkErrors(
+                "{\"errors\":[{\"type\":\"JwtTokenInvalidError\"}],\"data\":{\"track\":null}}"));
     }
 
     @Test
