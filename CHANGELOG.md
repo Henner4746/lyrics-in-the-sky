@@ -15,7 +15,7 @@
 - **Word times for most songs:** "Wortgenau" now asks four unofficial services one after the other – Deezer
   (Musixmatch's timing, as on Spotify), LyricsPlus (Apple Music, QQ Music), NetEase and Kugou – each of which can be
   switched on its own (page *Quellen*, `/skylyrics source <name> on|off`); "Wortgenau" switches all of them, and all
-  are off until you do. Of 47 test songs with LRCLIB lines, 43 now get real word times (22 before).
+  are off until you do. Of 48 test songs with LRCLIB lines, 44 now get real word times (22 before).
 - Word times are matched by each line's first words, so services that break lines differently still fit, and a
   steady shift of up to 8 s (a longer intro) is recognised. When LRCLIB's hand-made lines drift, two services that
   agree with each other are trusted instead. Differences below 1 s are no longer shifted onto LRCLIB's lines.
