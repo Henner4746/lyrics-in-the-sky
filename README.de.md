@@ -145,7 +145,7 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics barround <0–1>` | Ecken der Leiste, von eckig bis Kapsel |
 | `/skylyrics glow <0–2>` | Leuchten bei Nacht und Schatten bei Tag um die Songtexte; über 1 mit dunkler Kontur |
 | `/skylyrics lrclib <on\|off>` | Abfrage bei lrclib.net erlauben oder verbieten |
-| `/skylyrics wortgenau <on\|off>` | Alle inoffiziellen Wortzeit-Dienste auf einmal („Wortgenau“ / „Grauzone“, standardmäßig aus) |
+| `/skylyrics wortgenau <on\|off>` | Alle inoffiziellen Wortzeit-Dienste auf einmal („Wortgenau“, auch `grauzone`; standardmäßig aus) |
 | `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | Einzelne Wortzeit-Dienste |
 | `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
 

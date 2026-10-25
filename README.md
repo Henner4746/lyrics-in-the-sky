@@ -142,7 +142,7 @@ working automatically through the media session on your PC.
 | `/skylyrics along <on\|off>` | Lyrics turn along with your view |
 | `/skylyrics preset <standard\|sky\|around\|party\|calm\|glass>` | Set a whole look at once |
 | `/skylyrics lrclib <on\|off>` | Allow or forbid lyrics lookups on lrclib.net |
-| `/skylyrics wortgenau <on\|off>` | All unofficial word time services at once ("Wortgenau" / "Grauzone", off by default) |
+| `/skylyrics wortgenau <on\|off>` | All unofficial word time services at once ("Wortgenau", also `grauzone`; off by default) |
 | `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | One word time service at a time |
 | `/skylyrics spotify <connect\|disconnect>` | Connect or disconnect the optional Spotify account |
 
