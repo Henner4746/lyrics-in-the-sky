@@ -40,7 +40,10 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 
 /**
- * The glass menu: a black glass window over the softly blurred world. It opens on cards, one for each part of the mod,
+ * The menu with every page and option, in one of two looks. "Minimal" (the default) draws it as the menu always looked:
+ * a plain half see-through panel (a pane of Liquid Glass in that theme), grey labels and white values, small switches,
+ * thin sliders and underlined choices, compact rows, the hovered option explained in the line at the bottom, nothing
+ * moving. "Glas" is the glass menu: a black glass window over the softly blurred world. It opens on cards, one for each part of the mod,
  * with switches right on the cards for what is switched most; a card opens its page, with a live preview of the look,
  * sections and rows of a title, a grey line on what it does and a switch, slider, choice or color on the right. Every
  * change applies at once, in the sky behind and in the preview; "Auf Standard zurücksetzen" resets the page, Esc goes
@@ -61,6 +64,21 @@ public final class GlassMenuScreen extends Screen {
     private static final int CARD_GAP = 8;
     private static final int NOW_CARD = 40;
     private static final int CONTROL = 104;
+    /** The plain look: row and heading heights, the header and the footer with its hint line. */
+    private static final int P_ROW = 15;
+    private static final int P_SECTION = 17;
+    private static final int P_HEADER = 30;
+    private static final int P_FOOTER = 34;
+    private static final int P_LABEL_COLUMN = 120;
+    private static final int P_PANEL = 0x80000000;
+    private static final int P_LINE = 0x55FFFFFF;
+    private static final int P_LABEL = 0xFFB4B4B4;
+    private static final int P_DIM = 0xFF8E8E8E;
+    private static final int P_HOVER = 0xFFE2E2E2;
+    private static final int P_GLASS_LABEL = 0xFFD2D6DE;
+    private static final int P_GLASS_DIM = 0xFFAAB1BD;
+    /** A switch that is on in the glass theme: a clear cyan, like the glass palette's accent. */
+    private static final int P_ON_TINT = 0x4FC3F7;
 
     private static final int WINDOW_TOP = 0x15141C;
     private static final int WINDOW_BOTTOM = 0x07070A;
@@ -160,14 +178,24 @@ public final class GlassMenuScreen extends Screen {
         return List.of(
                 new Section("Songtexte"),
                 new Toggle("Songtexte zeigen", "Alle Songtexte ein- oder ausblenden", c -> c.enabled, (c, on) -> c.enabled = on),
-                new Choice("Vorlage", "Ein ganzer Look mit einem Klick", SkyLyricsConfig.PRESETS, Map.of("standard", "Standard",
-                        "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig", "glass", "Glas",
-                        "", "Eigener Look"),
-                        c -> Objects.requireNonNullElse(c.currentPreset(), ""), SkyLyricsConfig::applyPreset),
-                new Choice("Anzeige", "Am Himmel oder um dich herum", SkyLyricsConfig.MODES,
-                        Map.of("sky", "Am Himmel", "around", "Um dich herum"), c -> c.mode, (c, v) -> c.mode = v),
+                new PresetChoice(),
+                new Choice("Anzeige", "Am Himmel, um dich herum oder auf dem Bildschirm", SkyLyricsConfig.MODES,
+                        SkyLyricsConfig.MODE_NAMES, c -> c.mode, (c, v) -> c.mode = v),
                 new Choice("Stil", "Wie die Zeilen erscheinen und gehen", SkyLyricsConfig.STYLES, Map.of("elegant", "Elegant",
                         "natural", "Natürlich 1:1", "flow", "Stapel", "classic", "Verspielt"), c -> c.style, (c, v) -> c.style = v),
+                new Section("Bildschirm"),
+                new Choice("Bildschirm-Stil", "Untertitel, Karaoke oder große Zeilen wie auf einer Bühne",
+                        SkyLyricsConfig.SCREEN_STYLES, SkyLyricsConfig.SCREEN_STYLE_NAMES, c -> c.screenStyle, (c, v) -> {
+                            c.screenStyle = v;
+                            c.mode = "screen";
+                        }),
+                new Choice("Platz", "Wo die Texte auf dem Bildschirm stehen", SkyLyricsConfig.SCREEN_POSITIONS,
+                        Map.of("bottom", "Unten", "center", "Mitte", "top", "Oben"), c -> c.screenPosition,
+                        (c, v) -> c.screenPosition = v),
+                new Slider("Größe auf dem Bildschirm", "Wie groß die Texte auf dem Bildschirm sind", 0.6, 2, 0.05,
+                        c -> c.screenScale, (c, v) -> c.screenScale = (float) v, GlassMenuScreen::percent),
+                new Toggle("Hintergrund", "Ein dunkles Band hinter den Texten wie bei Untertiteln", c -> c.screenBackground,
+                        (c, on) -> c.screenBackground = on),
                 new Section("Position"),
                 new Slider("Höhe", "Wie hoch die Zeilen am Himmel stehen", 10, 70, 1, c -> c.elevationDeg,
                         (c, v) -> c.elevationDeg = (float) v, v -> Math.round(v) + "°"),
@@ -418,14 +446,20 @@ public final class GlassMenuScreen extends Screen {
     private List<Row> menuRows() {
         return List.of(
                 new Section("Menü"),
-                new Choice("Menüstil", "Glas, prachtvoll oder minimal", SkyLyricsConfig.MENU_STYLES,
-                        Map.of("glass", "Glas", "fancy", "Prachtvoll", "minimal", "Minimal"), c -> c.menuStyle, (c, v) -> {
+                new Choice("Menüstil", "Minimal wie früher, Glas oder prachtvoll", SkyLyricsConfig.MENU_STYLES,
+                        Map.of("minimal", "Minimal", "glass", "Glas", "fancy", "Prachtvoll"), c -> c.menuStyle, (c, v) -> {
                             c.menuStyle = v;
-                            if (!"glass".equals(v)) {
-                                c.save();
+                            c.save();
+                            if ("fancy".equals(v)) {
                                 minecraft.gui.setScreen(new SettingsScreen(parent, controller, spotify));
+                            } else {
+                                // The other look has other row heights: laid out anew, on the same page.
+                                rebuildWidgets();
                             }
                         }),
+                new Choice("Theme", "Minimal: schlicht oder aus Glas; auch die Leiste", SkyLyricsConfig.THEMES,
+                        Map.of("classic", "Klassisch", "glass", "Liquid Glass"), c -> c.theme, (c, v) -> c.theme = v),
+                new Section("Nur Glas"),
                 new ColorRow("Akzentfarbe", "Schalter, Regler und Hervorhebungen", c -> c.menuAccent, (c, v) -> c.menuAccent = v),
                 new Toggle("Unschärfe", "Die Welt hinter dem Menü weichzeichnen", c -> c.menuBlur, (c, on) -> c.menuBlur = on),
                 new Toggle("Animationen", "Öffnen, Gleiten und Leuchten", c -> c.menuAnimations, (c, on) -> c.menuAnimations = on));
@@ -445,8 +479,8 @@ public final class GlassMenuScreen extends Screen {
         y0 = (height - h) / 2;
         x1 = x0 + w;
         y1 = y0 + h;
-        contentTop = y0 + HEADER;
-        contentBottom = y1 - FOOTER;
+        contentTop = y0 + header();
+        contentBottom = y1 - footer();
         layout();
     }
 
@@ -520,6 +554,32 @@ public final class GlassMenuScreen extends Screen {
         return peeking;
     }
 
+    /** The old look ("Minimal"): plain panel, lines and text, no animations. */
+    private boolean plain() {
+        return !"glass".equals(config.menuStyle);
+    }
+
+    /** In the plain look: the Liquid Glass theme draws the panel and the controls as glass, as the old menu did. */
+    private boolean glassTheme() {
+        return "glass".equals(config.theme);
+    }
+
+    private int pLabel() {
+        return glassTheme() ? P_GLASS_LABEL : P_LABEL;
+    }
+
+    private int pDim() {
+        return glassTheme() ? P_GLASS_DIM : P_DIM;
+    }
+
+    private int header() {
+        return plain() ? P_HEADER : HEADER;
+    }
+
+    private int footer() {
+        return plain() ? P_FOOTER : FOOTER;
+    }
+
     private int accent() {
         return config.menuAccent;
     }
@@ -529,7 +589,7 @@ public final class GlassMenuScreen extends Screen {
     }
 
     private float animated(long sinceNanos, float seconds) {
-        if (!config.menuAnimations) {
+        if (!config.menuAnimations || plain()) {
             return 1f;
         }
         return easeOut((System.nanoTime() - sinceNanos) / 1e9f / seconds);
@@ -551,6 +611,17 @@ public final class GlassMenuScreen extends Screen {
         if (peeking) {
             return;
         }
+        if (plain()) {
+            if (glassTheme()) {
+                // As the old menu in Liquid Glass: the world softly blurred, the panel a pane of glass on it.
+                graphics.blurBeforeThisStratum();
+                Glass.pane(graphics, x0, y0, x1, y1, 16, 1f, 1.35f);
+            } else {
+                // A plain black panel instead of the usual blur, so the lyrics behind stay visible while adjusting.
+                graphics.fill(x0, y0, x1, y1, P_PANEL);
+            }
+            return;
+        }
         float open = animated(openedNanos, 0.28f);
         if (config.menuBlur) {
             graphics.blurBeforeThisStratum();
@@ -567,7 +638,16 @@ public final class GlassMenuScreen extends Screen {
             drawPeekHint(graphics, mouseX, mouseY, now);
             return;
         }
-        scroll = config.menuAnimations ? approach(scroll, scrollTarget, dt, 0.07f) : scrollTarget;
+        scroll = config.menuAnimations && !plain() ? approach(scroll, scrollTarget, dt, 0.07f) : scrollTarget;
+        if (plain()) {
+            drawPlainHeader(graphics, mouseX, mouseY);
+            drawContent(graphics, mouseX, mouseY, 1f, dt, now);
+            drawPlainFooter(graphics, mouseX, mouseY);
+            if (picker != null) {
+                picker.draw(graphics, mouseX, mouseY, 1f);
+            }
+            return;
+        }
         float open = animated(openedNanos, 0.28f);
         graphics.pose().pushMatrix();
         float cx = (x0 + x1) / 2f;
@@ -638,6 +718,67 @@ public final class GlassMenuScreen extends Screen {
         graphics.centeredText(font, Component.literal("×").withStyle(label), cx + 10, y0 + 19,
                 ARGB.color(open * (0.7f + 0.3f * hoverClose), TEXT));
         graphics.fill(x0 + PAD, y0 + HEADER - 1, x1 - PAD, y0 + HEADER, ARGB.color(open * LINE, 0xFFFFFF));
+    }
+
+    /** The old look's top: the title in white, a back arrow on a page, "Fertig" on the right, a line below. */
+    private void drawPlainHeader(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        int x = x0 + PAD;
+        int y = y0 + 10;
+        if (category != null) {
+            boolean over = inBack(mouseX, mouseY);
+            graphics.text(font, Component.literal("‹").withStyle(title), x, y, over ? 0xFFFFFFFF : pLabel(), false);
+            x += 12;
+        }
+        Component heading = Component.literal(category == null ? "Lyrics in the Sky" : category.name()).withStyle(title);
+        graphics.text(font, heading, x, y, 0xFFFFFFFF, false);
+        if (live()) {
+            graphics.text(font, Component.literal("· LIVE").withStyle(title), x + font.width(heading) + 6, y, pDim(), false);
+        }
+        int bx = x1 - PAD - 46;
+        boolean over = inClose(mouseX, mouseY);
+        plainButton(graphics, bx, y - 3, 46, "Fertig", true, over);
+        if (!glassTheme()) {
+            graphics.fill(x0 + PAD, y0 + P_HEADER - 4, x1 - PAD, y0 + P_HEADER - 3, P_LINE);
+        }
+    }
+
+    /** A button of the old look: a thin frame with the word, white when it is the main one or under the mouse. */
+    private void plainButton(GuiGraphicsExtractor graphics, int x, int y, int w, String text, boolean main, boolean over) {
+        int h = 13;
+        if (glassTheme()) {
+            Glass.pane(graphics, x, y, x + w, y + h, 6, 1f, over ? 1.45f : 1.15f);
+        } else {
+            graphics.outline(x, y, w, h, main || over ? 0xFFFFFFFF : pDim());
+        }
+        graphics.centeredText(font, Component.literal(text).withStyle(title), x + w / 2, y + 3,
+                main || over ? 0xFFFFFFFF : pLabel());
+    }
+
+    /**
+     * The old look's bottom: what the option under the mouse does (or the status), and below it "Auf Standard
+     * zurücksetzen" and what Esc does.
+     */
+    private void drawPlainFooter(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        int y = y1 - P_FOOTER;
+        if (!glassTheme()) {
+            graphics.fill(x0 + PAD, y, x1 - PAD, y + 1, P_LINE);
+        }
+        String hint = hovered == null ? null : hovered.hint();
+        int w = x1 - x0 - 2 * PAD;
+        if (hint != null && !hint.isEmpty()) {
+            List<FormattedCharSequence> lines = font.split(Component.literal(hint).withStyle(title), w);
+            graphics.text(font, lines.get(0), x0 + PAD, y + 5, 0xFFFFFFFF, false);
+        } else {
+            graphics.text(font, fit("Änderungen siehst du sofort, am Himmel und an der Leiste.", title, w), x0 + PAD, y + 5,
+                    pDim(), false);
+        }
+        if (category != null) {
+            boolean over = inReset(mouseX, mouseY);
+            graphics.text(font, Component.literal("Auf Standard zurücksetzen").withStyle(title), x0 + PAD, y + 19,
+                    over ? 0xFFFFFFFF : pDim(), false);
+        }
+        Component esc = Component.literal(category == null ? "Esc: schließen" : "Esc: zurück").withStyle(title);
+        graphics.text(font, esc, x1 - PAD - font.width(esc), y + 19, pDim(), false);
     }
 
     /** A rounded tile with a symbol, its color the accent turned a little round the color wheel per card. */
@@ -721,11 +862,20 @@ public final class GlassMenuScreen extends Screen {
             if (y + row.height() < contentTop - 2 || y > contentBottom + 2) {
                 continue;
             }
-            row.hover = approach(row.hover, row == over ? 1f : 0f, dt, 0.08f);
+            row.hover = plain() ? (row == over ? 1f : 0f) : approach(row.hover, row == over ? 1f : 0f, dt, 0.08f);
             row.draw(graphics, left, y, right - left, mouseX, mouseY, open * view, dt);
         }
         graphics.pose().popMatrix();
         graphics.disableScissor();
+        if (plain()) {
+            if (maxScroll() > 0) {
+                int track = contentBottom - contentTop - 4;
+                int thumb = Math.max(14, track * (contentBottom - contentTop) / contentHeight);
+                int at = contentTop + 2 + Math.round((track - thumb) * (scroll / maxScroll()));
+                graphics.fill(x1 - 5, at, x1 - 4, at + thumb, P_LINE);
+            }
+            return;
+        }
         // Edges fading into the window where the list scrolls on.
         if (scroll > 1f) {
             graphics.fillGradient(x0 + 1, contentTop, x1 - 1, contentTop + 10, ARGB.color(open, 0x121118), 0);
@@ -778,7 +928,7 @@ public final class GlassMenuScreen extends Screen {
 
     /** The full description of the row under the mouse after a moment, in a small glass bubble. */
     private void drawBubble(GuiGraphicsExtractor graphics, int mouseX, int mouseY, long now) {
-        if (hovered == null || hovered.more() == null || dragging != null || (now - hoverNanos) / 1e9f < 0.55f) {
+        if (plain() || hovered == null || hovered.more() == null || dragging != null || (now - hoverNanos) / 1e9f < 0.55f) {
             return;
         }
         float shown = config.menuAnimations ? easeOut(((now - hoverNanos) / 1e9f - 0.55f) / 0.18f) : 1f;
@@ -827,15 +977,27 @@ public final class GlassMenuScreen extends Screen {
 
     private boolean inBack(double mx, double my) {
         int x = x0 + PAD;
+        if (plain()) {
+            int w = category == null ? 0 : 12 + font.width(Component.literal(category.name()).withStyle(title));
+            return category != null && mx >= x - 2 && mx < x + w && my >= y0 + 6 && my < y0 + 22;
+        }
         return category != null && mx >= x && mx < x + 18 && my >= y0 + 17 && my < y0 + 35;
     }
 
     private boolean inClose(double mx, double my) {
+        if (plain()) {
+            int bx = x1 - PAD - 46;
+            return mx >= bx && mx < bx + 46 && my >= y0 + 7 && my < y0 + 20;
+        }
         int cx = x1 - PAD - 18;
         return mx >= cx && mx < cx + 20 && my >= y0 + 14 && my < y0 + 34;
     }
 
     private boolean inReset(double mx, double my) {
+        if (plain()) {
+            int y = y1 - P_FOOTER + 17;
+            return category != null && mx >= x0 + PAD && mx < x0 + PAD + 150 && my >= y && my < y + 12;
+        }
         int y = y1 - FOOTER;
         return category != null && mx >= x0 + PAD && mx < x0 + PAD + 130 && my >= y + 4 && my < y + 22;
     }
@@ -998,6 +1160,11 @@ public final class GlassMenuScreen extends Screen {
             return null;
         }
 
+        /** What the old look's hint line says while the mouse is on the row, or {@code null}. */
+        String hint() {
+            return null;
+        }
+
         void resetTo(SkyLyricsConfig config, SkyLyricsConfig defaults) {
         }
     }
@@ -1012,11 +1179,18 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         int height() {
-            return SECTION;
+            return plain() ? P_SECTION : SECTION;
         }
 
         @Override
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            if (plain()) {
+                if (!glassTheme() && top > 4) {
+                    graphics.fill(x, y + 3, x + w, y + 4, P_LINE);
+                }
+                graphics.text(font, Component.literal(name).withStyle(title), x, y + 7, pDim(), false);
+                return;
+            }
             Glass.fill(graphics, x, y + 10, x + 4, y + 14, 2, ARGB.color(alpha, accent()));
             int cursor = x + 10;
             for (char letter : name.toUpperCase(Locale.ROOT).toCharArray()) {
@@ -1045,7 +1219,12 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         int height() {
-            return ROW;
+            return plain() ? P_ROW : ROW;
+        }
+
+        @Override
+        String hint() {
+            return desc;
         }
 
         /** Room the control takes on the right. */
@@ -1060,6 +1239,15 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            if (plain()) {
+                // Grey label on the left, white when hovered; the control from a fixed column on.
+                int lx = x + (indent ? 8 : 0);
+                int column = Math.min(P_LABEL_COLUMN, w * 2 / 5);
+                int color = !enabled ? pDim() : hover > 0.5f ? 0xFFFFFFFF : pLabel();
+                graphics.text(font, fit(name, title, column - 6 - (lx - x)), lx, y + 3, color, false);
+                drawPlain(graphics, x + column, y, w - column, mouseX, mouseY);
+                return;
+            }
             if (hover > 0.01f) {
                 Glass.fill(graphics, x - 6, y + 1, x + w + 6, y + ROW - 1, 8, ARGB.color(alpha * 0.045f * hover, 0xFFFFFF));
             }
@@ -1075,6 +1263,18 @@ public final class GlassMenuScreen extends Screen {
 
         abstract void drawControl(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha,
                 float dt);
+
+        /** The control in the old look, from {@code x} over the rest of the row. */
+        abstract void drawPlain(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY);
+
+        /** A value in the old look's type at the row's text line. */
+        void plainText(GuiGraphicsExtractor graphics, String value, int x, int y, int color) {
+            graphics.text(font, Component.literal(value).withStyle(title), x, y + 3, color, false);
+        }
+
+        int plainWidth(String value) {
+            return font.width(Component.literal(value).withStyle(title));
+        }
     }
 
     private final class Toggle extends Option {
@@ -1101,6 +1301,12 @@ public final class GlassMenuScreen extends Screen {
             switchAt(graphics, x + w - 30, y + 8, knob, hover, alpha, changedNanos);
         }
 
+        /** As the old menu: a small switch, filled white when on (a cyan capsule in glass), and the word next to it. */
+        @Override
+        void drawPlain(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY) {
+            plainSwitch(graphics, x, y + 3, get.test(config), hover > 0.5f);
+        }
+
         @Override
         boolean click(double mx, double my, int x, int y, int w) {
             if (!enabled) {
@@ -1119,6 +1325,31 @@ public final class GlassMenuScreen extends Screen {
                 set.accept(config, get.test(defaults));
             }
         }
+    }
+
+    /** The old menu's switch with "An" or "Aus" after it. */
+    private void plainSwitch(GuiGraphicsExtractor graphics, int x, int y, boolean on, boolean over) {
+        int word = on ? 0xFFFFFFFF : over ? P_HOVER : pDim();
+        if (glassTheme()) {
+            int top = y - 1;
+            if (on) {
+                Glass.fill(graphics, x, top, x + 18, top + 10, 5, ARGB.color(0.9f, P_ON_TINT));
+                Glass.rim(graphics, x, top, x + 18, top + 10, 5, 0.9f);
+            } else {
+                Glass.pane(graphics, x, top, x + 18, top + 10, 5, 1f, over ? 1.4f : 1f);
+            }
+            int knob = on ? x + 9 : x + 1;
+            Glass.fill(graphics, knob, top + 1, knob + 8, top + 9, 4, 0xFFFFFFFF);
+        } else {
+            int frame = on ? 0xFFFFFFFF : over ? P_HOVER : pDim();
+            graphics.outline(x, y, 16, 8, frame);
+            if (on) {
+                graphics.fill(x + 8, y + 1, x + 15, y + 7, 0xFFFFFFFF);
+            } else {
+                graphics.fill(x + 2, y + 2, x + 6, y + 6, frame);
+            }
+        }
+        graphics.text(font, Component.literal(on ? "An" : "Aus").withStyle(title), x + 24, y, word, false);
     }
 
     /** A switch: a capsule that fills with the accent, its white knob gliding and stretching as it moves. */
@@ -1215,6 +1446,29 @@ public final class GlassMenuScreen extends Screen {
             graphics.text(font, text, x + w - font.width(text), y + 11, ARGB.color(alpha, TEXT), false);
         }
 
+        /** As the old menu: a thin line, white up to a short knob, the value in white at its end. */
+        @Override
+        void drawPlain(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY) {
+            double value = get.applyAsDouble(config);
+            int valueWidth = 46;
+            trackX = x;
+            trackW = Math.max(20, w - valueWidth - 8);
+            int lineY = y + 7;
+            int knob = x + (int) Math.round((value - min) / (max - min) * trackW);
+            boolean over = hover > 0.5f || dragging == this;
+            if (glassTheme()) {
+                Glass.fill(graphics, x, lineY - 1, x + trackW + 2, lineY + 2, 1, ARGB.color(0.30f, 0xFFFFFF));
+                Glass.fill(graphics, x, lineY - 1, knob + 1, lineY + 2, 1, over ? 0xFFFFFFFF : P_HOVER);
+                Glass.fill(graphics, knob - 3, lineY - 3, knob + 5, lineY + 5, 4, ARGB.color(0.25f, 0x000000));
+                Glass.fill(graphics, knob - 3, lineY - 4, knob + 5, lineY + 4, 4, 0xFFFFFFFF);
+            } else {
+                graphics.fill(x, lineY, x + trackW, lineY + 1, pDim());
+                graphics.fill(x, lineY, knob, lineY + 1, over ? 0xFFFFFFFF : P_HOVER);
+                graphics.fill(knob, lineY - 3, knob + 2, lineY + 4, 0xFFFFFFFF);
+            }
+            plainText(graphics, format.apply(value), x + trackW + 8, y, enabled ? 0xFFFFFFFF : pDim());
+        }
+
         @Override
         boolean click(double mx, double my, int x, int y, int w) {
             if (!enabled || mx < trackX - 8 || mx > trackX + trackW + 8) {
@@ -1245,7 +1499,7 @@ public final class GlassMenuScreen extends Screen {
     }
 
     /** One of a few values: a segmented capsule when all fit, else the value between arrows to step through. */
-    private final class Choice extends Option {
+    private class Choice extends Option {
         private final List<String> values;
         private final Map<String, String> names;
         private final Function<SkyLyricsConfig, String> get;
@@ -1331,8 +1585,70 @@ public final class GlassMenuScreen extends Screen {
             }
         }
 
+        /** Where each value starts in the old look's row, and whether all of them fit. */
+        private int[] plainXs = new int[0];
+        private boolean plainAll;
+
+        /**
+         * As the old menu: all values in a row, the chosen one white and underlined (in glass on a small capsule); when
+         * they do not fit, only the chosen one between arrows.
+         */
+        @Override
+        void drawPlain(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY) {
+            String chosen = get.apply(config);
+            int spacing = 12;
+            int total = -spacing;
+            for (String value : values) {
+                total += plainWidth(name(value)) + spacing;
+            }
+            plainAll = total <= w - 6;
+            segX = x;
+            segW = w;
+            if (!plainAll) {
+                String shown = names.getOrDefault(chosen, values.contains(chosen) ? chosen : "Eigene");
+                plainText(graphics, "‹ " + shown + " ›", x, y, hover > 0.5f ? 0xFFFFFFFF : P_HOVER);
+                return;
+            }
+            plainXs = new int[values.size()];
+            int cursor = x;
+            for (int i = 0; i < values.size(); i++) {
+                String value = values.get(i);
+                String label = name(value);
+                int vw = plainWidth(label);
+                plainXs[i] = cursor;
+                boolean selected = value.equals(chosen);
+                boolean over = hover > 0.5f && mouseX >= cursor - spacing / 2 && mouseX < cursor + vw + spacing / 2;
+                if (selected && glassTheme()) {
+                    Glass.pane(graphics, cursor - 5, y, cursor + vw + 5, y + 12, 6, 1f, 1.3f);
+                }
+                plainText(graphics, label, cursor, y, selected ? 0xFFFFFFFF : over ? P_HOVER : pDim());
+                if (selected && !glassTheme()) {
+                    graphics.fill(cursor, y + 12, cursor + vw, y + 13, 0xFFFFFFFF);
+                }
+                cursor += vw + spacing;
+            }
+        }
+
         @Override
         boolean click(double mx, double my, int x, int y, int w) {
+            if (plain()) {
+                if (!enabled || mx < segX - 6) {
+                    return false;
+                }
+                if (plainAll) {
+                    for (int i = values.size() - 1; i >= 0; i--) {
+                        if (mx >= plainXs[i] - 6) {
+                            set.accept(config, values.get(i));
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                int index = values.indexOf(get.apply(config));
+                boolean back = mx < segX + 14;
+                set.accept(config, values.get(Math.floorMod((index < 0 ? 0 : index) + (back ? -1 : 1), values.size())));
+                return true;
+            }
             if (!enabled || mx < segX || mx >= segX + (segmented ? segW * values.size() + 4 : segW)) {
                 return false;
             }
@@ -1356,6 +1672,24 @@ public final class GlassMenuScreen extends Screen {
             } else if (!Objects.equals(get.apply(config), get.apply(defaults))) {
                 set.accept(config, get.apply(defaults));
             }
+        }
+    }
+
+    /** The presets, with what the chosen one gives as its line; picking one may change every other row of the page. */
+    private final class PresetChoice extends Choice {
+        PresetChoice() {
+            super("Vorlage", "Ein ganzer Look mit einem Klick", SkyLyricsConfig.PRESETS, SkyLyricsConfig.PRESET_NAMES,
+                    c -> Objects.requireNonNullElse(c.currentPreset(), ""), SkyLyricsConfig::applyPreset);
+        }
+
+        @Override
+        String hint() {
+            return SkyLyricsConfig.presetHint(Objects.requireNonNullElse(config.currentPreset(), ""));
+        }
+
+        @Override
+        String more() {
+            return null;
         }
     }
 
@@ -1383,6 +1717,15 @@ public final class GlassMenuScreen extends Screen {
             graphics.text(font, hex, sx - 8 - font.width(hex), y + 11, ARGB.color(alpha, 0xC9C7D4), false);
             Glass.fill(graphics, sx, y + 5, sx + 22, y + 26, 7, ARGB.color(alpha, color));
             Glass.outline(graphics, sx, y + 5, sx + 22, y + 26, 7, ARGB.color(alpha * (0.22f + 0.3f * hover), 0xFFFFFF));
+        }
+
+        /** The color as a small swatch with a thin frame, the hex code after it. */
+        @Override
+        void drawPlain(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY) {
+            int color = get.applyAsInt(config);
+            graphics.fill(x, y + 2, x + 16, y + 11, 0xFF000000 | color);
+            graphics.outline(x, y + 2, 16, 9, hover > 0.5f ? 0xFFFFFFFF : pDim());
+            plainText(graphics, String.format(Locale.ROOT, "#%06X", color), x + 22, y, hover > 0.5f ? 0xFFFFFFFF : P_HOVER);
         }
 
         @Override
@@ -1431,9 +1774,25 @@ public final class GlassMenuScreen extends Screen {
             pillButton(graphics, x, top, w, 19, button.get(), a, hover);
         }
 
+        private int plainX = Integer.MAX_VALUE;
+
+        @Override
+        void drawPlain(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY) {
+            String text = button.get();
+            int bw = plainWidth(text) + 16;
+            plainX = x;
+            boolean over = hover > 0.5f && mouseX >= x && mouseX < x + bw;
+            if (active.getAsBoolean()) {
+                plainButton(graphics, x, y + 1, bw, text, false, over);
+            } else {
+                graphics.outline(x, y + 1, bw, 13, ARGB.color(0.4f, pDim()));
+                graphics.centeredText(font, Component.literal(text).withStyle(title), x + bw / 2, y + 4, pDim());
+            }
+        }
+
         @Override
         boolean click(double mx, double my, int x, int y, int w) {
-            if (!active.getAsBoolean() || mx < x + w - controlWidth(w)) {
+            if (!active.getAsBoolean() || (plain() ? mx < plainX : mx < x + w - controlWidth(w))) {
                 return false;
             }
             press = 1.5f;
@@ -1469,12 +1828,22 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         int height() {
-            return 34;
+            return plain() ? P_ROW : 34;
         }
 
         @Override
         String more() {
             return cut ? text.get() : null;
+        }
+
+        @Override
+        String hint() {
+            return text.get();
+        }
+
+        @Override
+        void drawPlain(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY) {
+            graphics.text(font, fit(text.get(), title, w), x, y + 3, P_HOVER, false);
         }
 
         @Override
@@ -1484,6 +1853,10 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            if (plain()) {
+                super.draw(graphics, x, y, w, mouseX, mouseY, alpha, dt);
+                return;
+            }
             graphics.text(font, fit(name, label, w), x, y + 5, ARGB.color(alpha, TEXT), false);
             List<FormattedCharSequence> lines = font.split(Component.literal(text.get()).withStyle(small), w);
             cut = lines.size() > 2;
@@ -1502,11 +1875,32 @@ public final class GlassMenuScreen extends Screen {
     private final class Preview extends Row {
         @Override
         int height() {
-            return PREVIEW + 22;
+            return plain() ? 66 : PREVIEW + 22;
+        }
+
+        @Override
+        String hint() {
+            return "So sehen die Songtexte mit diesen Einstellungen aus.";
         }
 
         @Override
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            if (plain()) {
+                // A quiet box with the sample line in the player's look, as the old menu would have drawn it.
+                int top = y + 3;
+                int bottom = y + 60;
+                if (glassTheme()) {
+                    Glass.pane(graphics, x, top, x + w, bottom, 8, 1f, 1.1f);
+                } else {
+                    graphics.fill(x, top, x + w, bottom, 0x66000000);
+                    graphics.outline(x, top, w, bottom - top, P_LINE);
+                }
+                graphics.enableScissor(x + 1, top + 1, x + w - 1, bottom - 1);
+                LookPreview.draw(graphics, font, config, x, top, x + w, bottom, 1f, accent(), false);
+                graphics.disableScissor();
+                graphics.text(font, Component.literal("Vorschau").withStyle(title), x + 6, top + 4, pDim(), false);
+                return;
+            }
             graphics.text(font, Component.literal("Vorschau").withStyle(label), x, y + 2, ARGB.color(alpha, TEXT), false);
             Component hint = Component.literal("Ändert sich sofort mit").withStyle(small);
             graphics.text(font, hint, x + w - font.width(hint), y + 3, ARGB.color(alpha, DESC), false);
@@ -1552,11 +1946,24 @@ public final class GlassMenuScreen extends Screen {
     private final class LiveCard extends Row {
         @Override
         int height() {
-            return LIVE_CARD + 10;
+            return plain() ? P_ROW : LIVE_CARD + 10;
+        }
+
+        @Override
+        String hint() {
+            return "Das Menü tritt zur Seite und die Demo singt am Himmel; ein Klick holt es zurück.";
         }
 
         @Override
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            if (plain()) {
+                int column = Math.min(P_LABEL_COLUMN, w * 2 / 5);
+                graphics.text(font, Component.literal("Live-Vorschau").withStyle(title), x, y + 3,
+                        hover > 0.5f ? 0xFFFFFFFF : pLabel(), false);
+                plainButton(graphics, x + column, y + 1, font.width(Component.literal("Ansehen").withStyle(title)) + 16,
+                        "Ansehen", false, hover > 0.5f);
+                return;
+            }
             int top = y + 4;
             int bottom = top + LIVE_CARD;
             Glass.fill(graphics, x, top, x + w, bottom, 12, ARGB.color(alpha * (0.07f + 0.03f * hover), accent()));
@@ -1584,7 +1991,13 @@ public final class GlassMenuScreen extends Screen {
     private final class NowPlaying extends Row {
         @Override
         int height() {
-            return timeline() == null ? 0 : NOW_CARD + 8;
+            return timeline() == null ? 0 : plain() ? P_ROW + 3 : NOW_CARD + 8;
+        }
+
+        @Override
+        String hint() {
+            LyricsController.Timeline timeline = timeline();
+            return timeline == null ? null : controller.status();
         }
 
         private LyricsController.Timeline timeline() {
@@ -1595,6 +2008,16 @@ public final class GlassMenuScreen extends Screen {
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
             LyricsController.Timeline timeline = timeline();
             if (timeline == null) {
+                return;
+            }
+            if (plain()) {
+                String line = "♪ " + timeline.title() + (timeline.artist().isBlank() ? "" : " · " + timeline.artist());
+                graphics.text(font, fit(line, title, w), x, y + 3, 0xFFFFFFFF, false);
+                if (timeline.durationMs() > 0) {
+                    float played = Mth.clamp(timeline.positionMs() / (float) timeline.durationMs(), 0f, 1f);
+                    graphics.fill(x, y + 14, x + w, y + 15, ARGB.color(0.3f, 0xFFFFFF));
+                    graphics.fill(x, y + 14, x + Math.round(w * played), y + 15, 0xFFFFFFFF);
+                }
                 return;
             }
             int top = y + 2;
@@ -1637,12 +2060,51 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         int height() {
+            if (plain()) {
+                return categories.size() * P_ROW;
+            }
             int rowsOfCards = (categories.size() + columns() - 1) / columns();
             return rowsOfCards * (CARD + CARD_GAP);
         }
 
+        /** In the old look: the page under the mouse, for the hint line. */
+        private int plainHovered = -1;
+
+        @Override
+        String hint() {
+            return plainHovered < 0 ? null : categories.get(plainHovered).subtitle();
+        }
+
+        /** The old look: one line per page, its name and a switch or an arrow at the control column. */
+        private void drawPlainList(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY) {
+            int column = Math.min(P_LABEL_COLUMN, w * 2 / 5);
+            plainHovered = -1;
+            for (int i = 0; i < categories.size(); i++) {
+                Category c = categories.get(i);
+                int ry = y + i * P_ROW;
+                boolean over = picker == null && mouseY >= ry && mouseY < ry + P_ROW && mouseX >= x && mouseX < x + w
+                        && mouseY >= contentTop && mouseY < contentBottom;
+                if (over) {
+                    plainHovered = i;
+                }
+                graphics.text(font, Component.literal(c.icon()), x, ry + 3, over ? 0xFFFFFFFF : pDim(), false);
+                graphics.text(font, Component.literal(c.name()).withStyle(title), x + 14, ry + 3,
+                        over ? 0xFFFFFFFF : pLabel(), false);
+                if (c.master() != null) {
+                    plainSwitch(graphics, x + column, ry + 3, c.master().test(config), over);
+                } else {
+                    graphics.text(font, Component.literal("›").withStyle(title), x + column, ry + 3,
+                            over ? 0xFFFFFFFF : pDim(), false);
+                }
+            }
+        }
+
         @Override
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            if (plain()) {
+                drawPlainList(graphics, x, y, w, mouseX, mouseY);
+                return;
+            }
             int columns = columns();
             int cardW = (w - (columns - 1) * CARD_GAP) / columns;
             for (int i = 0; i < categories.size(); i++) {
@@ -1678,6 +2140,20 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         boolean click(double mx, double my, int x, int y, int w) {
+            if (plain()) {
+                int i = (int) ((my - y) / P_ROW);
+                if (i < 0 || i >= categories.size()) {
+                    return false;
+                }
+                Category c = categories.get(i);
+                int column = Math.min(P_LABEL_COLUMN, w * 2 / 5);
+                if (c.master() != null && mx >= x + column && mx < x + column + 50) {
+                    c.setMaster().accept(config, !c.master().test(config));
+                } else {
+                    open(c);
+                }
+                return true;
+            }
             int columns = columns();
             int cardW = (w - (columns - 1) * CARD_GAP) / columns;
             int col = (int) ((mx - x) / (cardW + CARD_GAP));
@@ -1750,8 +2226,13 @@ public final class GlassMenuScreen extends Screen {
             graphics.fill(x0, y0, x1, y1, ARGB.color(a * 0.45f, 0x000000));
             int x = px();
             int y = py() + Math.round((1f - in) * 8f);
-            Glass.fill(graphics, x, y, x + W, y + H, 14, ARGB.color(a * 0.98f, 0x15141C));
-            Glass.outline(graphics, x, y, x + W, y + H, 14, ARGB.color(a * 0.18f, 0xFFFFFF));
+            if (plain()) {
+                graphics.fill(x, y, x + W, y + H, 0xF0000000);
+                graphics.outline(x, y, W, H, P_LINE);
+            } else {
+                Glass.fill(graphics, x, y, x + W, y + H, 14, ARGB.color(a * 0.98f, 0x15141C));
+                Glass.outline(graphics, x, y, x + W, y + H, 14, ARGB.color(a * 0.18f, 0xFFFFFF));
+            }
             graphics.text(font, fit(name, label, W - 60), x + 12, y + 10, ARGB.color(a, TEXT), false);
             Component done = Component.literal("Fertig").withStyle(small);
             graphics.text(font, done, x + W - 12 - font.width(done), y + 11, ARGB.color(a, accentLight()), false);

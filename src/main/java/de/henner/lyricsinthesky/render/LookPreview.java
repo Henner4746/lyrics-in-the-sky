@@ -31,7 +31,17 @@ public final class LookPreview {
     /** Draws the preview into the box; {@code alpha} fades all of it, {@code accent} tints sky and floor. */
     public static void draw(GuiGraphicsExtractor graphics, Font font, SkyLyricsConfig config, int x0, int y0, int x1, int y1,
             float alpha, int accent) {
+        draw(graphics, font, config, x0, y0, x1, y1, alpha, accent, true);
+    }
+
+    /** @param scenery the night sky with sun and floor; without, only the sample line on what is behind the box */
+    public static void draw(GuiGraphicsExtractor graphics, Font font, SkyLyricsConfig config, int x0, int y0, int x1, int y1,
+            float alpha, int accent, boolean scenery) {
         long nowMs = System.nanoTime() / 1_000_000L;
+        if (!scenery) {
+            sample(graphics, font, config, (x0 + x1) / 2, (y0 + y1) / 2 - 2, x0, x1, alpha, nowMs);
+            return;
+        }
         int width = x1 - x0;
         int height = y1 - y0;
         int horizon = y0 + Math.round(height * 0.68f);

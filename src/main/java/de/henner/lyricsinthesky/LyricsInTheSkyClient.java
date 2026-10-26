@@ -26,6 +26,7 @@ import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PreferredNowPlayingSource;
 import de.henner.lyricsinthesky.render.GlyphWarmup;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
+import de.henner.lyricsinthesky.render.ScreenLyrics;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
 import de.henner.lyricsinthesky.spotify.SpotifyAccount;
 import de.henner.lyricsinthesky.spotify.SpotifyNowPlayingSource;
@@ -154,6 +155,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SkyLyricsRenderer.INSTANCE.reset());
         HudElementRegistry.attachElementBefore(VanillaHudElements.BOSS_BAR,
                 Identifier.fromNamespaceAndPath(MOD_ID, "now_playing"), new NowPlayingHud());
+        HudElementRegistry.attachElementBefore(VanillaHudElements.BOSS_BAR,
+                Identifier.fromNamespaceAndPath(MOD_ID, "screen_lyrics"), new ScreenLyrics());
         registerKeys();
         registerCommands();
         if (SelfTest.isEnabled()) {
@@ -180,8 +183,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     /** Opens the settings screen on top of whatever is shown now. */
     public static void openSettings(Minecraft client) {
         Screen parent = client.gui.screen();
-        client.gui.setScreen("glass".equals(config.menuStyle) ? new GlassMenuScreen(parent, controller, spotify)
-                : new SettingsScreen(parent, controller, spotify));
+        client.gui.setScreen("fancy".equals(config.menuStyle) ? new SettingsScreen(parent, controller, spotify)
+                : new GlassMenuScreen(parent, controller, spotify));
     }
 
     private static void handleKeys(Minecraft client) {

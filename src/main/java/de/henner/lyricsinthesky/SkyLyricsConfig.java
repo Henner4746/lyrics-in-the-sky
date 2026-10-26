@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -41,12 +42,30 @@ public final class SkyLyricsConfig {
     public static final List<String> HOERGENAU_MODELS = List.of("small", "turbo");
     /** How much of the PC Hoergenau may use: "low" two cores, "normal" four, "high" all but one. */
     public static final List<String> HOERGENAU_POWERS = List.of("low", "normal", "high");
-    /** Bumped when a default changes for players who never chose: 2 made the glass menu the default. */
-    static final int CONFIG_VERSION = 2;
+    /**
+     * Bumped when a default changes for players who never chose: 2 made the glass menu the default, 3 the menu in the
+     * old look ("minimal") with every option.
+     */
+    static final int CONFIG_VERSION = 3;
     /** "sans": a round modern sans-serif (Poppins), "script": handwriting (Kalam), "minecraft": the game font. */
     public static final List<String> FONTS = List.of("sans", "script", "minecraft");
-    /** "sky": far away in the sky behind everything, like the sun. "around": close around the player, always visible. */
-    public static final List<String> MODES = List.of("sky", "around");
+    /**
+     * "sky": far away in the sky behind everything, like the sun. "around": close around the player, always visible.
+     * "screen": on the screen itself, as subtitles, karaoke or big lines as on a stage ({@link #SCREEN_STYLES}).
+     */
+    public static final List<String> MODES = List.of("sky", "around", "screen");
+    public static final Map<String, String> MODE_NAMES = Map.of("sky", "Am Himmel", "around", "Um dich herum",
+            "screen", "Bildschirm");
+    /**
+     * Looks of the lyrics on the screen: "subtitle" the line at the bottom like a film's subtitles, "karaoke" the line
+     * filling up word by word with the next one below, "stage" big lines on the left, the line before and the next ones
+     * dimmed, gliding up as the song goes on.
+     */
+    public static final List<String> SCREEN_STYLES = List.of("subtitle", "karaoke", "stage");
+    public static final Map<String, String> SCREEN_STYLE_NAMES = Map.of("subtitle", "Untertitel", "karaoke", "Karaoke",
+            "stage", "Bühne");
+    /** Where the lyrics on the screen sit. */
+    public static final List<String> SCREEN_POSITIONS = List.of("bottom", "center", "top");
     /**
      * "elegant": in the sky word groups building up a line near the horizon, around the player single words
      * floating at fixed spots. "natural": the same as if it really stood in the world – lines right above the
@@ -61,17 +80,46 @@ public final class SkyLyricsConfig {
      * "calm" the quiet white stack. They set the look only, never timing, lookups, the Spotify login or whether the
      * lyrics are on.
      */
-    public static final List<String> PRESETS = List.of("standard", "sky", "around", "party", "calm", "glass");
+    public static final List<String> PRESETS = List.of("standard", "sky", "around", "party", "calm", "glass", "subtitle",
+            "karaoke", "stage", "neon", "rainbow", "cinema", "retro", "clean");
+    public static final Map<String, String> PRESET_NAMES = Map.ofEntries(Map.entry("standard", "Standard"),
+            Map.entry("sky", "Himmel 1:1"), Map.entry("around", "Um dich 1:1"), Map.entry("party", "Party"),
+            Map.entry("calm", "Ruhig"), Map.entry("glass", "Glas"), Map.entry("subtitle", "Untertitel"),
+            Map.entry("karaoke", "Karaoke"), Map.entry("stage", "Bühne"), Map.entry("neon", "Neon-Nacht"),
+            Map.entry("rainbow", "Regenbogen"), Map.entry("cinema", "Kino"), Map.entry("retro", "Retro"),
+            Map.entry("clean", "Schlicht"), Map.entry("", "Eigener Look"));
+
+    /** What a preset gives, for the menus. */
+    public static String presetHint(String preset) {
+        return switch (preset) {
+            case "standard" -> "Alles wie beim ersten Start: Elegant am Himmel.";
+            case "sky" -> "Am Himmel im Stil 1:1: Zeilen knapp über den Hügeln, hinter Bergen und Wolken.";
+            case "around" -> "Um dich herum im Stil 1:1: Wörter fest in der Welt, Spieler und Blöcke stehen davor.";
+            case "party" -> "Große verspielte Wörter um dich herum, die im Takt wackeln und sich mit dir drehen.";
+            case "calm" -> "Der ruhige weiße Stapel am Himmel, ohne Songtitel.";
+            case "glass" -> "Liquid Glass: klarer Stapel in Eisblau mit Leuchten, Menü und Leiste aus Glas.";
+            case "subtitle" -> "Wie Untertitel im Kino: die Zeile unten auf dem Bildschirm, weiß mit Kontur.";
+            case "karaoke" -> "Karaoke auf dem Bildschirm: die Zeile füllt sich Wort für Wort, die nächste wartet darunter.";
+            case "stage" -> "Große Zeilen links auf dem Bildschirm wie bei Spotify und Apple Music, alles gleitet weich hoch.";
+            case "neon" -> "Leuchtendes Magenta und Cyan am Himmel, stark leuchtend und im Takt – am schönsten nachts.";
+            case "rainbow" -> "Jede Zeile in einer neuen Farbe, verspielt um dich herum und kräftig im Takt.";
+            case "cinema" -> "Groß, weiß und in Großbuchstaben mit Kontur, ruhig gleitend wie ein Filmtitel.";
+            case "retro" -> "Die Minecraft-Schrift in Gold mit dunkler Kontur, verspielt am Himmel.";
+            case "clean" -> "Nur der Text: schlicht weiß am Himmel, kaum Leuchten, ohne Leiste und ohne Titel.";
+            default -> "Eine Vorlage setzt Anzeige, Stil, Farben, Schrift und Effekte auf einmal.";
+        };
+    }
     /**
      * Looks of the menu and the now-playing bar: "classic" the plain black-and-white panel and dark bar, "glass" Liquid
      * Glass, frosted see-through glass with a bright rim and a soft shadow, like Apple's iOS 26.
      */
     public static final List<String> THEMES = List.of("classic", "glass");
     /**
-     * Looks of the menu itself: "glass" a black glass window with cards, a live preview and sections, "fancy" lively,
-     * with a moving backdrop, sparkles and everything sliding and glowing, "minimal" the quiet panel with plain lines.
+     * Looks of the menu itself: "minimal" every page and option drawn as the menu always looked (the plain panel, grey
+     * labels, thin lines, nothing moving), "glass" the same as a black glass window with cards and a live preview,
+     * "fancy" the lively older menu with a moving backdrop and sparkles.
      */
-    public static final List<String> MENU_STYLES = List.of("glass", "fancy", "minimal");
+    public static final List<String> MENU_STYLES = List.of("minimal", "glass", "fancy");
     /**
      * Looks of the now-playing bar: "pill" the rounded bar with the line and the word being sung, "karaoke" two lines
      * in a box with every word filling up as it is sung, "plain" just the words with a shadow, "title" only the song.
@@ -133,6 +181,14 @@ public final class SkyLyricsConfig {
     public String palette = "standard";
     /** One of {@link #FONTS}. */
     public String font = "sans";
+    /** One of {@link #SCREEN_STYLES}: the look of the lyrics on the screen. */
+    public String screenStyle = "subtitle";
+    /** One of {@link #SCREEN_POSITIONS}. */
+    public String screenPosition = "bottom";
+    /** Size of the lyrics on the screen, 0.6 to 2. */
+    public float screenScale = 1f;
+    /** A dark band behind the lyrics on the screen, as behind video captions. */
+    public boolean screenBackground = false;
     /** Let new lines appear in front of the player after they turn away. */
     public boolean followView = true;
     /** Show title and artist in the sky when a new song starts. */
@@ -146,7 +202,7 @@ public final class SkyLyricsConfig {
     /** One of {@link #THEMES}. */
     public String theme = "glass";
     /** One of {@link #MENU_STYLES}. */
-    public String menuStyle = "glass";
+    public String menuStyle = "minimal";
     /** Version of the defaults this file was written with; see {@link #CONFIG_VERSION}. */
     public int configVersion = 0;
     /** Streamer mode: explicit words in lyrics, titles and artists show as their first letter and stars. */
@@ -327,13 +383,14 @@ public final class SkyLyricsConfig {
         hudOpacity = Float.isFinite(hudOpacity) ? Math.max(0f, Math.min(1f, hudOpacity)) : 1f;
         hudRoundness = Float.isFinite(hudRoundness) ? Math.max(0f, Math.min(1f, hudRoundness)) : 1f;
         glow = Float.isFinite(glow) ? Math.max(0f, Math.min(2f, glow)) : 1f;
-        if (configVersion < 2 && "fancy".equals(menuStyle)) {
-            // The lively menu was the default up to 1.3.0-dev.10; the glass menu replaces it for those who kept it.
-            menuStyle = "glass";
+        if (configVersion < 3 && ("fancy".equals(menuStyle) || "glass".equals(menuStyle))) {
+            // The lively menu was the default up to 1.3.0-dev.10, the glass one in dev.11; players who kept either get
+            // the default of now, the menu in its old look with every option.
+            menuStyle = "minimal";
         }
         configVersion = CONFIG_VERSION;
         if (menuStyle == null || !MENU_STYLES.contains(menuStyle)) {
-            menuStyle = "glass";
+            menuStyle = "minimal";
         }
         if (hudHighlight == null || !HUD_HIGHLIGHTS.contains(hudHighlight)) {
             hudHighlight = "box";
@@ -341,6 +398,13 @@ public final class SkyLyricsConfig {
         if (hudFont == null || !HUD_FONTS.contains(hudFont)) {
             hudFont = "auto";
         }
+        if (screenStyle == null || !SCREEN_STYLES.contains(screenStyle)) {
+            screenStyle = "subtitle";
+        }
+        if (screenPosition == null || !SCREEN_POSITIONS.contains(screenPosition)) {
+            screenPosition = "bottom";
+        }
+        screenScale = within(screenScale, 0.6f, 2f, 1f);
         if (pauseMode == null || !PAUSE_MODES.contains(pauseMode)) {
             pauseMode = "dim";
         }
@@ -419,6 +483,17 @@ public final class SkyLyricsConfig {
         showTitleCard = defaults.showTitleCard;
         showHud = defaults.showHud;
         glow = defaults.glow;
+        shadow = defaults.shadow;
+        outline = defaults.outline;
+        outlineColor = defaults.outlineColor;
+        outlineWidth = defaults.outlineWidth;
+        uppercase = defaults.uppercase;
+        animationSpeed = defaults.animationSpeed;
+        beatStrength = defaults.beatStrength;
+        screenStyle = defaults.screenStyle;
+        screenPosition = defaults.screenPosition;
+        screenScale = defaults.screenScale;
+        screenBackground = defaults.screenBackground;
         switch (preset) {
             case "sky" -> style = "natural";
             case "around" -> {
@@ -446,6 +521,65 @@ public final class SkyLyricsConfig {
                 // Also the menu and the bar in glass; the other looks leave the theme as it is.
                 theme = "glass";
             }
+            case "subtitle" -> {
+                mode = "screen";
+                screenStyle = "subtitle";
+                palette = "white";
+                outline = true;
+                showHud = false;
+            }
+            case "karaoke" -> {
+                mode = "screen";
+                screenStyle = "karaoke";
+                palette = "sunset";
+                outline = true;
+                outlineColor = 0x1A0B2E;
+                showHud = false;
+            }
+            case "stage" -> {
+                mode = "screen";
+                screenStyle = "stage";
+                screenPosition = "center";
+                palette = "white";
+                screenScale = 1.2f;
+                showHud = false;
+            }
+            case "neon" -> {
+                palette = "neon";
+                glow = 1.8f;
+                beatBounce = true;
+                scale = 1.1f;
+            }
+            case "rainbow" -> {
+                mode = "around";
+                style = "classic";
+                palette = "rainbow";
+                beatBounce = true;
+                beatStrength = 1.5f;
+            }
+            case "cinema" -> {
+                style = "flow";
+                palette = "white";
+                uppercase = true;
+                outline = true;
+                scale = 1.2f;
+                animationSpeed = 0.7f;
+            }
+            case "retro" -> {
+                style = "classic";
+                font = "minecraft";
+                palette = "gold";
+                outline = true;
+                outlineColor = 0x2A1A00;
+            }
+            case "clean" -> {
+                style = "flow";
+                palette = "white";
+                glow = 0.4f;
+                shadow = 1.2f;
+                showTitleCard = false;
+                showHud = false;
+            }
             default -> {
                 // "standard": the defaults as set above.
             }
@@ -466,6 +600,7 @@ public final class SkyLyricsConfig {
 
     private Object[] look() {
         return new Object[] {mode, style, palette, font, opacity, scale, elevationDeg, skyBehindTerrain, beatBounce,
-                followAlong, followView, showTitleCard, showHud, glow};
+                followAlong, followView, showTitleCard, showHud, glow, shadow, outline, outlineColor, outlineWidth, uppercase,
+                animationSpeed, beatStrength, screenStyle, screenPosition, screenScale, screenBackground};
     }
 }

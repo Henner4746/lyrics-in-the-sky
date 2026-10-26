@@ -258,7 +258,9 @@ public final class SkyLyricsRenderer {
         boolean flowStyle = "flow".equals(config.style);
         aimFlow(camera.yRot, -camera.xRot, config, dt);
 
-        LyricsController.Timeline timeline = controller.timeline(System.currentTimeMillis());
+        // On the screen the lyrics are drawn by ScreenLyrics; whatever stands in the sky leaves.
+        LyricsController.Timeline timeline = "screen".equals(config.mode) ? null
+                : controller.timeline(System.currentTimeMillis());
         Set<String> wanted = new HashSet<>();
         Set<String> wantedArcs = new HashSet<>();
         float pauseTarget = 1f;

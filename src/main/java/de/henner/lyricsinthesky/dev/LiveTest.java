@@ -35,7 +35,8 @@ public final class LiveTest {
     private static final String[][] LOOKS = {{"sky", "elegant", "pill", ""}, {"around", "elegant", "karaoke", ""},
             {"sky", "flow", "plain", ""}, {"sky", "natural", "karaoke", "outline uppercase custom progress"},
             {"around", "classic", "pill", ""}, {"sky", "classic", "title", ""},
-            {"sky", "elegant", "pill", "rainbow underline progress"}};
+            {"sky", "elegant", "pill", "rainbow underline progress"}, {"screen", "elegant", "pill", "subtitle outline"},
+            {"screen", "elegant", "title", "karaoke"}, {"screen", "elegant", "pill", "stage"}};
     /** Pages of the glass menu shown in turn; {@code null} is its start with the song playing. */
     private static final String[] MENU_PAGES = {null, "look", "bar", "hoergenau", "display", "motion"};
     private static int ticksInWorld;
@@ -118,7 +119,7 @@ public final class LiveTest {
         }
         // The glass menu every two minutes, a different page each time.
         if (second % 120 == 40) {
-            config.menuStyle = "glass";
+            config.menuStyle = (second / 120) % 2 == 0 ? "minimal" : "glass";
             LyricsInTheSkyClient.openSettings(minecraft);
             if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
                 menu.show(MENU_PAGES[(second / 120) % MENU_PAGES.length]);
@@ -192,6 +193,8 @@ public final class LiveTest {
         config.customGlow = 0xA855F7;
         config.hudProgress = extras.contains("progress");
         config.hudHighlight = extras.contains("underline") ? "underline" : defaults.hudHighlight;
+        config.screenStyle = extras.contains("karaoke") ? "karaoke" : extras.contains("stage") ? "stage" : "subtitle";
+        config.screenPosition = extras.contains("stage") ? "center" : "bottom";
     }
 
     private static void shoot(Minecraft minecraft, String name) {

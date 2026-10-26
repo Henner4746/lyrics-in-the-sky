@@ -88,19 +88,24 @@ public final class SelfTest {
     private static final double WORD_TIMES_ON = 67.0;
     private static final double WORD_TIMES_CHECK = 77.0;
     /**
-     * Then the glass menu: its start, every page, the look page scrolled to its end and the color picker, each a second
-     * after opening so the cards and rows have come in.
+     * Then the menu: in its old look ("minimal") its start, every page, two pages scrolled to their end and the color
+     * picker, then in glass its start and a page; each a second after opening so everything has come in.
      */
     private static final double GLASS_MENU_FROM = 79.0;
-    private static final String[] GLASS_MENU_SHOTS = {"start", "display", "look", "look-end", "motion", "bar", "timing",
-            "sources", "hoergenau", "spotify", "streamer", "menu", "picker"};
+    private static final String[][] GLASS_MENU_SHOTS = {{"minimal", "start"}, {"minimal", "display"},
+            {"minimal", "display-end"}, {"minimal", "look"}, {"minimal", "look-end"}, {"minimal", "motion"},
+            {"minimal", "bar"}, {"minimal", "timing"}, {"minimal", "sources"}, {"minimal", "hoergenau"},
+            {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"}, {"minimal", "picker"},
+            {"glass", "start"}, {"glass", "look"}};
     /**
-     * Then the demo once more with the new looks: outline, capitals and own colors, then the rainbow with the bar's
-     * underline and progress line; each photographed while a line is sung.
+     * Then the demo once more with the new looks: outline, capitals and own colors, the rainbow with the bar's underline
+     * and progress line, the three looks on the screen and three of the new presets; each photographed while a line is
+     * sung.
      */
     private static final double OPTIONS_FROM = GLASS_MENU_FROM + GLASS_MENU_SHOTS.length + 1.0;
+    private static final double[] OPTION_SHOTS = {3.0, 6.0, 8.6, 11.2, 13.8, 16.6, 19.4, 22.2};
     /** The end of the fixed steps; the songs of {@link #SONG_LIST}, if any, come after it, then the game quits. */
-    private static final double QUIT_AT = OPTIONS_FROM + 8.0;
+    private static final double QUIT_AT = OPTIONS_FROM + 24.0;
     private static final String SONG_LIST = "selftest-songs.tsv";
     private static final double SONG_SECONDS = 6.0;
     private static final double SONG_CHECK_AFTER = 5.0;
@@ -532,22 +537,26 @@ public final class SelfTest {
         SkyLyricsConfig config = controller.config();
         for (int i = 0; i < GLASS_MENU_SHOTS.length; i++) {
             double at = GLASS_MENU_FROM + i;
-            String shot = GLASS_MENU_SHOTS[i];
+            String style = GLASS_MENU_SHOTS[i][0];
+            String shot = GLASS_MENU_SHOTS[i][1];
             if (atSecond(at)) {
                 clearScreen(minecraft);
                 if (i == 0) {
                     menuStyleBefore = config.menuStyle;
-                    config.menuStyle = "glass";
                     minecraft.player.connection.sendCommand("time set noon");
                 }
+                if (!style.equals(config.menuStyle) && minecraft.gui.screen() != null) {
+                    minecraft.gui.screen().onClose();
+                }
+                config.menuStyle = style;
                 if (!(minecraft.gui.screen() instanceof GlassMenuScreen)) {
                     LyricsInTheSkyClient.openSettings(minecraft);
                 }
                 if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
                     switch (shot) {
                         case "start" -> menu.show(null);
-                        case "look-end" -> {
-                            menu.show("look");
+                        case "look-end", "display-end" -> {
+                            menu.show(shot.substring(0, shot.indexOf('-')));
                             menu.scrollToEnd();
                         }
                         case "picker" -> {
@@ -563,11 +572,11 @@ public final class SelfTest {
             }
             if (atSecond(at + 0.85)) {
                 if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
-                    LOGGER.info("SELFTEST glass menu {}: {}", shot, menu.fits() ? "fits" : "TOO BIG");
+                    LOGGER.info("SELFTEST menu {} {}: {}", style, shot, menu.fits() ? "fits" : "TOO BIG");
                 } else {
-                    LOGGER.info("SELFTEST glass menu {}: NOT open", shot);
+                    LOGGER.info("SELFTEST menu {} {}: NOT open", style, shot);
                 }
-                shoot(minecraft, "glass menu " + shot);
+                shoot(minecraft, "menu " + style + " " + shot);
             }
         }
         if (atSecond(GLASS_MENU_FROM + GLASS_MENU_SHOTS.length)) {
@@ -597,24 +606,53 @@ public final class SelfTest {
             config.hudStyle = "pill";
             controller.startDemo();
         }
-        if (atSecond(OPTIONS_FROM + 3.2)) {
-            shoot(minecraft, "options outline uppercase custom");
-            config.outline = false;
-            config.uppercase = false;
-            config.palette = "rainbow";
-            config.hudHighlight = "underline";
-            config.hudProgress = true;
-            config.hudStyle = "pill";
-        }
-        if (atSecond(OPTIONS_FROM + 6.4)) {
-            shoot(minecraft, "options rainbow underline progress");
-        }
-        if (atSecond(OPTIONS_FROM + 7.0)) {
-            controller.stopDemo();
-            SkyLyricsConfig defaults = new SkyLyricsConfig();
-            config.palette = defaults.palette;
-            config.hudHighlight = defaults.hudHighlight;
-            config.hudProgress = defaults.hudProgress;
+        String[] names = {"options outline uppercase custom", "options rainbow underline progress", "screen subtitle",
+                "screen karaoke", "screen stage", "preset neon", "preset retro", "preset cinema"};
+        for (int i = 0; i < OPTION_SHOTS.length; i++) {
+            if (atSecond(OPTIONS_FROM + OPTION_SHOTS[i])) {
+                shoot(minecraft, names[i]);
+            }
+            // Right after each picture the next look, so it has settled when its own picture is taken.
+            if (atSecond(OPTIONS_FROM + OPTION_SHOTS[i] + 0.1)) {
+                switch (i) {
+                    case 0 -> {
+                        config.outline = false;
+                        config.uppercase = false;
+                        config.palette = "rainbow";
+                        config.hudHighlight = "underline";
+                        config.hudProgress = true;
+                        config.hudStyle = "pill";
+                    }
+                    case 1 -> {
+                        config.applyPreset("subtitle");
+                        config.showHud = true;
+                    }
+                    case 2 -> {
+                        config.applyPreset("karaoke");
+                        config.showHud = true;
+                    }
+                    case 3 -> {
+                        config.applyPreset("stage");
+                        config.showHud = true;
+                    }
+                    case 4 -> {
+                        config.applyPreset("neon");
+                        minecraft.player.connection.sendCommand("time set midnight");
+                    }
+                    case 5 -> {
+                        config.applyPreset("retro");
+                        minecraft.player.connection.sendCommand("time set noon");
+                    }
+                    case 6 -> config.applyPreset("cinema");
+                    default -> {
+                        controller.stopDemo();
+                        config.applyPreset("standard");
+                        SkyLyricsConfig defaults = new SkyLyricsConfig();
+                        config.hudHighlight = defaults.hudHighlight;
+                        config.hudProgress = defaults.hudProgress;
+                    }
+                }
+            }
         }
     }
 

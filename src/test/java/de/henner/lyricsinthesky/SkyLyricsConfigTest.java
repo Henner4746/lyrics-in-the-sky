@@ -61,7 +61,7 @@ class SkyLyricsConfigTest {
         assertEquals("dim", config.pauseMode);
         assertEquals("small", config.hoergenauModel);
         assertEquals("normal", config.hoergenauPower);
-        assertEquals("glass", config.menuStyle);
+        assertEquals("minimal", config.menuStyle);
         assertEquals("box", config.hudHighlight);
         assertEquals("auto", config.hudFont);
     }
@@ -85,16 +85,21 @@ class SkyLyricsConfigTest {
     }
 
     @Test
-    void theLivelyMenuKeptByDefaultBecomesTheGlassMenuButAChoiceAfterwardsStays(@TempDir Path dir) throws Exception {
+    void menusKeptByDefaultBecomeTheOldLookWithEveryOptionButAChoiceAfterwardsStays(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("lyricsinthesky.json");
+        // The lively menu (default up to dev.10) and the glass one (dev.11, configVersion 2) were kept by default.
         Files.writeString(file, "{\"menuStyle\": \"fancy\"}", StandardCharsets.UTF_8);
+        assertEquals("minimal", SkyLyricsConfig.load(file).menuStyle);
+        Files.writeString(file, "{\"menuStyle\": \"glass\", \"configVersion\": 2}", StandardCharsets.UTF_8);
         SkyLyricsConfig config = SkyLyricsConfig.load(file);
-        assertEquals("glass", config.menuStyle);
+        assertEquals("minimal", config.menuStyle);
+        // Chosen afterwards, it stays.
+        config.menuStyle = "glass";
+        config.save();
+        assertEquals("glass", SkyLyricsConfig.load(file).menuStyle);
         config.menuStyle = "fancy";
         config.save();
         assertEquals("fancy", SkyLyricsConfig.load(file).menuStyle);
-        Files.writeString(file, "{\"menuStyle\": \"minimal\"}", StandardCharsets.UTF_8);
-        assertEquals("minimal", SkyLyricsConfig.load(file).menuStyle);
     }
 
     @Test
@@ -120,6 +125,28 @@ class SkyLyricsConfigTest {
         assertEquals("natural", config.style);
         assertEquals("sky", config.mode);
         assertEquals("sky", config.currentPreset());
+    }
+
+    @Test
+    void everyPresetIsALookOfItsOwnAndHasANameAndALine() {
+        for (String preset : SkyLyricsConfig.PRESETS) {
+            SkyLyricsConfig config = new SkyLyricsConfig();
+            config.outline = true;
+            config.screenScale = 1.9f;
+            config.applyPreset(preset);
+            assertEquals(preset, config.currentPreset(), preset);
+            assertEquals(true, SkyLyricsConfig.PRESET_NAMES.containsKey(preset), preset);
+            assertEquals(false, SkyLyricsConfig.presetHint(preset).startsWith("Eine Vorlage"), preset);
+        }
+        SkyLyricsConfig config = new SkyLyricsConfig();
+        config.applyPreset("karaoke");
+        assertEquals("screen", config.mode);
+        assertEquals("karaoke", config.screenStyle);
+        config.applyPreset("standard");
+        // A preset puts back what the one before changed.
+        assertEquals("sky", config.mode);
+        assertEquals(false, config.outline);
+        assertEquals("subtitle", config.screenStyle);
     }
 
     @Test

@@ -71,10 +71,8 @@ public final class SettingsScreen extends Screen {
             "elegant", "Elegant", "natural", "Natürlich 1:1", "flow", "Stapel", "classic", "Verspielt");
     private static final Map<String, String> FONT_NAMES = Map.of(
             "sans", "Modern", "script", "Handschrift", "minecraft", "Minecraft");
-    private static final Map<String, String> MODE_NAMES = Map.of("sky", "Am Himmel", "around", "Um dich herum");
-    private static final Map<String, String> PRESET_NAMES = Map.of(
-            "standard", "Standard", "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig",
-            "glass", "Glas");
+    private static final Map<String, String> MODE_NAMES = SkyLyricsConfig.MODE_NAMES;
+    private static final Map<String, String> PRESET_NAMES = SkyLyricsConfig.PRESET_NAMES;
     private static final Map<String, String> THEME_NAMES = Map.of("classic", "Klassisch", "glass", "Liquid Glass");
     private static final Map<String, String> MENU_STYLE_NAMES = Map.of("glass", "Glas", "minimal", "Minimal",
             "fancy", "Prachtvoll");
@@ -233,20 +231,14 @@ public final class SettingsScreen extends Screen {
                 () -> Objects.requireNonNullElse(config.currentPreset(), ""), value -> {
                     config.applyPreset(value);
                     rebuildPending = true;
-                }, value -> switch (value) {
-                    case "standard" -> "Alles wie beim ersten Start: Elegant am Himmel.";
-                    case "sky" -> "Am Himmel im Stil 1:1: Zeilen knapp über den Hügeln, hinter Bergen und Wolken.";
-                    case "around" -> "Um dich herum im Stil 1:1: Wörter fest in der Welt, Spieler und Blöcke stehen davor.";
-                    case "party" -> "Große verspielte Wörter um dich herum, die im Takt wackeln und sich mit dir drehen.";
-                    case "calm" -> "Der ruhige weiße Stapel am Himmel, ohne Songtitel.";
-                    case "glass" -> "Liquid Glass: klarer Stapel in Eisblau mit Leuchten, Menü und Leiste aus Glas.";
-                    default -> "Eine Vorlage setzt Anzeige, Stil, Farben, Schrift und Schalter auf einmal.";
-                }));
+                }, SkyLyricsConfig::presetHint));
         y += 4;
         y = row("Anzeige", left, y, new Choice(wide, SkyLyricsConfig.MODES, MODE_NAMES, () -> config.mode,
-                value -> config.mode = value, value -> "sky".equals(value)
-                        ? "Am Himmel, weit hinten wie die Sonne."
-                        : "Um dich herum: jedes Wort schwebt einzeln an einem festen Platz in deiner Nähe."));
+                value -> config.mode = value, value -> switch (value) {
+                    case "sky" -> "Am Himmel, weit hinten wie die Sonne.";
+                    case "screen" -> "Auf dem Bildschirm, als Untertitel, Karaoke oder Bühne (einstellbar im Menü Minimal/Glas).";
+                    default -> "Um dich herum: jedes Wort schwebt einzeln an einem festen Platz in deiner Nähe.";
+                }));
         y = row("Stil", left, y, new Choice(wide, SkyLyricsConfig.STYLES, STYLE_NAMES, () -> config.style,
                 value -> config.style = value, value -> switch (value) {
                     case "elegant" -> "Am Himmel bauen sich die Zeilen Wort für Wort auf, um dich herum schweben einzelne Wörter.";
@@ -368,16 +360,17 @@ public final class SettingsScreen extends Screen {
         rightY = row("Menü", rightX, rightY, new Choice(control, SkyLyricsConfig.MENU_STYLES, MENU_STYLE_NAMES,
                 () -> config.menuStyle, value -> {
                     config.menuStyle = value;
-                    if ("glass".equals(value)) {
+                    if (!"fancy".equals(value)) {
+                        // Glass and the old look with every option are the newer menu's two looks.
                         config.save();
                         minecraft.gui.setScreen(new GlassMenuScreen(parent, controller, spotify));
                     } else {
                         rebuildPending = true;
                     }
                 }, value -> switch (value) {
-                    case "glass" -> "Glas: schwarzes Glasfenster mit Karten, Live-Vorschau und vielen Optionen.";
+                    case "glass" -> "Glas: schwarzes Glasfenster mit Karten, Live-Vorschau und allen Optionen.";
                     case "fancy" -> "Prachtvoll: bewegter Hintergrund, Funken, alles gleitet, leuchtet und federt.";
-                    default -> "Minimal: ruhiges Menü mit schlichten Linien, ohne Animationen.";
+                    default -> "Minimal: alle Optionen im ruhigen Stil wie früher, mit schlichten Linien.";
                 }));
         return Math.max(leftY, rightY) + 6;
     }
