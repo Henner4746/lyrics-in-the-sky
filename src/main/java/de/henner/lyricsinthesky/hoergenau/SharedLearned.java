@@ -30,13 +30,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * What Hoergenau learned, shared through the tracker on henrik.click: what this PC learns is sent there, and before a
- * song nobody has timed is only estimated, the tracker is asked whether another player learned it. For a song whose
+ * song nobody has timed is only estimated, the tracker is asked whether another player learned it, always, also with
+ * sharing switched off. For a song whose
  * text lrclib.net has, no lyrics are sent or received: only the times of the words and a fingerprint of that text; the
  * times are put on the text this PC got from lrclib.net itself, and only when it is exactly the same. They count on the
  * tracker once it found that text on lrclib.net. For a song nobody has the text of, what was written down as heard is
  * shared with its text; it counts once players on two networks heard it alike. Sent are the song (artist, title,
  * album, length), the word times with the fingerprint or the lyrics written down, and the random install ID; nothing
- * at all while sharing is switched off.
+ * sent while sharing is switched off.
  */
 public final class SharedLearned {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
@@ -74,7 +75,7 @@ public final class SharedLearned {
     public Optional<String> fetch(String songKey, Lyrics text) {
         String id = LyricsCache.idOf(songKey);
         long now = System.currentTimeMillis();
-        if (!sharing.getAsBoolean() || notBefore.getOrDefault(id, 0L) > now) {
+        if (notBefore.getOrDefault(id, 0L) > now) {
             return Optional.empty();
         }
         try {

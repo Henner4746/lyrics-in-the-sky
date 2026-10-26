@@ -25,8 +25,15 @@ public final class SongTimings {
     /** Same range as the global timing slider and the tracker accept. */
     public static final int MAX_OFFSET_MS = 5_000;
 
-    /** What the tracker knows about a song: how many players corrected it, and their common correction if any. */
-    public record Shared(int players, Integer offsetMs) {}
+    /**
+     * What the tracker knows about a song: how many players corrected it, their common correction if any, and how many
+     * of them measured it with Hoergenau.
+     */
+    public record Shared(int players, Integer offsetMs, int measured) {
+        public Shared(int players, Integer offsetMs) {
+            this(players, offsetMs, 0);
+        }
+    }
 
     private final Path file;
     private final Map<String, Integer> own = new ConcurrentHashMap<>();

@@ -1,23 +1,28 @@
 """Timing tracker for Lyrics in the Sky.
 
 Players who correct the timing of a song tell it here; once enough of them agree, the correction applies to every
-player. Stored per vote: the song ID (a hash the mod makes of artist, title and the first timed lines), the
-correction in milliseconds and two keyed hashes, of the random install ID and of the network the vote came from.
-No IP addresses, names or Minecraft accounts are kept.
+player. What a player's Hoergenau measured by listening (how far the words are shown from where they are sung, from
+how many words paired) applies to every player at once, as long as other measurements do not contradict it. Stored
+per vote or measurement: the song ID (a hash the mod makes of artist, title and the first timed lines), the
+correction in milliseconds, for a measurement how many words were paired and how far they lay apart, and two keyed
+hashes, of the random install ID and of the network the vote came from. No IP addresses, names or Minecraft accounts
+are kept.
 
 What Hoergenau learned by listening is shared here too, so every player gets it. For songs whose text lrclib.net has
 without times, no lyrics are kept or sent: only the times of the words and a fingerprint of the text they belong to;
 every player puts them on lrclib.net's text on their own PC. They count once this server finds exactly that text on
 lrclib.net. For songs nobody has the text of, what Hoergenau wrote down as heard (text with word times) is kept, and
 counts once players on two networks heard it alike, so no single person can put words under a song for all; it is
-taken only while lrclib.net has no text for the song. Stored per song and player: the song key (a hash of artist,
+taken only while lrclib.net has no text for the song, for a song of a song's length that Deezer or Apple know, so no
+livestream, video or podcast. Stored per song and player: the song key (a hash of artist,
 title and album), the song's names and length, the word times with the fingerprint or the lyrics written down, and
 the same two keyed hashes.
 
 Endpoints (behind nginx at https://henrik.click/lyrics-sync/):
     GET  /health
-    GET  /v1/corrections/<song>   -> {"players": n, "offsetMs": ms or null}
+    GET  /v1/corrections/<song>   -> {"players": n, "offsetMs": ms or null, "measured": m}
     POST /v1/corrections          <- {"song": ..., "offsetMs": ms or null, "install": ..., "version": ...}
+                                  <- {..., "offsetMs": ms, "measured": {"pairs": n, "spreadMs": ms}} (Hoergenau)
     GET  /v1/learned/<key>        -> {"times": [[ms, ...], ...], "text": fingerprint, "kind": "aligned", "players": n}
                                      or {"lrc": ..., "kind": "heard", "players": n}, 404 when none counts
     POST /v1/learned              <- {"song": key, "artist", "title", "album", "durationMs", "kind": "aligned",
@@ -65,6 +70,17 @@ ANY_TAG = re.compile(r"[\[<]\d{1,3}:\d{2}(?:[.:]\d{1,3})?[\]>]")
 HEARD_ALIKE = 0.5
 RECHECK_S = 600
 LRCLIB = "https://lrclib.net/api"
+# Lyrics written down as heard are taken only of a song's length: a livestream has none, a podcast runs longer.
+MIN_SONG_MS = 30_000
+MAX_SONG_MS = 20 * 60_000
+# What Hoergenau takes as a measurement (SyncCheck in the mod): enough words paired, and close together.
+MIN_PAIRS = 12
+MAX_SPREAD_MS = 220
+DEEZER = "https://api.deezer.com/search"
+APPLE = "https://itunes.apple.com/search"
+VERSION_NOTE = re.compile(r"\s*[(\[][^)\]]*[)\]]|\s+-\s+.*$")
+NOT_WORD = re.compile(r"[\W_]+")
+ARTIST_SPLIT = re.compile(r"\s*(?:,|;|&|/|\bx\b|\bfeat\.?|\bft\.?|\bfeaturing\b|\bwith\b)\s*")
 
 
 @dataclass(frozen=True)
@@ -97,6 +113,33 @@ def consensus(votes, settings):
         return players, None
     common = statistics.median(offset for _, offset in agreeing)
     return players, int(round(common / 10.0)) * 10
+
+
+def measured_consensus(measurements, settings):
+    """measurements: (install_hash, network_hash, offset_ms) of what Hoergenau measured for one song -> offset_ms or
+    None. One measurement counts at once; of several, more than half must agree."""
+    if not measurements:
+        return None
+    middle = statistics.median(offset for _, _, offset in measurements)
+    agreeing = [offset for _, _, offset in measurements if abs(offset - middle) <= settings.agree_within_ms]
+    if len(agreeing) * 2 <= len(measurements):
+        return None
+    return int(round(statistics.median(agreeing) / 10.0)) * 10
+
+
+def plain_name(name):
+    """A title or artist for comparing: lower case, without version notes in brackets or after " - ", only words."""
+    return NOT_WORD.sub(" ", VERSION_NOTE.sub("", name.lower())).strip()
+
+
+def same_song(artist, title, hit_artist, hit_title):
+    """Whether a catalog's hit is the song: the same title (or one the start of the other) and an artist in common."""
+    mine, theirs = plain_name(title), plain_name(hit_title)
+    if not mine or not theirs or not (mine == theirs or mine.startswith(theirs) or theirs.startswith(mine)):
+        return False
+    hit = plain_name(hit_artist)
+    names = [plain_name(name) for name in ARTIST_SPLIT.split(artist.lower())]
+    return bool(hit) and any(name and (name in hit or hit in name) for name in names)
 
 
 def song_key(artist, title, album):
@@ -208,6 +251,34 @@ def fetch_plain(artist, title, album, duration_ms):
     return None
 
 
+class CatalogUnreachable(Exception):
+    pass
+
+
+def fetch_known_song(artist, title):
+    """Whether Deezer or Apple know a song of that artist with that title; raises CatalogUnreachable when neither
+    answers."""
+    headers = {"User-Agent": "lyrics-sync (Lyrics in the Sky tracker; henrik.click)"}
+    asks = [(f"{DEEZER}?{urllib.parse.urlencode({'q': f'{artist} {title}', 'limit': 10})}", "data", "title",
+             lambda hit: (hit.get("artist") or {}).get("name", "")),
+            (f"{APPLE}?{urllib.parse.urlencode({'term': f'{artist} {title}', 'entity': 'song', 'limit': 10})}",
+             "results", "trackName", lambda hit: hit.get("artistName", ""))]
+    answered = False
+    for url, field, title_field, artist_of in asks:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=8) as response:
+                hits = json.loads(response.read()).get(field) or []
+        except (urllib.error.URLError, TimeoutError, ValueError, AttributeError):
+            continue
+        answered = True
+        if any(isinstance(hit, dict) and same_song(artist, title, artist_of(hit), hit.get(title_field) or "")
+               for hit in hits):
+            return True
+    if not answered:
+        raise CatalogUnreachable("neither Deezer nor Apple answered")
+    return False
+
+
 def parse_learned(body):
     """The learned word times in a request body, or an error text."""
     try:
@@ -238,6 +309,8 @@ def parse_learned(body):
         if (not isinstance(lrc, str) or not lrc.startswith(LEARNED_MARK) or len(lrc) > MAX_LRC
                 or lrc.count("\n") > MAX_LINES or len(lrc_words(lrc)) < 3):
             return None, "bad lrc"
+        if not MIN_SONG_MS <= duration <= MAX_SONG_MS:
+            return None, "not a song's length"
         return {"song": song, "artist": names[0], "title": names[1], "album": names[2], "duration_ms": duration,
                 "kind": "heard", "lrc": lrc, "install": install.lower()}, None
     if times is None and isinstance(lrc, str):
@@ -289,9 +362,10 @@ class RateLimit:
 
 
 class Tracker:
-    def __init__(self, settings, plain_lyrics=fetch_plain):
+    def __init__(self, settings, plain_lyrics=fetch_plain, known_song=fetch_known_song):
         self.settings = settings
         self.plain_lyrics = plain_lyrics
+        self.known_song = known_song
         os.makedirs(settings.data_dir, exist_ok=True)
         self.salt = self._salt(os.path.join(settings.data_dir, "salt"))
         self.db = sqlite3.connect(os.path.join(settings.data_dir, "tracker.db"), check_same_thread=False)
@@ -300,6 +374,11 @@ class Tracker:
             self.db.execute(
                 "CREATE TABLE IF NOT EXISTS votes (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
                 "offset_ms INTEGER NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
+            # What Hoergenau measured: the correction (0 when the lyrics fit), from how many words, how close.
+            self.db.execute(
+                "CREATE TABLE IF NOT EXISTS measured (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
+                "offset_ms INTEGER NOT NULL, pairs INTEGER NOT NULL, spread_ms INTEGER NOT NULL, "
+                "updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
             # verified: 1 the text was found on lrclib.net, 0 not checked yet (lrclib busy).
             self.db.execute(
                 "CREATE TABLE IF NOT EXISTS timings (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
@@ -349,16 +428,28 @@ class Tracker:
         return hmac.new(self.salt, f"{kind}:{value}".encode(), hashlib.sha256).hexdigest()[:32]
 
     def lookup(self, song):
+        """The correction for everyone: what Hoergenau measured, else what enough players set by hand."""
         with self.lock:
             rows = self.db.execute("SELECT install, network, offset_ms FROM votes WHERE song = ?", (song,)).fetchall()
-        players, offset = consensus(rows, self.settings)
-        return {"players": players, "offsetMs": offset}
+            measured = self.db.execute("SELECT install, network, offset_ms FROM measured WHERE song = ?",
+                                       (song,)).fetchall()
+        _, by_hand = consensus(rows, self.settings)
+        by_ear = measured_consensus(measured, self.settings)
+        players = len({row[0] for row in rows} | {row[0] for row in measured})
+        return {"players": players, "offsetMs": by_ear if by_ear is not None else by_hand, "measured": len(measured)}
 
-    def vote(self, song, install, network, offset_ms):
+    def vote(self, song, install, network, offset_ms, measured=None):
         install_hash = self.hash("install", install)
         network_hash = self.hash("network", network)
         with self.lock:
-            if offset_ms is None:
+            if measured is not None:
+                self.db.execute(
+                    "INSERT INTO measured (song, install, network, offset_ms, pairs, spread_ms, updated) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (song, install) DO UPDATE SET network = excluded.network, "
+                    "offset_ms = excluded.offset_ms, pairs = excluded.pairs, spread_ms = excluded.spread_ms, "
+                    "updated = excluded.updated",
+                    (song, install_hash, network_hash, offset_ms, measured[0], measured[1], int(time.time())))
+            elif offset_ms is None:
                 self.db.execute("DELETE FROM votes WHERE song = ? AND install = ?", (song, install_hash))
             else:
                 self.db.execute(
@@ -381,13 +472,20 @@ class Tracker:
         return 1
 
     def check_no_text(self, entry):
-        """Lyrics written down as heard are only for songs lrclib.net has no text of; raises ValueError when it has."""
+        """Lyrics written down as heard are only for songs lrclib.net has no text of, and only for songs Deezer or Apple
+        know; raises ValueError for others."""
         try:
             plain = self.plain_lyrics(entry["artist"], entry["title"], entry["album"], entry["duration_ms"])
         except LrclibUnreachable:
-            return
+            plain = None
         if plain and text_lines(plain):
             raise ValueError("lrclib.net has the text; only its word times are shared")
+        try:
+            known = self.known_song(entry["artist"], entry["title"])
+        except CatalogUnreachable:
+            return
+        if not known:
+            raise ValueError("no music catalog knows this song")
 
     def learn(self, entry, network):
         """Keeps a player's word times, checked against lrclib.net's text first, or the lyrics written down as heard of
@@ -485,7 +583,15 @@ def parse_vote(body):
         return None, "bad install"
     if offset is not None and (isinstance(offset, bool) or not isinstance(offset, int) or abs(offset) > MAX_OFFSET_MS):
         return None, "bad offsetMs"
-    return (song, install.lower(), offset), None
+    measured = data.get("measured")
+    if measured is not None:
+        pairs = measured.get("pairs") if isinstance(measured, dict) else None
+        spread = measured.get("spreadMs") if isinstance(measured, dict) else None
+        if (offset is None or isinstance(pairs, bool) or not isinstance(pairs, int) or not MIN_PAIRS <= pairs <= MAX_WORDS
+                or isinstance(spread, bool) or not isinstance(spread, int) or not 0 <= spread <= MAX_SPREAD_MS):
+            return None, "bad measured"
+        measured = (pairs, spread)
+    return (song, install.lower(), offset, measured), None
 
 
 def make_handler(tracker):
@@ -551,8 +657,8 @@ def make_handler(tracker):
             vote, error = parse_vote(self.rfile.read(length))
             if error:
                 return self.reply(400, {"error": error})
-            song, install, offset = vote
-            tracker.vote(song, install, network, offset)
+            song, install, offset, measured = vote
+            tracker.vote(song, install, network, offset, measured)
             return self.reply(200, tracker.lookup(song))
 
     return Handler

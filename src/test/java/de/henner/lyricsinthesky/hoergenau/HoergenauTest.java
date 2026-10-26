@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -274,6 +275,31 @@ class HoergenauTest {
     }
 
     @Test
+    void livestreamsVideosAndPodcastsAreNeverWrittenDown(@TempDir Path dir) throws Exception {
+        // As found in the game: a Twitch stream in the browser has no length and was written down after 20 s.
+        CountingRecorder recorder = new CountingRecorder();
+        Hoergenau hoergenau = checking(dir, recorder, new LyricsCache(dir.resolve("lyrics")));
+        NowPlaying stream = new NowPlaying("test", "Horror Stream & Pokemon !clip !dc", "Timgioh", "", true, 5_000, 0,
+                System.currentTimeMillis());
+        hoergenau.observe(stream, "stream", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        NowPlaying podcast = new NowPlaying("test", "Folge 112", "Ein Podcast", "", true, 5_000, 48 * 60_000,
+                System.currentTimeMillis());
+        hoergenau.observe(podcast, "podcast", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(0, recorder.starts);
+        // A video of a song's length: only when a music catalog knows it as a song, and not while it is asked.
+        java.util.Map<String, Optional<Boolean>> catalog = new java.util.HashMap<>(java.util.Map.of(
+                "video", Optional.of(false), "song", Optional.empty()));
+        hoergenau.checkSongsWith((key, track) -> catalog.get(key));
+        hoergenau.observe(track(true, 20_000), "video", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        hoergenau.observe(track(true, 20_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(0, recorder.starts);
+        catalog.put("song", Optional.of(true));
+        hoergenau.observe(track(true, 20_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(1, recorder.starts);
+        assertTrue(hoergenau.listeningTo("song"));
+    }
+
+    @Test
     void theLoopbackHelperTellsWhatItRecordsAndSince() {
         LoopbackRecorder.Header only = LoopbackRecorder.Header.of("LOOPBACK 16000 48000 2 16 int 3004 only Spotify.exe#5120");
         assertEquals(3004, only.sinceMs());
@@ -313,7 +339,7 @@ class HoergenauTest {
             @Override
             public void chat(String message) {}
         }, key -> {}, new WhisperEngine(engineDir, () -> "small", () -> "normal"), recorder, () -> true);
-        hoergenau.fixSyncWith((track, lyrics, offsetMs) -> {});
+        hoergenau.fixSyncWith((track, lyrics, offsetMs, pairs, spreadMs) -> {});
         hoergenau.recordFrom(() -> "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify");
         return hoergenau;
     }

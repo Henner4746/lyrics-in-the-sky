@@ -43,10 +43,40 @@ class ConsensusTest(unittest.TestCase):
         self.assertEqual((10, 260), ls.consensus(votes(*[257] * 10), self.settings))
 
 
+class MeasuredTest(unittest.TestCase):
+    settings = ls.Settings(data_dir="unused")
+
+    def test_one_measurement_counts_at_once(self):
+        self.assertEqual(-240, ls.measured_consensus(votes(-243), self.settings))
+        # Lyrics that fit were measured too: they stay where they are.
+        self.assertEqual(0, ls.measured_consensus(votes(0), self.settings))
+        self.assertIsNone(ls.measured_consensus([], self.settings))
+
+    def test_measurements_that_disagree_count_for_nothing(self):
+        self.assertEqual(-240, ls.measured_consensus(votes(-240, -260, -230), self.settings))
+        self.assertIsNone(ls.measured_consensus(votes(-240, 900), self.settings))
+        self.assertEqual(-240, ls.measured_consensus(votes(-240, -250, -230, 900), self.settings))
+
+
+class CatalogTest(unittest.TestCase):
+    def test_same_song(self):
+        self.assertTrue(ls.same_song("SUV WHATEVER", "Geh Down", "SUV WHATEVER", "Geh Down"))
+        self.assertTrue(ls.same_song("Miksu / Macloud", "Sehnsucht", "Macloud", "Sehnsucht (feat. Miksu)"))
+        self.assertTrue(ls.same_song("Die Ärzte", "M&F", "Die Ärzte", "M&F - Remastered 2012"))
+        self.assertFalse(ls.same_song("Exsl95", "🍔CRAFT ATTACK🍔ICH BIN HÄSSLICH UND ICH BIN STOLZ!🍔!burgerbot",
+                                      "Someone", "Craft Attack"))
+        self.assertFalse(ls.same_song("SUV WHATEVER", "Geh Down", "Other Band", "Geh Down"))
+
+
 class InputTest(unittest.TestCase):
     def test_votes_are_checked(self):
         good = {"song": SONG, "offsetMs": 250, "install": "c0ffee00-1234-4abc-8def-0123456789ab", "version": "1.3.0"}
-        self.assertEqual((SONG, good["install"], 250), ls.parse_vote(json.dumps(good))[0])
+        self.assertEqual((SONG, good["install"], 250, None), ls.parse_vote(json.dumps(good))[0])
+        measured = {**good, "offsetMs": -240, "measured": {"pairs": 19, "spreadMs": 71}}
+        self.assertEqual((SONG, good["install"], -240, (19, 71)), ls.parse_vote(json.dumps(measured))[0])
+        for bad in ({**measured, "offsetMs": None}, {**measured, "measured": {"pairs": 5, "spreadMs": 71}},
+                    {**measured, "measured": {"pairs": 19, "spreadMs": 400}}, {**measured, "measured": [19, 71]}):
+            self.assertEqual("bad measured", ls.parse_vote(json.dumps(bad))[1], bad)
         self.assertEqual(None, ls.parse_vote(json.dumps({**good, "offsetMs": None}))[0][2])
         for bad in ({**good, "song": "x"}, {**good, "offsetMs": 9000}, {**good, "offsetMs": True},
                     {**good, "offsetMs": 1.5}, {**good, "install": "a"}, [1, 2]):
@@ -97,16 +127,36 @@ class HttpTest(unittest.TestCase):
 
     def test_votes_become_a_common_correction_and_can_be_taken_back(self):
         self.assertEqual((200, {"ok": True}), self.request("/health"))
-        self.assertEqual((200, {"players": 0, "offsetMs": None}), self.request(f"/v1/corrections/{SONG}"))
+        self.assertEqual((200, {"players": 0, "offsetMs": None, "measured": 0}),
+                         self.request(f"/v1/corrections/{SONG}"))
         self.vote("aaaaaaaa-0000-0000-0000-000000000001", 400, "198.51.100.1")
         self.vote("aaaaaaaa-0000-0000-0000-000000000002", 410, "198.51.100.2")
         # Changing one's mind replaces the vote instead of adding one.
         self.vote("aaaaaaaa-0000-0000-0000-000000000002", 400, "198.51.100.2")
-        self.assertEqual((200, {"players": 2, "offsetMs": None}), self.request(f"/v1/corrections/{SONG}"))
-        self.assertEqual((200, {"players": 3, "offsetMs": 400}),
+        self.assertEqual((200, {"players": 2, "offsetMs": None, "measured": 0}),
+                         self.request(f"/v1/corrections/{SONG}"))
+        self.assertEqual((200, {"players": 3, "offsetMs": 400, "measured": 0}),
                          self.vote("aaaaaaaa-0000-0000-0000-000000000003", 390, "198.51.100.3"))
-        self.assertEqual((200, {"players": 2, "offsetMs": None}),
+        self.assertEqual((200, {"players": 2, "offsetMs": None, "measured": 0}),
                          self.vote("aaaaaaaa-0000-0000-0000-000000000003", None, "198.51.100.3"))
+
+    def measure(self, install, offset, ip, pairs=19, spread=71):
+        return self.request("/v1/corrections", {"song": SONG, "offsetMs": offset, "measured": {"pairs": pairs,
+                            "spreadMs": spread}, "install": install, "version": "t"}, ip)
+
+    def test_what_hoergenau_measured_counts_for_everyone_at_once(self):
+        # Set by hand by two players: not enough yet.
+        self.vote("aaaaaaaa-0000-0000-0000-000000000001", 400, "198.51.100.1")
+        self.vote("aaaaaaaa-0000-0000-0000-000000000002", 400, "198.51.100.2")
+        self.assertEqual((200, {"players": 3, "offsetMs": -240, "measured": 1}),
+                         self.measure("aaaaaaaa-0000-0000-0000-000000000009", -240, "198.51.100.9"))
+        # Another measurement that contradicts it: neither counts, nor does the hand-set one below its quorum.
+        self.assertEqual((200, {"players": 4, "offsetMs": None, "measured": 2}),
+                         self.measure("aaaaaaaa-0000-0000-0000-000000000008", 900, "198.51.100.8"))
+        # A third that agrees with the first decides it.
+        self.assertEqual((200, {"players": 5, "offsetMs": -240, "measured": 3}),
+                         self.measure("aaaaaaaa-0000-0000-0000-000000000007", -250, "198.51.100.7"))
+        self.assertEqual(400, self.measure("aaaaaaaa-0000-0000-0000-000000000006", -240, "198.51.100.6", pairs=4)[0])
 
     def test_nothing_identifying_is_stored(self):
         install = "bbbbbbbb-0000-0000-0000-000000000001"
@@ -195,10 +245,16 @@ class LearnedHttpTest(HttpTest):
         self.plain = PLAIN
         self.unreachable = False
         self.dir = tempfile.TemporaryDirectory()
-        self.tracker = ls.Tracker(ls.Settings(data_dir=self.dir.name), plain_lyrics=self.fake_lrclib)
+        self.tracker = ls.Tracker(ls.Settings(data_dir=self.dir.name), plain_lyrics=self.fake_lrclib,
+                                  known_song=self.fake_catalog)
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), ls.make_handler(self.tracker))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
+
+    def fake_catalog(self, artist, title):
+        if self.unreachable:
+            raise ls.CatalogUnreachable("down")
+        return "Stream" not in title
 
     def fake_lrclib(self, artist, title, album, duration_ms):
         if self.unreachable:
@@ -236,6 +292,16 @@ class LearnedHttpTest(HttpTest):
 
     def test_heard_lyrics_of_a_song_lrclib_has_are_refused(self):
         self.assertEqual(422, self.request("/v1/learned", older(HEARD, "heard"))[0])
+
+    def test_what_is_said_in_a_livestream_video_or_podcast_is_refused(self):
+        stream = ("Timgioh", "Horror Stream & Pokemon", "")
+        self.plain = None
+        self.assertEqual((422, {"error": "no music catalog knows this song"}), self.request(
+            "/v1/learned", older(HEARD, "heard", "dddddddd-0000-0000-0000-000000000004", stream)))
+        for length in (0, 8_000, 48 * 60_000):
+            body = {**older(HEARD, "heard", "dddddddd-0000-0000-0000-000000000005", NO_TEXT), "durationMs": length}
+            self.assertEqual(400, self.request("/v1/learned", body)[0], length)
+        self.assertEqual(0, self.tracker.db.execute("SELECT count(*) FROM heard").fetchone()[0])
 
     def test_times_for_another_text_are_refused(self):
         self.assertEqual(422, self.request("/v1/learned", learned(text="0" * 32))[0])

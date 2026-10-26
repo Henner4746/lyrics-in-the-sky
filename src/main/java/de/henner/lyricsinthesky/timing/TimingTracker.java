@@ -19,10 +19,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Talks to the timing tracker on henrik.click. For a song with lyrics it asks which correction other players found;
- * once enough of them agree, that correction applies here too. The player's own corrections are told to it a few
- * seconds after the last change. Only a random install ID and song IDs (hashes) are sent, and nothing at all while
- * sharing is switched off.
+ * Talks to the timing tracker on henrik.click. For every song with lyrics it asks which correction other players found:
+ * one Hoergenau measured applies here at once, one set by hand once enough players agree. The player's own corrections
+ * are told to it a few seconds after the last change, and what Hoergenau measured right away. Only a random install ID
+ * and song IDs (hashes) are sent; with sharing switched off the mod still asks, but tells nothing.
  */
 public final class TimingTracker {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
@@ -56,7 +56,7 @@ public final class TimingTracker {
     public void ask(String songId) {
         long now = System.currentTimeMillis();
         Long last = askedAt.get(songId);
-        if (!sharing.getAsBoolean() || last != null && now - last < ASK_AGAIN_MS) {
+        if (last != null && now - last < ASK_AGAIN_MS) {
             return;
         }
         askedAt.put(songId, now);
@@ -73,7 +73,8 @@ public final class TimingTracker {
                 // Only the answer counts as asked; a failure is retried after a while.
                 askedAt.put(songId, Long.MAX_VALUE);
                 if (common.offsetMs() != null) {
-                    LOGGER.info("Timing tracker: {} players agree on {} ms for this song", common.players(), common.offsetMs());
+                    LOGGER.info("Timing tracker: {} ms for this song ({} players, {} measured by Hoergenau)",
+                            common.offsetMs(), common.players(), common.measured());
                 }
             } catch (Exception e) {
                 LOGGER.debug("Timing tracker not reached: {}", e.toString());
@@ -96,20 +97,49 @@ public final class TimingTracker {
         }
     }
 
+    /**
+     * What Hoergenau measured for a song, told right away: the correction ({@code 0} when the lyrics fit), from how
+     * many words heard and how far they lay apart. It counts for all players without waiting for others.
+     */
+    public void tellMeasured(String songId, int offsetMs, int pairs, int spreadMs) {
+        if (!sharing.getAsBoolean()) {
+            return;
+        }
+        worker.execute(() -> post(songId, measuredBody(songId, offsetMs, pairs, spreadMs, installId, version),
+                "measured correction " + offsetMs + " ms"));
+    }
+
+    static JsonObject measuredBody(String songId, int offsetMs, int pairs, int spreadMs, String installId,
+            String version) {
+        JsonObject body = new JsonObject();
+        body.addProperty("song", songId);
+        body.addProperty("offsetMs", offsetMs);
+        JsonObject measured = new JsonObject();
+        measured.addProperty("pairs", pairs);
+        measured.addProperty("spreadMs", spreadMs);
+        body.add("measured", measured);
+        body.addProperty("install", installId);
+        body.addProperty("version", version);
+        return body;
+    }
+
     private void send(String songId, Integer offsetMs) {
         pending.remove(songId);
+        JsonObject body = new JsonObject();
+        body.addProperty("song", songId);
+        body.addProperty("offsetMs", offsetMs);
+        body.addProperty("install", installId);
+        body.addProperty("version", version);
+        post(songId, body, "correction " + (offsetMs == null ? "taken back" : offsetMs + " ms shared"));
+    }
+
+    private void post(String songId, JsonObject body, String what) {
         try {
-            JsonObject body = new JsonObject();
-            body.addProperty("song", songId);
-            body.addProperty("offsetMs", offsetMs);
-            body.addProperty("install", installId);
-            body.addProperty("version", version);
             HttpRequest request = HttpRequest.newBuilder(URI.create(BASE)).timeout(Duration.ofSeconds(10))
                     .header("User-Agent", userAgent()).header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8)).build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            LOGGER.info("Timing tracker: correction {} (HTTP {})", offsetMs == null ? "taken back" : offsetMs + " ms shared",
-                    response.statusCode());
+            LOGGER.info("Timing tracker: {} (HTTP {})", what, response.statusCode());
             // Ask again so a newly reached agreement shows up.
             askedAt.remove(songId);
         } catch (Exception e) {
@@ -122,7 +152,8 @@ public final class TimingTracker {
         int players = root.has("players") ? root.get("players").getAsInt() : 0;
         Integer offset = root.has("offsetMs") && !root.get("offsetMs").isJsonNull()
                 ? Math.max(-SongTimings.MAX_OFFSET_MS, Math.min(SongTimings.MAX_OFFSET_MS, root.get("offsetMs").getAsInt())) : null;
-        return new SongTimings.Shared(players, offset);
+        int measured = root.has("measured") && root.get("measured").isJsonPrimitive() ? root.get("measured").getAsInt() : 0;
+        return new SongTimings.Shared(players, offset, measured);
     }
 
     private String userAgent() {

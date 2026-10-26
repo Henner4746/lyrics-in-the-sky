@@ -12,6 +12,7 @@ import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HoergenauIntroScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.hoergenau.SharedLearned;
+import de.henner.lyricsinthesky.lyrics.SongCatalog;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine;
 import de.henner.lyricsinthesky.lyrics.BetterLyricsClient;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
@@ -125,7 +126,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         // What anyone's Hoergenau learned counts for all: shared through the tracker, unless switched off.
         SharedLearned shared = new SharedLearned(() -> config.shareLearned, config.installId, version);
         hoergenau.shareWith(shared);
-        hoergenau.fixSyncWith((track, lyrics, offsetMs) -> controller.applyHeardOffset(track, lyrics, offsetMs));
+        hoergenau.fixSyncWith(controller::applyHeardOffset);
+        // Only songs are written down: no livestream, video or podcast, whose words are nobody's lyrics.
+        hoergenau.checkSongsWith(new SongCatalog(version)::knows);
         // Only the player's own sound when Windows can tell it apart: no voice chat, videos or game sounds in it.
         hoergenau.recordFrom(source::localPlayer);
         controller.shareLearnedWith(shared);
@@ -236,7 +239,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
 
     /**
      * First world join with sharing on: say once that timing corrections are shared and that the mod asks the tracker
-     * about every song with lyrics, and offer to switch it off.
+     * about every song with lyrics, and offer to switch the sharing off.
      */
     private static void noteTiming(Minecraft client) {
         if (config.timingNoticeShown || !config.shareTiming || SelfTest.isEnabled()) {
@@ -244,8 +247,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         }
         MutableComponent message = prefix()
                 .append("Korrigierst du das Timing eines Songs, wird das anonym mit henrik.click geteilt: eine zufällige "
-                        + "Kennung, der Song nur als Prüfsumme. Haben 10 Spieler einen Song gleich korrigiert, passt er "
-                        + "für alle. Dafür fragt die Mod dort bei jedem Song mit Songtext nach. ")
+                        + "Kennung, der Song nur als Prüfsumme. Was Hörgenau misst, passt sofort für alle; von Hand "
+                        + "gilt es, wenn 10 Spieler einen Song gleich korrigiert haben. Die Mod fragt dort bei jedem "
+                        + "Song mit Songtext nach. ")
                 .append(button("[Ausschalten]", "/skylyrics share off", ChatFormatting.GRAY));
         client.gui.hud.getChat().addClientSystemMessage(message);
         config.timingNoticeShown = true;

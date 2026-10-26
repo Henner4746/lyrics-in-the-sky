@@ -75,7 +75,7 @@ class HoergenauLiveFlowTest {
                 }, key -> {}, new WhisperEngine(dir.resolve("engine"), () -> config.hoergenauModel,
                         () -> config.hoergenauPower), new Playback(samples(dir.resolve("songs").resolve(song + ".wav"))),
                         () -> true);
-                hoergenau.fixSyncWith((track, timed, offsetMs) -> moved.set(offsetMs));
+                hoergenau.fixSyncWith((track, timed, offsetMs, pairs, spreadMs) -> moved.set(offsetMs));
                 hoergenau.recordFrom(() -> "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify");
                 String key = "test\u0000" + song + "\u0000" + model;
                 long startedMs = System.currentTimeMillis();

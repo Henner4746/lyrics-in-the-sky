@@ -36,6 +36,12 @@ public final class Hoergenau {
     static final long MIN_PART_MS = 20_000;
     /** Once this share of the song was heard, in one part or several, it is learned. */
     static final double MIN_HEARD = 0.8;
+    /**
+     * A song nobody has the text of is heard only with the length of a song: a livestream has none, a podcast or an
+     * audio book chapter runs longer, and what is said in them is nobody's lyrics.
+     */
+    static final long MIN_SONG_MS = 30_000;
+    static final long MAX_SONG_MS = 20 * 60_000;
     /** A position this far off the line the earlier ones gave means the player skipped. */
     private static final long SKIP_MS = 2_500;
     /** A player stopping this close to the end of the song has played it to the end (the last song of a queue). */
@@ -99,8 +105,19 @@ public final class Hoergenau {
 
     /** Moves a song's lyrics to where they are really sung; set by the lyrics lookup. */
     public interface SyncFix {
-        /** @param offsetMs positive to show the words earlier, as the song timing slider */
-        void apply(NowPlaying track, Lyrics lyrics, int offsetMs);
+        /**
+         * A sync check that could tell, also when the lyrics fit.
+         *
+         * @param offsetMs positive to show the words earlier, as the song timing slider; 0 when they fit
+         * @param pairs    how many words heard were paired with the lyrics' words
+         * @param spreadMs how far the pairs lay from that offset (median)
+         */
+        void apply(NowPlaying track, Lyrics lyrics, int offsetMs, int pairs, int spreadMs);
+    }
+
+    /** Whether what plays is a song a music catalog knows; empty while that is being asked. */
+    public interface SongCheck {
+        Optional<Boolean> isSong(String key, NowPlaying track);
     }
 
     private volatile SyncFix syncFix;
@@ -109,6 +126,15 @@ public final class Hoergenau {
 
     public void recordFrom(Supplier<String> player) {
         this.player = player;
+    }
+
+    /** Takes every song with a song's length as one; the game sets a music catalog. */
+    private volatile SongCheck songs = (key, track) -> Optional.of(true);
+    /** Songs found to be none, told once. */
+    private final java.util.Set<String> notSongs = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public void checkSongsWith(SongCheck songs) {
+        this.songs = songs;
     }
 
     public void fixSyncWith(SyncFix fix) {
@@ -198,6 +224,9 @@ public final class Hoergenau {
             if (!now.playing() || other != null) {
                 return;
             }
+            if (shown == Shown.NOTHING && !song(now, key)) {
+                return;
+            }
             long position = now.estimatePositionMs(System.currentTimeMillis());
             HeardParts known = parts(key);
             if (known.covers(position) || now.durationMs() > 0 && now.durationMs() - position < MIN_PART_MS) {
@@ -249,6 +278,28 @@ public final class Hoergenau {
                     && recorder.count() >= CHECK_MS * LoopbackRecorder.RATE / 1000) {
                 finish();
             }
+        }
+    }
+
+    /**
+     * Whether what plays, of which nobody has the text, is a song to learn: with a song's length, and known to a music
+     * catalog as a song of that artist. Waits while the catalog is asked.
+     */
+    private boolean song(NowPlaying now, String key) {
+        if (now.durationMs() < MIN_SONG_MS || now.durationMs() > MAX_SONG_MS) {
+            noSong(now, key, now.durationMs() <= 0 ? "no length, a livestream" : now.durationMs() / 1000 + " s long");
+            return false;
+        }
+        Optional<Boolean> known = songs.isSong(key, now);
+        if (known.isPresent() && !known.get()) {
+            noSong(now, key, "no music catalog knows it");
+        }
+        return known.orElse(false);
+    }
+
+    private void noSong(NowPlaying now, String key, String why) {
+        if (notSongs.add(key)) {
+            LOGGER.info("Hoergenau does not listen to '{}' by '{}': no song ({})", now.title(), now.artist(), why);
         }
     }
 
@@ -390,7 +441,7 @@ public final class Hoergenau {
         long toMs = offsetMs + audio.length * 1000L / LoopbackRecorder.RATE;
         HeardParts heard = before.with(offsetMs, toMs, part, language);
         long durationMs = done.track.durationMs();
-        if (durationMs > 0 && heard.share(durationMs) < MIN_HEARD) {
+        if (durationMs <= 0 || heard.share(durationMs) < MIN_HEARD) {
             keepParts(done.key, heard);
             int percent = (int) Math.round(heard.share(durationMs) * 100);
             LOGGER.info("Hoergenau heard '{}' from {} to {} s, {} % of it now; the rest when it plays again",
@@ -473,11 +524,14 @@ public final class Hoergenau {
         saved.write(done.key + CHECKED, !result.trusted() ? "unsure " + (tries + 1)
                 : fix == 0 ? "fits " + result.offsetMs() : "moved " + fix);
         SyncFix to = syncFix;
-        if (fix != 0 && to != null) {
-            to.apply(done.track, done.check, fix);
-            notifier.toast("Sync korrigiert: " + shown(done.track.title()),
-                    String.format(Locale.GERMANY, "die Wörter kamen %.1f s zu %s, jetzt passen sie", Math.abs(fix) / 1000.0,
-                            fix > 0 ? "spät" : "früh"));
+        if (result.trusted() && to != null) {
+            // Also when the lyrics fit: the other players learn that they were checked.
+            to.apply(done.track, done.check, fix, result.pairs(), (int) result.spreadMs());
+            if (fix != 0) {
+                notifier.toast("Sync korrigiert: " + shown(done.track.title()),
+                        String.format(Locale.GERMANY, "die Wörter kamen %.1f s zu %s, jetzt passen sie",
+                                Math.abs(fix) / 1000.0, fix > 0 ? "spät" : "früh"));
+            }
         }
     }
 

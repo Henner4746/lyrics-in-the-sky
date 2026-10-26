@@ -316,7 +316,7 @@ public final class LyricsController {
 
     private Optional<Lyrics> sharedLearned(String key, String text, long durationMs) {
         SharedLearned from = shared;
-        if (from == null || !config.shareLearned) {
+        if (from == null) {
             return Optional.empty();
         }
         // With lrclib.net's text the shared word times go on it; without, what another player wrote down as heard.
@@ -551,22 +551,29 @@ public final class LyricsController {
     }
 
     /**
-     * The player's own timing for a song; {@code null} forgets it, so the one many players agreed on applies again.
-     * Corrections of timed lyrics are shared, unless the player switched that off.
+     * What Hoergenau measured for a song: a correction ({@code 0} when the lyrics fit), which never replaces one the
+     * player set. Told to the tracker as measured, where it counts for every player at once.
      */
-    /**
-     * A correction Hoergenau measured for a song; it never replaces one the player set. Shared like a correction set
-     * by hand, so other players get it once enough agree.
-     */
-    public void applyHeardOffset(NowPlaying track, Lyrics lyrics, int offsetMs) {
+    public void applyHeardOffset(NowPlaying track, Lyrics lyrics, int offsetMs, int pairs, int spreadMs) {
         String id = SongId.of(track.artist(), track.title(), lyrics);
+        if (tracker != null && shareable(lyrics)) {
+            tracker.tellMeasured(id, offsetMs, pairs, spreadMs);
+        }
+        if (offsetMs == 0) {
+            return;
+        }
         if (timings.own(id).isPresent()) {
             LOGGER.info("Hoergenau's correction of {} ms for '{}' not taken: the player set an own one", offsetMs,
                     track.title());
             return;
         }
-        setSongOffset(new Song(id, track.title(), shareable(lyrics)), offsetMs);
+        timings.setOwn(id, offsetMs);
     }
+
+    /**
+     * The player's own timing for a song; {@code null} forgets it, so the one many players agreed on applies again.
+     * Corrections of timed lyrics are shared, unless the player switched that off.
+     */
 
     public void setSongOffset(Song song, Integer offsetMs) {
         timings.setOwn(song.id(), offsetMs);
@@ -631,7 +638,11 @@ public final class LyricsController {
             return String.format(", dieser Song %+d ms (eigenes%s)", timings.own(song.id()).getAsInt(), players);
         }
         if (common != null && common.offsetMs() != null) {
-            return String.format(", dieser Song %+d ms (gemeinsam von %d Spielern)", common.offsetMs(), common.players());
+            return common.measured() > 0
+                    ? String.format(", dieser Song %+d ms (von Hörgenau gemessen, %d Spieler)", common.offsetMs(),
+                            common.players())
+                    : String.format(", dieser Song %+d ms (gemeinsam von %d Spielern)", common.offsetMs(),
+                            common.players());
         }
         return players.isEmpty() ? "" : players;
     }

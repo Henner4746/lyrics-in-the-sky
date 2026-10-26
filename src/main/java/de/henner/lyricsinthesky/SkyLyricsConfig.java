@@ -170,8 +170,8 @@ public final class SkyLyricsConfig {
      */
     public boolean hoergenau = false;
     /**
-     * Songs Hoergenau learned are shared with the tracker on henrik.click, and songs other players learned are taken
-     * from there; on unless switched off.
+     * Songs Hoergenau learned are shared with the tracker on henrik.click; on unless switched off. Songs other players
+     * learned are taken from there either way.
      */
     public boolean shareLearned = true;
     /** The one-time chat note on sharing learned songs has been shown. */
@@ -183,8 +183,8 @@ public final class SkyLyricsConfig {
     /** Up to 1.3.0-dev.3 the only word time service; only read to carry the choice over to {@link #wordSources}. */
     public boolean lyricsPlus = false;
     /**
-     * Timing corrections per song are shared anonymously with the timing tracker on henrik.click, and the ones many
-     * players agreed on apply here too; on unless switched off.
+     * Timing corrections per song, set by hand or measured by Hoergenau, are shared anonymously with the timing tracker
+     * on henrik.click; on unless switched off. The ones of other players apply here either way.
      */
     public boolean shareTiming = true;
     /** The one-time chat note on sharing timing corrections has been shown. */

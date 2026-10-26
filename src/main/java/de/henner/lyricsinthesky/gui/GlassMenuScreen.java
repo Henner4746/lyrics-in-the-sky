@@ -336,7 +336,7 @@ public final class GlassMenuScreen extends Screen {
                 new Slider("Alle Songs", "Positiv zeigt die Texte früher", -2000, 2000, 50, c -> c.offsetMs,
                         (c, v) -> c.offsetMs = Math.round(v), v -> (v > 0 ? "+" : "") + Math.round(v) + " ms"),
                 songTiming(),
-                new Toggle("Korrekturen teilen", "Anonym, gelten ab 10 gleichen für alle", c -> c.shareTiming,
+                new Toggle("Korrekturen teilen", "Hörgenau-Messungen gelten sofort für alle", c -> c.shareTiming,
                         (c, on) -> c.shareTiming = on),
                 new Info("So geht's", () -> "Erscheint ein Text zu spät, schieb „Dieser Song“ nach rechts."));
     }
@@ -412,17 +412,21 @@ public final class GlassMenuScreen extends Screen {
                 new Section("Genauer erklärt"),
                 new Explain("Songs lernen", "Hat niemand Wortzeiten für einen Song, hört die KI mit, wo er gerade "
                         + "läuft. Hörst du nur einen Teil, merkt sie sich das Gehörte und hört beim nächsten Mal den "
-                        + "Rest dazu. Sobald sie fast alles kennt, läuft er Wort für Wort."),
+                        + "Rest dazu. Sobald sie fast alles kennt, läuft er Wort für Wort. Livestreams, Videos und "
+                        + "Podcasts schreibt sie nie ab: Hat niemand den Text, hört sie nur zu, wenn Deezer oder Apple "
+                        + "den Song kennen."),
                 new Explain("Sync prüfen", "Bei Songs mit Wortzeiten hört sie einmal 50 Sekunden zu. Kommen die Wörter "
                         + "zu früh oder zu spät, rückt sie den Song zurecht und sagt es dir oben rechts. Ist sie sich "
-                        + "nicht sicher, lässt sie alles, wie es ist."),
+                        + "nicht sicher, lässt sie alles, wie es ist. Was sie misst, gilt über henrik.click gleich für "
+                        + "alle Spieler, auch ohne Hörgenau."),
                 new Explain("Was sie hört", "Nur dein Musikprogramm, zum Beispiel Spotify. Discord, Videos und die "
                         + "Geräusche des Spiels hört sie nicht. Findet Windows das Programm nicht, hört sie alles, was "
                         + "dein PC abspielt; dann am besten nebenher nicht reden."),
                 new Explain("Was geteilt wird", "Mit „Gelerntes teilen“ gehen bei Songs mit Text auf lrclib.net nur die "
                         + "Zeiten der Wörter an henrik.click; andere legen sie auf ihren eigenen Text. Hat niemand den "
                         + "Text eines Songs, wird das Abgeschriebene geteilt. Es gilt erst, wenn Spieler aus zwei Netzen "
-                        + "den Song ähnlich gehört haben."),
+                        + "den Song ähnlich gehört haben. Was andere gelernt haben, holt die Mod immer, auch wenn du "
+                        + "selbst nichts teilst."),
                 new Explain("Schnell oder Genau?", "Schnell lädt 190 MB und braucht für 50 Sekunden Musik etwa 15 "
                         + "Sekunden. Genau lädt 574 MB, versteht mehr Wörter, gerade bei Rap und lauter Musik, und braucht "
                         + "etwa eine Minute. Beides rechnet im Hintergrund mit niedriger Priorität, das Spiel läuft weiter."),
