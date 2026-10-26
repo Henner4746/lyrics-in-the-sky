@@ -32,6 +32,8 @@ public final class Hoergenau {
     private static final double MIN_HEARD = 0.8;
     /** A position this far off the line the earlier ones gave means the player skipped. */
     private static final long SKIP_MS = 2_500;
+    /** A player stopping this close to the end of the song has played it to the end (the last song of a queue). */
+    private static final long END_MS = 8_000;
 
     /** What a learnable song is shown with now: nothing, or text spread over it without times. */
     public enum Shown { NOTHING, TEXT_ONLY, TIMED }
@@ -63,6 +65,7 @@ public final class Hoergenau {
         final NowPlaying track;
         final List<String> lines;
         final List<Long> anchors = new ArrayList<>();
+        long lastPositionMs;
         String broken;
 
         Take(String key, NowPlaying track, List<String> lines) {
@@ -136,10 +139,16 @@ public final class Hoergenau {
         }
         if (recorder.failure() != null) {
             take.broken = "audio: " + recorder.failure();
+        } else if (!now.playing() && take.track.durationMs() > 0
+                && take.lastPositionMs >= take.track.durationMs() - END_MS) {
+            // Played to the end and the player stopped there (or went back to its start): the song is complete.
+            finish();
+            return;
         } else if (!now.playing()) {
             take.broken = "paused";
         } else if (recorder.startNanos() != 0) {
-            long anchor = now.estimatePositionMs(System.currentTimeMillis()) - System.nanoTime() / 1_000_000;
+            take.lastPositionMs = now.estimatePositionMs(System.currentTimeMillis());
+            long anchor = take.lastPositionMs - System.nanoTime() / 1_000_000;
             if (!take.anchors.isEmpty() && Math.abs(anchor - median(take.anchors)) > SKIP_MS) {
                 take.broken = "skipped";
             }

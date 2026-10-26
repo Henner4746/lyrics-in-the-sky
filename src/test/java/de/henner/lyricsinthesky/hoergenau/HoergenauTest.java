@@ -42,6 +42,23 @@ class HoergenauTest {
     }
 
     @Test
+    void aLineMadeUpOverMusicIsDropped() {
+        // As heard in the game over an instrumental: all words of the line at one moment; the sung line before stays.
+        String json = """
+                {"transcription":[
+                 {"tokens":[{"text":" Wenn","offsets":{"from":0,"to":0},"t_dtw":14650},
+                  {"text":" jedes","offsets":{"from":0,"to":0},"t_dtw":14720},
+                  {"text":" Wunder","offsets":{"from":0,"to":0},"t_dtw":14790}]},
+                 {"tokens":[{"text":" Die","offsets":{"from":0,"to":0},"t_dtw":17460},
+                  {"text":" Kälte","offsets":{"from":0,"to":0},"t_dtw":17460},
+                  {"text":" wird","offsets":{"from":0,"to":0},"t_dtw":17460},
+                  {"text":" gebraten.","offsets":{"from":0,"to":0},"t_dtw":17461}]}]}""";
+        List<List<Heard>> segments = WhisperEngine.parse(json.getBytes(StandardCharsets.UTF_8));
+        assertEquals(1, segments.size());
+        assertEquals("Wenn", segments.get(0).get(0).text());
+    }
+
+    @Test
     void soundsMarkedByWhisperAreNoWords() {
         List<Heard> heard = List.of(new Heard("*Musik*", 0), new Heard("ich", 500), new Heard("mach", 700),
                 new Heard("[Musik", 900), new Heard("spielt]", 1_100), new Heard("Musik", 1_300), new Heard("(Lachen)", 1_600));

@@ -229,9 +229,12 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   mitgehört.
 - **Genauigkeit:** Gemessen an drei echten deutschen Songs mit von Hand gesetzten Zeiten aus dem Benchmark
   [JamendoLyrics](https://github.com/f90/jamendolyrics) (Rock, Pop, Rap): Die Zeilenanfänge lagen im Median 43–89 ms
-  daneben, 71–88 % weniger als 200 ms und 91–100 % weniger als eine Sekunde. Stellen, die Whisper im ganzen Song
-  verpasst, werden einzeln noch einmal abgehört; was es dann noch nicht versteht, wird zwischen den Nachbarwörtern
-  geschätzt.
+  daneben, 71–88 % weniger als 200 ms und 91–100 % weniger als eine Sekunde. Über die Lautsprecher abgespielt, während
+  das Spiel lief, war der Pop-Song nach 55 s gelernt, die Zeilenanfänge im Median 60 ms daneben. Stellen, die Whisper
+  im ganzen Song verpasst, werden einzeln noch einmal abgehört; was es dann noch nicht versteht, wird zwischen den
+  Nachbarwörtern geschätzt.
+- **Nur der Song sollte laufen:** Bei einem Song ohne bekannten Text landet ein gleichzeitig laufendes Video oder ein
+  Sprachchat im Songtext. Mit bekanntem Text passt so eine Aufnahme nicht mehr und wird verworfen.
 - **Datenschutz:** Mitgehört wird alles, was über den Standardlautsprecher läuft, also auch Sprachchat, solange so ein
   Song läuft. Nichts davon verlässt den PC oder landet auf der Platte, außer kurz als Datei für whisper.cpp, die
   gleich danach gelöscht wird.

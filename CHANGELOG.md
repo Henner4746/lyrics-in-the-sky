@@ -10,6 +10,18 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.7 – 2026-10-26
+
+- **Hörgenau tested in the game with real playback:** a song with hand-made timings played through the speakers while
+  the game ran; Hörgenau learned it in 55 s, all 22 line starts 60 ms off in the median and all within half a second.
+- **Fixed:** over an instrumental Whisper made up one line thirteen times ("Die Kälte wird in der Kälte gebraten."),
+  which would have shown for a song without known text. Lines whose words Whisper puts at nearly one moment are no
+  longer taken.
+- **Fixed:** a song played to its end as the last of a queue, where the player stops instead of going on, was thrown
+  away as "paused"; it is now learned.
+- Hörgenau hears everything the speakers play: for a song without known text, a video playing at the same time ends
+  up in the lyrics (seen in a second test run). Noted in the README.
+
 ### 1.3.0-dev.6 – 2026-10-26
 
 - **Hörgenau on real songs:** measured on three German songs with hand-made timings (rock, pop, rap), line starts are

@@ -224,8 +224,11 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   never listened to.
 - **Accuracy:** measured on three real German songs with hand-made timings from the
   [JamendoLyrics](https://github.com/f90/jamendolyrics) benchmark (rock, pop, rap): line starts were 43–89 ms off in
-  the median, 71–88 % of them less than 200 ms and 91–100 % less than a second. Stretches Whisper misses on the whole
-  song are heard once more on their own; words it still does not understand are placed between their neighbours.
+  the median, 71–88 % of them less than 200 ms and 91–100 % less than a second. Played through the speakers while the
+  game ran, the pop song was learned in 55 s with line starts 60 ms off in the median. Stretches Whisper misses on the
+  whole song are heard once more on their own; words it still does not understand are placed between their neighbours.
+- **Only the song should be playing:** for a song without known text, a video or voice chat playing at the same time
+  ends up in the lyrics. With known text such a recording no longer matches and is thrown away.
 - **Privacy:** it hears everything that plays on the default speakers, voice chat included, while such a song plays.
   Nothing of it leaves the PC or stays on disk, except briefly as a file for whisper.cpp that is deleted right after.
 - Switch it on on the page *Quellen* ("Hörgenau") or with `/skylyrics hoergenau on`.

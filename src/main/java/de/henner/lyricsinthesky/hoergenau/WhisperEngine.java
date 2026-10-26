@@ -26,6 +26,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -62,6 +63,12 @@ public final class WhisperEngine {
      * this far before the next one is moved to just before it.
      */
     static final long FIRST_WORD_GAP_MS = 1_000;
+    /**
+     * Over music without singing Whisper makes up text, often one line again and again ("Die Kälte wird in der Kälte
+     * gebraten." 13 times in an instrumental), and DTW puts its words at nearly one moment: under 25 ms a word, where
+     * sung lines took 0.5–1.3 s. A line of three words or more faster than this per word was not sung.
+     */
+    static final long UNSUNG_MS_PER_WORD = 60;
     private static final Pattern DETECTED = Pattern.compile("auto-detected language: ([a-z]{2,3}) \\(p = ([0-9.]+)\\)");
 
     /** One word Whisper heard, with its start in ms from the start of the audio. */
@@ -299,6 +306,12 @@ public final class WhisperEngine {
                 words.add(new Heard(utf8(word), start));
             }
             words = withoutTags(words);
+            if (words.size() >= 3) {
+                LongSummaryStatistics times = words.stream().mapToLong(Heard::startMs).summaryStatistics();
+                if (times.getMax() - times.getMin() < UNSUNG_MS_PER_WORD * (words.size() - 1)) {
+                    continue;
+                }
+            }
             if (words.size() > 1 && words.get(1).startMs() - words.get(0).startMs() > FIRST_WORD_GAP_MS) {
                 Heard first = words.get(0);
                 words.set(0, new Heard(first.text(), Math.max(first.startMs(), words.get(1).startMs() - sung(first.text()))));
