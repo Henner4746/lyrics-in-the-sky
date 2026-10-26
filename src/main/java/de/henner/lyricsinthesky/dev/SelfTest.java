@@ -9,10 +9,15 @@ import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import org.slf4j.Logger;
@@ -75,7 +80,12 @@ public final class SelfTest {
     /** Then "Wortgenau" with all services on: the song gets word times from one of them. */
     private static final double WORD_TIMES_ON = 67.0;
     private static final double WORD_TIMES_CHECK = 77.0;
+    /** The end of the fixed steps; the songs of {@link #SONG_LIST}, if any, come after it, then the game quits. */
     private static final double QUIT_AT = 79.0;
+    private static final String SONG_LIST = "selftest-songs.tsv";
+    private static final double SONG_SECONDS = 6.0;
+    private static final double SONG_CHECK_AFTER = 5.0;
+    private static List<String[]> songs;
     private static String themeBefore;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
@@ -184,6 +194,7 @@ public final class SelfTest {
             glassSteps(minecraft, controller);
             menuSteps(minecraft, controller);
             wordTimeSteps(controller);
+            songSteps(minecraft, controller);
         }
         for (double shot : SIMULATION_SHOTS) {
             if (atSecond(shot)) {
@@ -208,9 +219,82 @@ public final class SelfTest {
                     : "NOT applied (preset " + controller.config().currentPreset() + ")");
             controller.config().style = style;
         }
-        if (atSecond(QUIT_AT)) {
+        if (atSecond(QUIT_AT + songs().size() * SONG_SECONDS)) {
             minecraft.stop();
         }
+    }
+
+    /**
+     * The songs listed in {@code selftest-songs.tsv} in the run folder, one per line, tab separated: artist, title,
+     * album, length and a moment in seconds, and the line sung then. Each plays from a few seconds before that moment;
+     * then the bar has to show that line, and the status tells where its lyrics came from. Meant for lyrics put into
+     * {@code run/config/lyricsinthesky/lyrics} beforehand, e.g. ones Hörgenau learned on a real PC.
+     */
+    private static void songSteps(Minecraft minecraft, LyricsController controller) {
+        for (int i = 0; i < songs().size(); i++) {
+            String[] song = songs().get(i);
+            double at = QUIT_AT + i * SONG_SECONDS;
+            long durationMs = Math.round(Double.parseDouble(song[3]) * 1000);
+            long momentMs = Math.round(Double.parseDouble(song[4]) * 1000);
+            if (atSecond(at)) {
+                controller.config().lrclibAllowed = true;
+                controller.simulate(new NowPlaying("selftest", song[1], song[0], song[2], true,
+                        momentMs - Math.round(SONG_CHECK_AFTER * 1000), durationMs, System.currentTimeMillis()));
+            }
+            if (atSecond(at + SONG_CHECK_AFTER)) {
+                LyricsController.Timeline now = controller.timeline(System.currentTimeMillis());
+                NowPlayingHud.Shown shown = NowPlayingHud.lastShown();
+                String bar = shown == null ? "" : shown.text().trim().replaceAll("\\s+", " ");
+                String expected = song[5].trim().replaceAll("\\s+", " ");
+                boolean ok = shown != null && shown.lyricLine() && bar.equals(expected);
+                LOGGER.info("SELFTEST song {} – {} at {} ms: {} – bar '{}', word {}; status: {}", song[0], song[1],
+                        now == null ? -1 : now.positionMs(), ok ? "ok" : "WRONG (expected '" + expected + "')", bar,
+                        wordNow(now), controller.status());
+                shoot(minecraft, "song " + song[1]);
+            }
+        }
+    }
+
+    /** The word being sung according to the lyrics' word times, or why there is none. */
+    private static String wordNow(LyricsController.Timeline now) {
+        if (now == null || now.lyrics() == null || now.lyrics().isEmpty()) {
+            return "- (no lyrics)";
+        }
+        if (!now.lyrics().hasWordTiming()) {
+            return "- (no word times)";
+        }
+        int index = now.lyrics().indexAt(now.positionMs());
+        if (index < 0) {
+            return "- (before the first line)";
+        }
+        String[] words = now.lyrics().lines().get(index).words();
+        long[] times = now.lyrics().wordTimes(index, now.durationMs());
+        int word = 0;
+        while (word + 1 < times.length && times[word + 1] <= now.positionMs()) {
+            word++;
+        }
+        return word < words.length ? "'" + words[word] + "' from " + times[word] + " ms" : "- (none)";
+    }
+
+    private static List<String[]> songs() {
+        if (songs == null) {
+            songs = new ArrayList<>();
+            Path list = FabricLoader.getInstance().getGameDir().resolve(SONG_LIST);
+            try {
+                if (Files.exists(list)) {
+                    for (String line : Files.readAllLines(list, StandardCharsets.UTF_8)) {
+                        String[] fields = line.split("\t");
+                        if (!line.startsWith("#") && fields.length == 6) {
+                            songs.add(fields);
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                LOGGER.error("SELFTEST songs: {} not readable", list, e);
+            }
+            LOGGER.info("SELFTEST songs: {} from {}", songs.size(), list.getFileName());
+        }
+        return songs;
     }
 
     /** The bar in its looks and places, then its editor; the player's own bar settings are put back afterwards. */
