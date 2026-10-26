@@ -610,6 +610,7 @@ public final class SelfTest {
             shoot(minecraft, "options rainbow underline progress");
         }
         if (atSecond(OPTIONS_FROM + 7.0)) {
+            controller.stopDemo();
             SkyLyricsConfig defaults = new SkyLyricsConfig();
             config.palette = defaults.palette;
             config.hudHighlight = defaults.hudHighlight;

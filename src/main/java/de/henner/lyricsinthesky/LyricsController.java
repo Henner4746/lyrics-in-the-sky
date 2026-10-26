@@ -445,6 +445,11 @@ public final class LyricsController {
         demoStartedAtMs = System.currentTimeMillis();
     }
 
+    /** Ends the demo early; for the self test. */
+    public void stopDemo() {
+        demoStartedAtMs = 0;
+    }
+
     public boolean isDemoRunning() {
         return demoStartedAtMs > 0 && System.currentTimeMillis() - demoStartedAtMs < DemoLyrics.DURATION_MS;
     }
@@ -455,7 +460,10 @@ public final class LyricsController {
             return null;
         }
         if (isDemoRunning()) {
-            return new Timeline(DEMO_KEY + demoStartedAtMs, "Lyrics in the Sky", "Demo", DemoLyrics.LYRICS,
+            // The demo shows the player's look, capitals included; it is what the menu's live view plays.
+            boolean capitals = config.uppercase;
+            return new Timeline(DEMO_KEY + demoStartedAtMs, capitals ? "LYRICS IN THE SKY" : "Lyrics in the Sky",
+                    capitals ? "DEMO" : "Demo", capitals ? upper(DemoLyrics.LYRICS) : DemoLyrics.LYRICS,
                     LookupState.FOUND, nowMs - demoStartedAtMs, DemoLyrics.DURATION_MS, true);
         }
         NowPlaying now = track;
