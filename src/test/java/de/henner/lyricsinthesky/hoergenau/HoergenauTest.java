@@ -196,6 +196,21 @@ class HoergenauTest {
         hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
         assertEquals(1, recorder.starts);
         assertTrue(hoergenau.listeningTo("song"));
+        // Only the player's own sound is asked for.
+        assertEquals("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify", recorder.player);
+    }
+
+    @Test
+    void theLoopbackHelperTellsWhatItRecordsAndSince() {
+        LoopbackRecorder.Header only = LoopbackRecorder.Header.of("LOOPBACK 16000 48000 2 16 int 3004 only Spotify.exe#5120");
+        assertEquals(3004, only.sinceMs());
+        assertEquals("only Spotify.exe#5120", only.what());
+        LoopbackRecorder.Header all = LoopbackRecorder.Header.of("LOOPBACK 16000 48000 2 32 float 2 all no-process");
+        assertEquals(2, all.sinceMs());
+        assertEquals("all the PC plays (no-process)", all.what());
+        // The helper of older versions: everything, from the header on.
+        assertEquals(0, LoopbackRecorder.Header.of("LOOPBACK 16000 48000 2 32 float").sinceMs());
+        assertEquals(null, LoopbackRecorder.Header.of("Exception calling Run"));
     }
 
     @Test
@@ -226,6 +241,7 @@ class HoergenauTest {
             public void chat(String message) {}
         }, key -> {}, new WhisperEngine(engineDir, () -> "small", () -> "normal"), recorder, () -> true);
         hoergenau.fixSyncWith((track, lyrics, offsetMs) -> {});
+        hoergenau.recordFrom(() -> "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify");
         return hoergenau;
     }
 
@@ -236,10 +252,12 @@ class HoergenauTest {
 
     private static final class CountingRecorder implements Recorder {
         int starts;
+        String player;
 
         @Override
-        public void start() {
+        public void start(String player) {
             starts++;
+            this.player = player;
         }
 
         @Override

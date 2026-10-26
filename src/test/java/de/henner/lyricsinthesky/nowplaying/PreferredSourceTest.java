@@ -63,6 +63,41 @@ class PreferredSourceTest {
         assertEquals(account, pick(account, new NowPlaying("Amazon", "Other", "Artist", "Album", true, 90_000, 200_000, 1_500)));
     }
 
+    /** A media session as on Windows: it names the app playing here. */
+    private static NowPlayingSource session(NowPlaying value) {
+        return new NowPlayingSource() {
+            @Override
+            public void start() {}
+
+            @Override
+            public void stop() {}
+
+            @Override
+            public NowPlaying current() {
+                return value;
+            }
+
+            @Override
+            public String localPlayer() {
+                return value != null && value.playing() ? value.app() : null;
+            }
+        };
+    }
+
+    @Test
+    void theLocalPlayerIsTheMediaSessionsAppWhenItPlaysTheSong() {
+        NowPlaying account = new NowPlaying("Spotify (Konto)", "Song", "Artist", "Album", true, 40_000, 200_000, 1_000);
+        NowPlaying here = new NowPlaying("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify", "song", "Artist", "Album", true,
+                40_000, 200_000, 1_000);
+        NowPlaying video = new NowPlaying("Brave", "Ein Video", "Kanal", "", true, 10_000, 600_000, 1_000);
+        assertEquals(here.app(), new PreferredNowPlayingSource(fixed(account), session(here)).localPlayer());
+        // The account's song plays on a phone: what the PC plays is something else, and nothing is the player here.
+        assertNull(new PreferredNowPlayingSource(fixed(account), session(video)).localPlayer());
+        assertNull(new PreferredNowPlayingSource(fixed(account), session(null)).localPlayer());
+        // Without the account playing, the media session's app.
+        assertEquals("Brave", new PreferredNowPlayingSource(fixed(SPOTIFY_PAUSED), session(video)).localPlayer());
+    }
+
     @Test
     void whatElseSoundsOnThisPcIsReported() {
         NowPlaying account = new NowPlaying("Spotify (Konto)", "Song", "Artist", "Album", true, 40_000, 200_000, 1_000);

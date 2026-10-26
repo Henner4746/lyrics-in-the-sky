@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +95,12 @@ public final class Hoergenau {
     }
 
     private volatile SyncFix syncFix;
+    /** The app on this PC playing the song, as the media session names it; only its sound is recorded when it can be. */
+    private volatile Supplier<String> player = () -> null;
+
+    public void recordFrom(Supplier<String> player) {
+        this.player = player;
+    }
 
     public void fixSyncWith(SyncFix fix) {
         this.syncFix = fix;
@@ -194,7 +201,7 @@ public final class Hoergenau {
                 return;
             }
             try {
-                recorder.start();
+                recorder.start(player.get());
                 take = new Take(key, now, shown == Shown.TEXT_ONLY ? List.copyOf(text) : List.of(), null);
                 LOGGER.info("Hoergenau listens to '{}' by '{}' ({})", now.title(), now.artist(),
                         take.lines.isEmpty() ? "no text known" : take.lines.size() + " lines of text known");
@@ -251,7 +258,7 @@ public final class Hoergenau {
             return;
         }
         try {
-            recorder.start();
+            recorder.start(player.get());
             take = new Take(key, now, List.of(), timed);
             LOGGER.info("Hoergenau checks the sync of '{}' by '{}'", now.title(), now.artist());
         } catch (Exception e) {

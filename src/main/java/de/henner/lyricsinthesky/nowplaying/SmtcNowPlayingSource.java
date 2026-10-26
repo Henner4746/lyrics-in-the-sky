@@ -47,6 +47,12 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
     }
 
     @Override
+    public String localPlayer() {
+        NowPlaying now = current;
+        return now != null && now.playing() ? now.app() : null;
+    }
+
+    @Override
     public synchronized void start() {
         if (running) {
             return;

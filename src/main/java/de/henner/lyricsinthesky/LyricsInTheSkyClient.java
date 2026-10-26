@@ -130,6 +130,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         SharedLearned shared = new SharedLearned(() -> config.shareLearned, config.installId, version);
         hoergenau.shareWith(shared);
         hoergenau.fixSyncWith((track, lyrics, offsetMs) -> controller.applyHeardOffset(track, lyrics, offsetMs));
+        // Only the player's own sound when Windows can tell it apart: no voice chat, videos or game sounds in it.
+        hoergenau.recordFrom(source::localPlayer);
         controller.shareLearnedWith(shared);
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the

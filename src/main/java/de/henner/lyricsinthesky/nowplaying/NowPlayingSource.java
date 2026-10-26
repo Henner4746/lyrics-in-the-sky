@@ -17,6 +17,14 @@ public interface NowPlayingSource {
         return null;
     }
 
+    /**
+     * The app on this PC playing {@link #current()}, as the media session names it (on Windows its app user model ID,
+     * such as {@code SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify}), or {@code null} when the song plays elsewhere.
+     */
+    default String localPlayer() {
+        return null;
+    }
+
     /** The source for this OS, or {@code null} when the OS is not supported yet. */
     static NowPlayingSource forCurrentOs(Path workDir) {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);

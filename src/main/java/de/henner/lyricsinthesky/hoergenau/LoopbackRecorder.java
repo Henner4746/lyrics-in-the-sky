@@ -8,12 +8,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * What the PC's default speakers play, through a small PowerShell helper that reads the Windows audio loopback
- * (WASAPI) and passes it on as 16 kHz mono. Runs only while Hoergenau listens to a song; the audio stays in memory.
+ * What the music player plays, through a small PowerShell helper that reads the Windows audio loopback (WASAPI) and
+ * passes it on as 16 kHz mono: only the player's own sound when Windows can tell it apart (process loopback), else all
+ * the default speakers play. Runs only while Hoergenau listens to a song; the audio stays in memory.
  */
 final class LoopbackRecorder implements Recorder {
+    private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
     static final int RATE = 16_000;
     /** Longer songs are not listened to: ten minutes are about 19 MB. */
     private static final int MAX_SAMPLES = 10 * 60 * RATE;
@@ -33,7 +37,7 @@ final class LoopbackRecorder implements Recorder {
     }
 
     @Override
-    public void start() throws IOException {
+    public void start(String player) throws IOException {
         Files.createDirectories(helper.getParent());
         try (InputStream in = LoopbackRecorder.class.getResourceAsStream(HELPER_RESOURCE)) {
             if (in == null) {
@@ -44,7 +48,7 @@ final class LoopbackRecorder implements Recorder {
         String systemRoot = System.getenv().getOrDefault("SystemRoot", "C:\\Windows");
         process = new ProcessBuilder(systemRoot + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile",
                 "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", helper.toString(),
-                Long.toString(ProcessHandle.current().pid()))
+                Long.toString(ProcessHandle.current().pid()), player == null || player.isBlank() ? "-" : player)
                 .redirectError(ProcessBuilder.Redirect.DISCARD).start();
         count = 0;
         startNanos = 0;
@@ -63,10 +67,13 @@ final class LoopbackRecorder implements Recorder {
                 }
                 header.write(b);
             }
-            if (!header.toString(StandardCharsets.US_ASCII).startsWith("LOOPBACK " + RATE)) {
+            Header told = Header.of(header.toString(StandardCharsets.US_ASCII));
+            if (told == null) {
                 throw new IOException("unexpected loopback header " + header);
             }
-            startNanos = System.nanoTime();
+            // The helper may first hear for a moment which sound to take; the samples count from its first one.
+            startNanos = System.nanoTime() - told.sinceMs() * 1_000_000;
+            LOGGER.info("Hoergenau records {}", told.what());
             byte[] buffer = new byte[8192];
             int odd = -1;
             for (int n; (n = in.read(buffer)) > 0; ) {
@@ -90,6 +97,25 @@ final class LoopbackRecorder implements Recorder {
             if (process.isAlive()) {
                 failure = e.getMessage();
             }
+        }
+    }
+
+    /**
+     * The helper's first line: {@code LOOPBACK 16000 <rate> <channels> <bits> <float|int> <ms since the first sample>
+     * <only <process>|all <why>>}.
+     */
+    record Header(long sinceMs, String what) {
+        static Header of(String line) {
+            String[] parts = line.trim().split(" ");
+            if (parts.length < 2 || !"LOOPBACK".equals(parts[0]) || !Integer.toString(RATE).equals(parts[1])) {
+                return null;
+            }
+            if (parts.length < 9 || !parts[6].matches("\\d{1,6}")) {
+                return new Header(0, "all the PC plays");
+            }
+            long since = Long.parseLong(parts[6]);
+            return "only".equals(parts[7]) ? new Header(since, "only " + parts[8])
+                    : new Header(since, "all the PC plays (" + parts[8] + ")");
         }
     }
 
