@@ -74,7 +74,7 @@ public final class Hoergenau {
         final NowPlaying track;
         final List<String> lines;
         /** For a sync check: the lyrics with word times whose sync is checked; {@code null} when a song is learned. */
-        final Lyrics check;
+        Lyrics check;
         final List<Long> anchors = new ArrayList<>();
         long lastPositionMs;
         String broken;
@@ -206,6 +206,11 @@ public final class Hoergenau {
         }
         if (take.broken != null) {
             return;
+        }
+        if (take.check != null && timed != null) {
+            // Word times often come in while the check listens (LRCLIB's lines first, a service's words a few seconds
+            // later): checked and corrected is what is shown by then.
+            take.check = timed;
         }
         if (recorder.failure() != null) {
             breakTake("audio: " + recorder.failure(), "die Aufnahme ging nicht");
