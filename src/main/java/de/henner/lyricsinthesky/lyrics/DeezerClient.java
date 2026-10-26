@@ -10,6 +10,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,15 +24,17 @@ public final class DeezerClient implements WordTimeSource {
     private static final String SEARCH = "https://api.deezer.com/search?limit=10&q=";
     private static final String SESSION = "https://auth.deezer.com/login/anonymous?jo=p&rto=c&i=c";
     private static final String LYRICS = "https://pipe.deezer.com/api";
-    /** The anonymous session is fetched again after this long, well before Deezer lets it expire. */
-    private static final long SESSION_MS = 10 * 60 * 1000;
+    /** A session is fetched again this long before it expires; Deezer's anonymous ones live six minutes. */
+    private static final long SESSION_MARGIN_MS = 30_000;
+    /** How long a session is used when it does not say when it expires. */
+    private static final long SESSION_MS = 5 * 60 * 1000;
     private static final String QUERY = "query Lyrics($id: String!) { track(trackId: $id) { lyrics { "
             + "synchronizedWordByWordLines { start words { start word } } } } }";
     private static final int TRIES = 2;
 
     private final WebText web;
     private String session;
-    private long sessionAtMs;
+    private long renewAtMs;
 
     public DeezerClient(String modVersion) {
         this.web = new WebText(modVersion, Duration.ofSeconds(10));
@@ -85,16 +88,35 @@ public final class DeezerClient implements WordTimeSource {
     }
 
     private synchronized String session() throws IOException, InterruptedException {
-        if (session == null || System.currentTimeMillis() - sessionAtMs > SESSION_MS) {
+        if (session == null || System.currentTimeMillis() >= renewAtMs) {
             JsonObject answer = JsonParser.parseString(web.get(SESSION).orElseThrow(
                     () -> new IOException("Deezer gave no session"))).getAsJsonObject();
             if (!answer.has("jwt") || answer.get("jwt").isJsonNull()) {
                 throw new IOException("Deezer gave no session");
             }
             session = answer.get("jwt").getAsString();
-            sessionAtMs = System.currentTimeMillis();
+            renewAtMs = renewAtMs(session, System.currentTimeMillis());
         }
         return session;
+    }
+
+    /**
+     * When a session fetched at {@code nowMs} is to be replaced: shortly before the lifetime written in it runs out
+     * (counted on this PC's clock, so a clock that is off does not matter), else after {@link #SESSION_MS}.
+     */
+    static long renewAtMs(String jwt, long nowMs) {
+        try {
+            String[] parts = jwt.split("\\.");
+            JsonObject claims = JsonParser.parseString(new String(Base64.getUrlDecoder().decode(parts[1]),
+                    StandardCharsets.UTF_8)).getAsJsonObject();
+            long lifetimeMs = (claims.get("exp").getAsLong() - claims.get("iat").getAsLong()) * 1000;
+            if (lifetimeMs > 0) {
+                return nowMs + Math.max(lifetimeMs / 2, lifetimeMs - SESSION_MARGIN_MS);
+            }
+        } catch (RuntimeException e) {
+            // Not a JWT as known: the fixed time below.
+        }
+        return nowMs + SESSION_MS;
     }
 
     private synchronized void forgetSession() {

@@ -148,6 +148,17 @@ class WordSourcesTest {
     }
 
     @Test
+    void aDeezerSessionIsRenewedBeforeItsOwnLifetimeRunsOut() {
+        // Deezer's anonymous sessions live six minutes (measured 2026-10-26); asked after ten, every request failed.
+        java.util.Base64.Encoder base64 = java.util.Base64.getUrlEncoder().withoutPadding();
+        String jwt = base64.encodeToString("{\"alg\":\"HS256\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8)) + "."
+                + base64.encodeToString("{\"iat\":1793032000,\"exp\":1793032360,\"unlogged\":true}"
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8)) + ".signature";
+        assertEquals(1_000_000 + 330_000, DeezerClient.renewAtMs(jwt, 1_000_000));
+        assertEquals(1_000_000 + 300_000, DeezerClient.renewAtMs("not a jwt", 1_000_000));
+    }
+
+    @Test
     void searchHitsMustBeTheSameSongAndLength() {
         NowPlaying track = new NowPlaying("test", "Lanterns - 2011 Remaster", "The Made Up Band", "", true, 0, 200_000, 0);
         List<SearchHit> hits = List.of(
