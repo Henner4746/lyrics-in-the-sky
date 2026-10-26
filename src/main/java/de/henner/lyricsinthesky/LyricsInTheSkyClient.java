@@ -9,6 +9,7 @@ import de.henner.lyricsinthesky.dev.LiveTest;
 import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
+import de.henner.lyricsinthesky.gui.HoergenauIntroScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.hoergenau.SharedLearned;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine;
@@ -71,10 +72,6 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     private static KeyMapping laterKey;
     /** Ticks until the settings open; set by the command, which runs while the chat screen is still closing. */
     private static int openSettingsIn = -1;
-    /** LyricsPlus was offered in chat this game session. */
-    private static boolean lyricsPlusOffered;
-    /** Hoergenau was offered in chat this game session. */
-    private static boolean hoergenauOffered;
 
     /** {@code null} until the client is initialized. */
     public static LyricsController controller() {
@@ -141,7 +138,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             controller.tick();
             handleKeys(client);
             offerLyricsPlus(client);
-            offerHoergenau(client);
+            introduceHoergenau(client);
             if (client.player != null) {
                 GlyphWarmup.lyrics(controller.currentLyrics(), controller.config().font);
                 GlyphWarmup.tick(client);
@@ -295,7 +292,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
      * they find many of those songs. Nothing is sent to them until the player clicks.
      */
     private static void offerLyricsPlus(Minecraft client) {
-        if (lyricsPlusOffered || config.wordTimes() || client.player == null || SelfTest.isEnabled()) {
+        if (config.wordTimesOffered || config.wordTimes() || client.player == null || SelfTest.isEnabled()) {
             return;
         }
         LyricsController.Timeline timeline = controller.timeline(System.currentTimeMillis());
@@ -307,7 +304,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         if (!missing) {
             return;
         }
-        lyricsPlusOffered = true;
+        config.wordTimesOffered = true;
+        config.save();
         MutableComponent message = prefix()
                 .append("Für „" + timeline.title() + "“ hat lrclib.net keine Lyrics mit Zeiten. „Wortgenau“ fragt zusätzlich "
                         + "inoffizielle Dienste (Grauzone: Deezer, LyricsPlus, NetEase, Kugou) und schickt ihnen Titel, "
@@ -336,10 +334,10 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         Hoergenau listener = controller.hoergenau();
         if (on && listener != null) {
             listener.reset();
-            tell("Hörgenau ist an. Bei Songs ohne Wortzeiten hört es ab Songanfang mit, was dein PC abspielt (nur im "
-                    + "Speicher), und lernt danach im Hintergrund die Wörter: etwa eine Minute je Song mit niedriger "
-                    + "Priorität. Lass den Song bis zum Ende laufen, dann läuft er ab dem nächsten Mal Wort für Wort."
-                    + (settings.shareLearned ? " Was es lernt, wird anonym für alle geteilt." : ""));
+            tell("Hörgenau ist an. Bei Songs ohne Wortzeiten hört es dein Musikprogramm mit (nur im Speicher) und "
+                    + "lernt die Wörter im Hintergrund. Hörst du einen Song nur zum Teil, hört es beim nächsten Mal den "
+                    + "Rest dazu; danach läuft er Wort für Wort."
+                    + (settings.shareLearned ? " Geteilt werden nur Wortzeiten, nie Songtexte." : ""));
         }
     }
 
@@ -353,32 +351,36 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                 Component.literal(title), Component.literal(detail)));
     }
 
+    /** Ticks in a world since the introduction could be shown; it waits until the world has settled. */
+    private static int introTicks;
+
     /**
-     * A song nobody has word times for, on Windows with Hoergenau off: offer it once per game session, with a button
-     * that switches it on. Nothing is downloaded or listened to until the player clicks.
+     * Once ever, on Windows with Hoergenau off: a few seconds into a world, the introduction to Hoergenau. Kept in the
+     * settings, so it never comes again, also not after an update; whoever has Hoergenau on already knows it.
      */
-    private static void offerHoergenau(Minecraft client) {
-        if (hoergenauOffered || config.hoergenau || !WhisperEngine.supported() || client.player == null
-                || SelfTest.isEnabled() || !(lyricsPlusOffered || config.wordTimes())) {
+    private static void introduceHoergenau(Minecraft client) {
+        if (config.hoergenauIntroShown || client.player == null || SelfTest.isEnabled() || !WhisperEngine.supported()) {
+            introTicks = 0;
             return;
         }
-        LyricsController.Timeline timeline = controller.timeline(System.currentTimeMillis());
-        if (timeline == null || timeline.trackKey().startsWith("demo")) {
+        if (config.hoergenau) {
+            config.hoergenauIntroShown = true;
+            config.save();
             return;
         }
-        boolean missing = timeline.state() == LyricsController.LookupState.NOT_FOUND
-                || timeline.lyrics() != null && timeline.lyrics().isEstimated();
-        if (!missing) {
+        if (client.gui.screen() != null || ++introTicks < 100) {
             return;
         }
-        hoergenauOffered = true;
-        MutableComponent message = prefix()
-                .append("„" + timeline.title() + "“ hat noch keine Wortzeiten. Hörgenau kann solche Songs beim Abspielen "
-                        + "mithören und Wort für Wort lernen: lokal auf deinem PC, einmalig ca. "
-                        + WhisperEngine.Model.of(config.hoergenauModel).megabytes()
-                        + " MB. Was es lernt, bekommen alle anderen Spieler auch. ")
-                .append(button("[Einschalten]", "/skylyrics hoergenau on", ChatFormatting.GREEN));
-        client.gui.hud.getChat().addClientSystemMessage(message);
+        config.hoergenauIntroShown = true;
+        config.save();
+        client.gui.setScreen(new HoergenauIntroScreen(config, LyricsInTheSkyClient::switchOnHoergenau));
+    }
+
+    /** Switches Hoergenau on with a model, as the introduction's buttons do. */
+    public static void switchOnHoergenau(SkyLyricsConfig settings, String model) {
+        settings.hoergenauModel = model;
+        setHoergenau(settings, true);
+        settings.save();
     }
 
     /** A message in chat from any thread, e.g. Hoergenau's background work. */

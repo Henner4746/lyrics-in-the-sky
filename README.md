@@ -224,11 +224,11 @@ LRCLIB lyrics, the first service that has the song stands in.
 
 ### Hörgenau: listening for songs no service knows (Windows only, off until you switch it on)
 
-Some songs nobody has timed, some have no lyrics anywhere. For those **Hörgenau** listens: when such a song plays
-from its start, the mod records the sound of your music app (Windows audio loopback, in memory only) and after the
-song lets
-[whisper.cpp](https://github.com/ggml-org/whisper.cpp) time the words. If LRCLIB has the text without times, that text
-is placed on the recording; if there is none, what was heard becomes the lyrics. From the next play on the song runs
+Some songs nobody has timed, some have no lyrics anywhere. For those **Hörgenau** listens: when such a song plays,
+the mod records the sound of your music app wherever it has not heard it yet (Windows audio loopback, in memory only).
+If you hear only part of it, it keeps the heard words with their times in the song and hears the rest the next time.
+Every part is heard by [whisper.cpp](https://github.com/ggml-org/whisper.cpp); once about four fifths of the song
+were heard, it is timed. If LRCLIB has the text without times, that text is placed on what was heard; if there is none, what was heard becomes the lyrics. From the next play on the song runs
 word by word. If LRCLIB gets real lines later, they replace what was learned.
 
 - **Cost:** a one-time download of about 190 MB (whisper.cpp from GitHub, the "small" model from Hugging Face, both

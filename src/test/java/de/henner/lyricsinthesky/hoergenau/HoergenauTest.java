@@ -241,6 +241,22 @@ class HoergenauTest {
     }
 
     @Test
+    void aSongToLearnIsHeardWhereverItWasNotHeardYet(@TempDir Path dir) throws Exception {
+        CountingRecorder recorder = new CountingRecorder();
+        LyricsCache saved = new LyricsCache(dir.resolve("lyrics"));
+        // Its first half was heard another day.
+        saved.write("song heard", HeardParts.none().with(0, 104_500, List.of(), "de").format());
+        Hoergenau hoergenau = checking(dir, recorder, saved);
+        // Joined in the half heard before: nothing new to hear there.
+        hoergenau.observe(track(true, 60_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(0, recorder.starts);
+        // Where it was not heard yet it listens, in the middle of the song too.
+        hoergenau.observe(track(true, 110_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(1, recorder.starts);
+        assertTrue(hoergenau.listeningTo("song"));
+    }
+
+    @Test
     void aSongFirstSeenPausedIsCheckedOnceItPlaysAlone(@TempDir Path dir) throws Exception {
         // As found in the game: Spotify paused mid-song when the world opened, then played on.
         CountingRecorder recorder = new CountingRecorder();
@@ -303,7 +319,11 @@ class HoergenauTest {
     }
 
     private static NowPlaying track(boolean playing) {
-        return new NowPlaying("test", "Lanterns", "The Made Up Band", "", playing, 82_000, 209_000,
+        return track(playing, 82_000);
+    }
+
+    private static NowPlaying track(boolean playing, long positionMs) {
+        return new NowPlaying("test", "Lanterns", "The Made Up Band", "", playing, positionMs, 209_000,
                 System.currentTimeMillis());
     }
 

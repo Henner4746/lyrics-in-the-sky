@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,17 +23,19 @@ import org.slf4j.LoggerFactory;
 
 /**
  * "Hoergenau": word times for songs no service has timed, by listening. Off unless the player switches it on, and only
- * on Windows. For such a song, played from its start, it records what the PC plays (in memory), and when the song is
- * over whisper.cpp times the heard words: LRCLIB's text without times is placed on them, or, when nobody has the
- * song's text, the heard words become the lyrics. The result is kept like found lyrics, so from the next play on the
- * song runs word by word. Lyrics with times from LRCLIB or a word time service are never touched.
+ * on Windows. For such a song it records what the music player plays (in memory) wherever the song plays and was not
+ * heard yet, and whisper.cpp hears the words of each part: kept with their times in the song, so a song heard only
+ * partly is completed the next time it plays. Once nearly all of it was heard, LRCLIB's text without times is placed
+ * on the heard words, or, when nobody has the song's text, the heard words become the lyrics. The result is kept like
+ * found lyrics, so from then on the song runs word by word. Lyrics with times from LRCLIB or a word time service are
+ * never touched.
  */
 public final class Hoergenau {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
-    /** Listening starts only near the song's start, so the whole song is heard. */
-    private static final long START_WINDOW_MS = 6_000;
-    /** At least this share of the song must have been heard. */
-    private static final double MIN_HEARD = 0.8;
+    /** A part of a song shorter than this is not kept: too little to hear words in. */
+    static final long MIN_PART_MS = 20_000;
+    /** Once this share of the song was heard, in one part or several, it is learned. */
+    static final double MIN_HEARD = 0.8;
     /** A position this far off the line the earlier ones gave means the player skipped. */
     private static final long SKIP_MS = 2_500;
     /** A player stopping this close to the end of the song has played it to the end (the last song of a queue). */
@@ -42,6 +45,8 @@ public final class Hoergenau {
     /** A check that could not tell (no clear singing heard) is tried this often in all. */
     private static final int CHECK_TRIES = 2;
     private static final String CHECKED = "\u0000synccheck";
+    /** What was heard of a song not learned yet, beside its lyrics (see {@link HeardParts}). */
+    private static final String PARTS = "\u0000heard";
 
     /** What a learnable song is shown with now: nothing, or text spread over it without times. */
     public enum Shown { NOTHING, TEXT_ONLY, TIMED }
@@ -69,6 +74,8 @@ public final class Hoergenau {
     private volatile String working;
     private String considered;
     private Take take;
+    /** What was heard of songs not learned yet, read once from the store. */
+    private final Map<String, HeardParts> parts = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final class Take {
         final String key;
@@ -79,6 +86,8 @@ public final class Hoergenau {
         final List<Long> anchors = new ArrayList<>();
         long lastPositionMs;
         String broken;
+        /** Samples recorded when the part ended early (paused, skipped, another player); -1 while it goes on. */
+        int endSamples = -1;
 
         Take(String key, NowPlaying track, List<String> lines, Lyrics check) {
             this.key = key;
@@ -174,38 +183,36 @@ public final class Hoergenau {
             return;
         }
         if (take == null) {
-            if (key.equals(considered)) {
-                return;
-            }
             if (shown == Shown.TIMED) {
                 // A check waits while the song is paused, another player sounds along or the song before is still
                 // being worked on, and starts once the song plays alone.
-                if (!now.playing() || other != null || working != null) {
+                if (key.equals(considered) || !now.playing() || other != null || working != null) {
                     return;
                 }
                 considered = key;
                 startCheck(now, key, timed);
                 return;
             }
-            considered = key;
-            if (working != null) {
+            // A song to learn is heard wherever it plays and was not heard yet, while it plays alone; what is heard is
+            // kept, and the rest comes the next time it plays.
+            if (!now.playing() || other != null) {
                 return;
             }
             long position = now.estimatePositionMs(System.currentTimeMillis());
-            if (!now.playing() || position > START_WINDOW_MS) {
-                LOGGER.info("Hoergenau: '{}' started {} s ago, listens only from the start", now.title(), position / 1000);
-                return;
-            }
-            if (other != null) {
-                LOGGER.info("Hoergenau: '{}' plays together with {}, listens only to a song playing alone", now.title(), other);
+            HeardParts known = parts(key);
+            if (known.covers(position) || now.durationMs() > 0 && now.durationMs() - position < MIN_PART_MS) {
                 return;
             }
             try {
                 recorder.start(player.get());
                 take = new Take(key, now, shown == Shown.TEXT_ONLY ? List.copyOf(text) : List.of(), null);
-                LOGGER.info("Hoergenau listens to '{}' by '{}' ({})", now.title(), now.artist(),
-                        take.lines.isEmpty() ? "no text known" : take.lines.size() + " lines of text known");
-                notifier.toast("Hörgenau hört mit", shown(now.title()) + " – bis zum Ende laufen lassen");
+                int before = (int) Math.round(known.share(now.durationMs()) * 100);
+                LOGGER.info("Hoergenau listens to '{}' by '{}' from {} s ({}, {} % heard before)", now.title(),
+                        now.artist(), position / 1000, take.lines.isEmpty() ? "no text known"
+                                : take.lines.size() + " lines of text known", before);
+                notifier.toast("Hörgenau hört mit", shown(now.title()) + (known.isEmpty()
+                        ? " – hörst du nur einen Teil, kommt der Rest beim nächsten Mal"
+                        : " – hört den Rest dazu, " + before + " % kennt es schon"));
             } catch (Exception e) {
                 LOGGER.warn("Hoergenau could not start listening: {}", e.toString());
             }
@@ -222,19 +229,19 @@ public final class Hoergenau {
         if (recorder.failure() != null) {
             breakTake("audio: " + recorder.failure(), "die Aufnahme ging nicht");
         } else if (other != null) {
-            breakTake("another player sounded at the same time (" + other + ")", "es lief noch anderer Ton mit");
+            endPart("another player sounded at the same time (" + other + ")");
         } else if (!now.playing() && take.track.durationMs() > 0
                 && take.lastPositionMs >= take.track.durationMs() - END_MS) {
-            // Played to the end and the player stopped there (or went back to its start): the song is complete.
+            // Played to the end and the player stopped there (or went back to its start): the part is complete.
             finish();
             return;
         } else if (!now.playing()) {
-            breakTake("paused", "der Song wurde pausiert");
+            endPart("paused");
         } else if (recorder.startNanos() != 0) {
             take.lastPositionMs = now.estimatePositionMs(System.currentTimeMillis());
             long anchor = take.lastPositionMs - System.nanoTime() / 1_000_000;
             if (!take.anchors.isEmpty() && Math.abs(anchor - median(take.anchors)) > SKIP_MS) {
-                breakTake("skipped", "im Song wurde gespult");
+                endPart("skipped");
             } else {
                 take.anchors.add(anchor);
             }
@@ -276,13 +283,27 @@ public final class Hoergenau {
         return parts.length >= 2 && "unsure".equals(parts[0]) && Integer.parseInt(parts[1]) < CHECK_TRIES;
     }
 
+    /**
+     * The song stops being heard here (paused, skipped, another player sounding): a sync check is tried again another
+     * time; a song to learn keeps what was heard up to now as a part.
+     */
+    private void endPart(String why) {
+        if (take.check != null) {
+            breakTake(why, why);
+            return;
+        }
+        take.endSamples = recorder.startNanos() != 0 ? recorder.count() : 0;
+        LOGGER.info("Hoergenau: a part of '{}' ends ({})", take.track.title(), why);
+        finish();
+    }
+
     /** Nothing more to hear for this song: the recording ends now, not when the song does, and the player is told why. */
     private void breakTake(String why, String forPlayer) {
         take.broken = why;
         recorder.stop();
         if (take.check == null) {
             // A sync check is quiet; it is simply tried again another time.
-            notifier.toast("Hörgenau hört nicht mehr mit", forPlayer + "; beim nächsten Mal von vorn");
+            notifier.toast("Hörgenau hört nicht mehr mit", forPlayer + "; beim nächsten Mal noch einmal");
         }
     }
 
@@ -298,7 +319,11 @@ public final class Hoergenau {
     private void finish() {
         Take done = take;
         take = null;
-        short[] audio = recorder.stop();
+        short[] recorded = recorder.stop();
+        if (done.endSamples >= 0 && done.endSamples < recorded.length) {
+            recorded = Arrays.copyOf(recorded, done.endSamples);
+        }
+        short[] audio = recorded;
         if (done.broken != null) {
             LOGGER.info("Hoergenau dropped '{}': {}", done.track.title(), done.broken);
             return;
@@ -322,22 +347,16 @@ public final class Hoergenau {
             });
             return;
         }
-        if (done.track.durationMs() > 0 && heardS < MIN_HEARD * done.track.durationMs() / 1000.0) {
-            LOGGER.info("Hoergenau dropped '{}': heard {} of {} s", done.track.title(), Math.round(heardS),
-                    done.track.durationMs() / 1000);
-            notifier.toast("Hörgenau hört nicht mehr mit", "der Song lief nicht bis zum Ende; beim nächsten Mal von vorn");
-            return;
-        }
-        if (done.anchors.isEmpty()) {
+        if (heardS * 1000 < MIN_PART_MS || done.anchors.isEmpty()) {
+            LOGGER.info("Hoergenau: {} s of '{}' are too little to keep", Math.round(heardS), done.track.title());
             return;
         }
         // Song position of the first sample: the media session's positions put on the recording's clock.
         long offsetMs = median(done.anchors) + recorder.startNanos() / 1_000_000;
         working = done.track.title();
-        notifier.toast("Hörgenau lernt", shown(done.track.title()) + " – etwa eine Minute im Hintergrund");
         worker.submit(() -> {
             try {
-                learn(done, audio, offsetMs);
+                hearPart(done, audio, offsetMs);
             } catch (Exception e) {
                 LOGGER.warn("Hoergenau could not time '{}': {}", done.track.title(), e.toString());
                 notifier.toast("Hörgenau: nicht gelernt", String.valueOf(e.getMessage()));
@@ -347,35 +366,81 @@ public final class Hoergenau {
         });
     }
 
-    private void learn(Take done, short[] audio, long offsetMs) throws Exception {
+    /** What was heard of a song not learned yet; nothing for a song never heard. */
+    private HeardParts parts(String key) {
+        return parts.computeIfAbsent(key, k -> saved.read(k + PARTS).map(HeardParts::parse).orElse(HeardParts.none()));
+    }
+
+    private void keepParts(String key, HeardParts heard) {
+        parts.put(key, heard);
+        saved.write(key + PARTS, heard.isEmpty() ? "" : heard.format());
+    }
+
+    /**
+     * Hears the words of one part and keeps them with the parts heard before; once nearly all of the song was heard,
+     * learns it from all of them.
+     */
+    private void hearPart(Take done, short[] audio, long offsetMs) throws Exception {
         long started = System.nanoTime();
-        String language = engine.language(audio, audio.length);
-        List<List<Heard>> segments = engine.transcribe(audio, 0, audio.length, language);
-        List<Heard> heard = segments.stream().flatMap(List::stream).toList();
+        HeardParts before = parts(done.key);
+        String language = before.language() != null ? before.language() : engine.language(audio, audio.length);
+        List<List<Heard>> part = engine.transcribe(audio, 0, audio.length, language).stream()
+                .map(segment -> segment.stream().map(word -> new Heard(word.text(), word.startMs() + offsetMs)).toList())
+                .toList();
+        long toMs = offsetMs + audio.length * 1000L / LoopbackRecorder.RATE;
+        HeardParts heard = before.with(offsetMs, toMs, part, language);
+        long durationMs = done.track.durationMs();
+        if (durationMs > 0 && heard.share(durationMs) < MIN_HEARD) {
+            keepParts(done.key, heard);
+            int percent = (int) Math.round(heard.share(durationMs) * 100);
+            LOGGER.info("Hoergenau heard '{}' from {} to {} s, {} % of it now; the rest when it plays again",
+                    done.track.title(), offsetMs / 1000, toMs / 1000, percent);
+            notifier.toast("Hörgenau: " + percent + " % gehört", shown(done.track.title())
+                    + " – den Rest hört es beim nächsten Mal dazu");
+            return;
+        }
+        if (learn(done, heard, again(engine, audio, language, offsetMs), started)) {
+            keepParts(done.key, HeardParts.none());
+        } else {
+            keepParts(done.key, heard);
+        }
+    }
+
+    /**
+     * Learns a song from everything heard of it (times in ms of the song); stretches nothing was heard in are heard
+     * again where they lie in the last part. Whether the song was learned; when its known text was not heard, what was
+     * heard is dropped, so it is listened to anew.
+     */
+    private boolean learn(Take done, HeardParts heardParts, HeardLyrics.Listener again, long started) {
+        List<List<Heard>> segments = heardParts.segments();
+        List<Heard> heard = heardParts.words();
         String lrc;
         String how;
         double matched = 0;
         if (!done.lines.isEmpty()) {
-            Optional<HeardLyrics.Aligned> aligned = HeardLyrics.align(done.lines, heard, offsetMs,
-                    again(engine, audio, language));
+            Optional<HeardLyrics.Aligned> aligned = HeardLyrics.align(done.lines, heard, 0, again);
             if (aligned.isEmpty()) {
                 LOGGER.info("Hoergenau: the known text of '{}' was not heard in the recording", done.track.title());
                 notifier.toast("Hörgenau: nicht gelernt", "der bekannte Songtext war in der Aufnahme nicht zu hören");
-                return;
+                parts.put(done.key, HeardParts.none());
+                saved.write(done.key + PARTS, "");
+                return false;
             }
             lrc = aligned.get().lrc();
             matched = aligned.get().matched();
             how = String.format("Songtext auf die Aufnahme gelegt, %d %% der Wörter gehört", Math.round(matched * 100));
         } else if (!heard.isEmpty()) {
-            lrc = HeardLyrics.transcript(segments, offsetMs);
+            lrc = HeardLyrics.transcript(segments, 0);
             how = "kein Songtext bekannt, das Gehörte abgeschrieben";
         } else {
             LOGGER.info("Hoergenau heard no singing in '{}'", done.track.title());
             notifier.toast("Hörgenau: nicht gelernt", "in „" + shown(done.track.title()) + "“ war kein Gesang zu hören");
-            return;
+            parts.put(done.key, HeardParts.none());
+            saved.write(done.key + PARTS, "");
+            return false;
         }
         if (saved.read(done.key).filter(kept -> !kept.startsWith(HeardLyrics.MARK)).isPresent()) {
-            return;  // LRCLIB's lyrics turned up meanwhile; they stay.
+            return true;  // LRCLIB's lyrics turned up meanwhile; they stay.
         }
         saved.write(done.key, lrc);
         learned.accept(done.key);
@@ -389,6 +454,7 @@ public final class Hoergenau {
                 "ab jetzt Wort für Wort" + (shared ? ", Zeiten für alle geteilt" : ""));
         notifier.chat("Hörgenau hat „" + shown(done.track.title()) + "“ gelernt (" + how
                 + "). Ab jetzt Wort für Wort" + (shared ? ", und die Wortzeiten sind für alle geteilt." : "."));
+        return true;
     }
 
     /** Sets a checked song's correction when its words were heard clearly enough off where the lyrics have them. */
@@ -429,14 +495,23 @@ public final class Hoergenau {
 
     /** Hears a stretch of the recording once more on its own, in the language found before; nothing when that fails. */
     static HeardLyrics.Listener again(WhisperEngine engine, short[] audio, String language) {
+        return again(engine, audio, language, 0);
+    }
+
+    /**
+     * The same for a recording that began {@code startMs} into the song, asked in ms of the song: a stretch outside it
+     * gives nothing; the words come with their times in the song.
+     */
+    static HeardLyrics.Listener again(WhisperEngine engine, short[] audio, String language, long startMs) {
         return (fromMs, toMs) -> {
-            int from = (int) Math.max(0, Math.min(audio.length, fromMs * LoopbackRecorder.RATE / 1000));
-            int to = (int) Math.max(from, Math.min(audio.length, toMs * LoopbackRecorder.RATE / 1000));
+            int from = (int) Math.max(0, Math.min(audio.length, (fromMs - startMs) * LoopbackRecorder.RATE / 1000));
+            int to = (int) Math.max(from, Math.min(audio.length, (toMs - startMs) * LoopbackRecorder.RATE / 1000));
             if (to - from < LoopbackRecorder.RATE) {
                 return List.of();
             }
             try {
-                return engine.transcribe(audio, from, to - from, language).stream().flatMap(List::stream).toList();
+                return engine.transcribe(audio, from, to - from, language).stream().flatMap(List::stream)
+                        .map(word -> new Heard(word.text(), word.startMs() + startMs)).toList();
             } catch (IOException e) {
                 LOGGER.warn("Hoergenau could not listen again from {} ms: {}", fromMs, e.toString());
                 return List.of();
@@ -460,7 +535,7 @@ public final class Hoergenau {
                     percent = now;
                     notifier.toast("Hörgenau lädt", "einmalig " + megabytes + " MB · " + now + " %");
                 });
-                notifier.toast("Hörgenau ist bereit", "Songs ohne Wortzeiten hört es ab ihrem Anfang mit");
+                notifier.toast("Hörgenau ist bereit", "Songs ohne Wortzeiten hört es mit, auch in Teilen");
             } catch (Exception e) {
                 problem = e.getMessage();
                 LOGGER.warn("Hoergenau download failed: {}", e.toString());

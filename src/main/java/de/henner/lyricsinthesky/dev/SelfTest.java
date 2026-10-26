@@ -4,6 +4,7 @@ import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
+import de.henner.lyricsinthesky.gui.HoergenauIntroScreen;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.Perf;
@@ -88,7 +89,7 @@ public final class SelfTest {
             {"minimal", "bar"}, {"minimal", "timing"}, {"minimal", "sources"}, {"minimal", "hoergenau"},
             {"minimal", "hoergenau-end"}, {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"},
             {"minimal", "picker"}, {"glass", "start"}, {"glass", "look"}, {"glass", "hoergenau-end"},
-            {"fancy", "start"}, {"fancy", "menu"}};
+            {"fancy", "start"}, {"fancy", "menu"}, {"minimal", "intro"}};
     /**
      * Then the demo once more with the new looks: outline, capitals and own colors, the rainbow with the bar's underline
      * and progress line, the three looks on the screen and three of the new presets; each photographed while a line is
@@ -477,6 +478,7 @@ public final class SelfTest {
             config.hudOffsetX = Integer.parseInt(barBefore[2]);
             config.hudOffsetY = Integer.parseInt(barBefore[3]);
             config.showHud = Boolean.parseBoolean(barBefore[4]);
+            config.theme = themeBefore != null ? themeBefore : config.theme;
         }
     }
 
@@ -497,7 +499,11 @@ public final class SelfTest {
                     minecraft.gui.screen().onClose();
                 }
                 config.menuStyle = style;
-                if (!(minecraft.gui.screen() instanceof GlassMenuScreen)) {
+                if ("intro".equals(shot)) {
+                    // The introduction to Hoergenau, as the first world with it shows it once; switching on is not
+                    // clicked here.
+                    minecraft.gui.setScreen(new HoergenauIntroScreen(config, (c, model) -> { }));
+                } else if (!(minecraft.gui.screen() instanceof GlassMenuScreen)) {
                     LyricsInTheSkyClient.openSettings(minecraft);
                 }
                 if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
@@ -521,6 +527,8 @@ public final class SelfTest {
             if (atSecond(at + 0.85)) {
                 if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
                     LOGGER.info("SELFTEST menu {} {}: {}", style, shot, menu.fits() ? "fits" : "TOO BIG");
+                } else if (minecraft.gui.screen() instanceof HoergenauIntroScreen intro) {
+                    LOGGER.info("SELFTEST menu {} {}: {}", style, shot, intro.fits() ? "fits" : "TOO BIG");
                 } else {
                     LOGGER.info("SELFTEST menu {} {}: NOT open", style, shot);
                 }
@@ -531,6 +539,8 @@ public final class SelfTest {
             if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
                 menu.show(null);
                 menu.onClose();
+            } else if (minecraft.gui.screen() instanceof HoergenauIntroScreen intro) {
+                intro.onClose();
             }
             config.menuStyle = menuStyleBefore != null ? menuStyleBefore : config.menuStyle;
         }

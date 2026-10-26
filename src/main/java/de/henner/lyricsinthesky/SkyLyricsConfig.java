@@ -160,6 +160,10 @@ public final class SkyLyricsConfig {
     public boolean shareLearned = true;
     /** The one-time chat note on sharing learned songs has been shown. */
     public boolean learnedNoticeShown = false;
+    /** The introduction to Hoergenau has been shown; it comes once, never again. */
+    public boolean hoergenauIntroShown = false;
+    /** The chat offer of the word time services ("Wortgenau") has been shown; it comes once, never again. */
+    public boolean wordTimesOffered = false;
     /** Up to 1.3.0-dev.3 the only word time service; only read to carry the choice over to {@link #wordSources}. */
     public boolean lyricsPlus = false;
     /**

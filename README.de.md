@@ -232,9 +232,10 @@ hat fünf Minuten Pause, sodass nichts hängt. Ohne LRCLIB-Songtext springt der 
 ### Hörgenau: Mithören für Songs, die kein Dienst kennt (nur Windows, aus bis du es einschaltest)
 
 Manche Songs hat niemand getimt, manche haben nirgends einen Songtext. Für die hört **Hörgenau** mit: Läuft so ein
-Song von Anfang an, nimmt die Mod den Ton deines Musikprogramms auf (Windows-Audio-Loopback, nur im
-Arbeitsspeicher), und lässt nach dem Song [whisper.cpp](https://github.com/ggml-org/whisper.cpp) die Wörter timen. Hat LRCLIB den Text
-ohne Zeiten, wird dieser Text auf die Aufnahme gelegt; gibt es keinen, wird das Gehörte zum Songtext. Ab dem
+Song, nimmt die Mod den Ton deines Musikprogramms auf, wo sie ihn noch nicht gehört hat (Windows-Audio-Loopback, nur
+im Arbeitsspeicher). Hörst du nur einen Teil, merkt sie sich die gehörten Wörter mit ihrer Songzeit und hört beim
+nächsten Mal den Rest dazu. Jedes Stück hört [whisper.cpp](https://github.com/ggml-org/whisper.cpp); sobald gut vier
+Fünftel des Songs gehört sind, wird er getimt. Hat LRCLIB den Text ohne Zeiten, wird dieser Text auf das Gehörte gelegt; gibt es keinen, wird das Gehörte zum Songtext. Ab dem
 nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte Zeilen, ersetzen die das Gelernte.
 
 - **Kosten:** einmal ca. 190 MB Download (whisper.cpp von GitHub, Modell „small“ von Hugging Face, beide mit fester

@@ -410,9 +410,9 @@ public final class GlassMenuScreen extends Screen {
                 new Toggle("Gelerntes teilen", "Nur die Wortzeiten, nie den Songtext, für alle Spieler",
                         c -> c.shareLearned, (c, on) -> c.shareLearned = on),
                 new Section("Genauer erklärt"),
-                new Explain("Songs lernen", "Hat niemand Wortzeiten für einen Song, hört die KI beim ersten Mal von "
-                        + "Anfang bis Ende mit. Lass ihn dafür einmal ganz durchlaufen, ohne zu spulen. Danach läuft er "
-                        + "Wort für Wort, auch bei allen weiteren Malen."),
+                new Explain("Songs lernen", "Hat niemand Wortzeiten für einen Song, hört die KI mit, wo er gerade "
+                        + "läuft. Hörst du nur einen Teil, merkt sie sich das Gehörte und hört beim nächsten Mal den "
+                        + "Rest dazu. Sobald sie fast alles kennt, läuft er Wort für Wort."),
                 new Explain("Sync prüfen", "Bei Songs mit Wortzeiten hört sie einmal 50 Sekunden zu. Kommen die Wörter "
                         + "zu früh oder zu spät, rückt sie den Song zurecht und sagt es dir oben rechts. Ist sie sich "
                         + "nicht sicher, lässt sie alles, wie es ist."),
