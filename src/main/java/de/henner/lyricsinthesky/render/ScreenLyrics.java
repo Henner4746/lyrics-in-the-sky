@@ -286,7 +286,8 @@ public final class ScreenLyrics implements HudElement {
                 graphics.text(look.font(), word, x + o[0], o[1], ring, false);
             }
         } else if (config.shadow > 0.01f) {
-            graphics.text(look.font(), word, x + 1, 1, ARGB.color(Math.min(1f, alpha * 0.45f * config.shadow), 0x0A0C18),
+            // Stronger than in the sky: on the screen the words stand before a bright sky or white snow alike.
+            graphics.text(look.font(), word, x + 1, 1, ARGB.color(Math.min(1f, alpha * 0.65f * config.shadow), 0x0A0C18),
                     false);
         }
         graphics.text(look.font(), word, x, 0, ARGB.color(alpha, color), false);

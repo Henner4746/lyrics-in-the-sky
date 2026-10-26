@@ -10,6 +10,22 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.12 – 2026-10-26
+
+- **The menu as it always looked, with every option** (new default, "Minimal"): all pages and options of the new menu
+  drawn in the old style – the plain half see-through panel (a pane of Liquid Glass in that theme), grey labels and
+  white values, the small switch with "An"/"Aus", thin sliders, choices in a row with the chosen one underlined,
+  compact rows, the hovered option explained in the line at the bottom, nothing moving. The glass menu and the lively
+  one stay a click away (page *Menü*, or `/skylyrics menu glass|fancy`).
+- **Lyrics on the screen** (display "Bildschirm"): *Untertitel* (the line at the bottom like a film's subtitles, the
+  word being sung in the accent), *Karaoke* (the line filling up with color word by word, the next one below) and
+  *Bühne* (big lines on the left as in Spotify's and Apple Music's lyrics, the line before and the next ones dimmed,
+  gliding up as the song goes on); at the bottom, in the middle or at the top, in any size, with a dark band behind if
+  wanted. Palette, own colors, outline, capitals, opacity, animation speed and pause apply as in the sky.
+- **14 presets instead of 6**, in every menu: Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro and
+  Schlicht join Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig and Glas. A preset now also resets outline, capitals,
+  shadow, animation speed, beat strength and the screen looks, so every preset looks the same each time.
+
 ### 1.3.0-dev.11 – 2026-10-26
 
 - **The glass menu** (new default, Right Shift): a black glass window over the blurred world. It opens on a card for

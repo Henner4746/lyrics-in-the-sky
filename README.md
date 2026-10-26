@@ -50,7 +50,12 @@ you.
 - **Wobble on the beat** (optional): every sung word gives the lyrics a little kick, long words a stronger one.
 - **Behind the hills or always visible:** in the sky the text stands behind mountains, trees and clouds like
   the sun; one switch puts it in front of everything instead.
-- **The glass menu on Right Shift** (new default): a black glass window over the blurred world with a card for
+- **Lyrics on the screen** as another display: as subtitles, as karaoke filling up word by word, or as big lines on
+  a stage like in Spotify's and Apple Music's lyrics view; at the bottom, in the middle or at the top.
+- **14 presets** set the whole look with one click: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas,
+  Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro and Schlicht.
+- **The menu on Right Shift** shows every page and option in the quiet look it always had ("Minimal", default) or as
+  the glass menu: a black glass window over the blurred world with a card for
   every part of the mod and switches right on the cards; each card opens a page with a **live preview** (a small
   night sky singing a sample line in your look), sections and rows with switches, sliders, choices and colors,
   "Auf Standard zurücksetzen" per page and a **live view** that steps the menu aside while the demo sings in the

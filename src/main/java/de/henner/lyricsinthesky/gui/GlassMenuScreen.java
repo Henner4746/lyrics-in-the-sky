@@ -192,7 +192,7 @@ public final class GlassMenuScreen extends Screen {
                 new Choice("Platz", "Wo die Texte auf dem Bildschirm stehen", SkyLyricsConfig.SCREEN_POSITIONS,
                         Map.of("bottom", "Unten", "center", "Mitte", "top", "Oben"), c -> c.screenPosition,
                         (c, v) -> c.screenPosition = v),
-                new Slider("Größe auf dem Bildschirm", "Wie groß die Texte auf dem Bildschirm sind", 0.6, 2, 0.05,
+                new Slider("Bildschirmgröße", "Wie groß die Texte auf dem Bildschirm sind", 0.6, 2, 0.05,
                         c -> c.screenScale, (c, v) -> c.screenScale = (float) v, GlassMenuScreen::percent),
                 new Toggle("Hintergrund", "Ein dunkles Band hinter den Texten wie bei Untertiteln", c -> c.screenBackground,
                         (c, on) -> c.screenBackground = on),
@@ -766,8 +766,7 @@ public final class GlassMenuScreen extends Screen {
         String hint = hovered == null ? null : hovered.hint();
         int w = x1 - x0 - 2 * PAD;
         if (hint != null && !hint.isEmpty()) {
-            List<FormattedCharSequence> lines = font.split(Component.literal(hint).withStyle(title), w);
-            graphics.text(font, lines.get(0), x0 + PAD, y + 5, 0xFFFFFFFF, false);
+            graphics.text(font, fit(hint, title, w), x0 + PAD, y + 5, 0xFFFFFFFF, false);
         } else {
             graphics.text(font, fit("Änderungen siehst du sofort, am Himmel und an der Leiste.", title, w), x0 + PAD, y + 5,
                     pDim(), false);
