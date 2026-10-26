@@ -473,6 +473,19 @@ public final class ScreenLyrics implements HudElement {
             int current, long positionMs, long lineEndMs, float fresh) {
         int y = anchorY(graphics, look, rows(look, words));
         float[][] places = places(graphics, look, words, y);
+        if (look.config().screenBackground) {
+            // The band behind the whole line from the start, so it does not grow letter by letter.
+            float left = graphics.guiWidth();
+            float right = 0;
+            float bottom = y;
+            for (float[] place : places) {
+                left = Math.min(left, place[0]);
+                right = Math.max(right, place[0] + place[2]);
+                bottom = Math.max(bottom, place[1] + look.lineHeight());
+            }
+            Glass.fill(graphics, Math.round(left) - 8, y - 4, Math.round(right) + 8, Math.round(bottom) + 2, 6,
+                    ARGB.color(look.alpha() * fresh * 0.55f, 0x000000));
+        }
         float cursorX = -1;
         float cursorY = y;
         for (int i = 0; i < words.length && i <= current; i++) {
@@ -540,24 +553,54 @@ public final class ScreenLyrics implements HudElement {
     /** "Kinetisch": each word pops up when it is sung, in its own size and slant, the newest in the accent. */
     private static void drawKinetic(GuiGraphicsExtractor graphics, Look look, String[] words, long[] times, int current,
             long positionMs, int lineIndex) {
-        int y = anchorY(graphics, look, rows(look, words) + 1);
-        float[][] places = places(graphics, look, words, y);
-        for (int i = 0; i <= current && i < words.length; i++) {
-            float size = 0.85f + 0.55f * Easing.hash(lineIndex * 31L + 7, i);
-            float slant = (Easing.hash(lineIndex * 17L + 3, i) - 0.5f) * 0.24f;
-            float pop = Easing.outBack(Easing.clamp01((positionMs - times[i]) / 1000f * look.config().animationSpeed / 0.2f));
-            float scale = look.scale() * size * (0.6f + 0.4f * pop);
-            float width = look.width(words[i]) * scale;
-            float cx = places[i][0] + places[i][2] / 2f;
-            float cy = places[i][1] + look.lineHeight() / 2f;
-            graphics.pose().pushMatrix();
-            graphics.pose().translate(cx, cy);
-            graphics.pose().rotate(slant * pop);
-            graphics.pose().translate(-width / 2f, -5.5f * scale);
-            graphics.pose().scale(scale, scale);
-            word(graphics, look, words[i], 0, i == current ? accentOf(look, i, words.length) : look.palette().text,
-                    look.alpha() * Easing.clamp01(pop * 1.5f));
-            graphics.pose().popMatrix();
+        // Every word has its own size, so the rows are laid out by those sizes, with room for the slant.
+        float[] sizes = new float[words.length];
+        for (int i = 0; i < words.length; i++) {
+            sizes[i] = look.scale() * (0.85f + 0.55f * Easing.hash(lineIndex * 31L + 7, i));
+        }
+        float gap = look.width(" ") * look.scale() * 1.6f;
+        float maxWidth = maxWidth();
+        List<int[]> rows = new ArrayList<>();
+        int start = 0;
+        float width = 0;
+        for (int i = 0; i < words.length; i++) {
+            float w = look.width(words[i]) * sizes[i];
+            if (i > start && width + gap + w > maxWidth) {
+                rows.add(new int[] {start, i});
+                start = i;
+                width = w;
+            } else {
+                width += (i > start ? gap : 0) + w;
+            }
+        }
+        rows.add(new int[] {start, words.length});
+        float rowHeight = look.lineHeight() * 1.5f;
+        float y = anchorY(graphics, look, Math.round(rows.size() * 1.5f) + 1) + rowHeight / 2f;
+        for (int[] row : rows) {
+            float rowWidth = 0;
+            for (int i = row[0]; i < row[1]; i++) {
+                rowWidth += look.width(words[i]) * sizes[i] + (i > row[0] ? gap : 0);
+            }
+            float x = (graphics.guiWidth() - rowWidth) / 2f;
+            for (int i = row[0]; i < row[1]; i++) {
+                float full = look.width(words[i]) * sizes[i];
+                if (i <= current) {
+                    float slant = (Easing.hash(lineIndex * 17L + 3, i) - 0.5f) * 0.24f;
+                    float pop = Easing.outBack(Easing.clamp01((positionMs - times[i]) / 1000f
+                            * look.config().animationSpeed / 0.2f));
+                    float scale = sizes[i] * (0.6f + 0.4f * pop);
+                    graphics.pose().pushMatrix();
+                    graphics.pose().translate(x + full / 2f, y);
+                    graphics.pose().rotate(slant * pop);
+                    graphics.pose().translate(-look.width(words[i]) * scale / 2f, -5.5f * scale);
+                    graphics.pose().scale(scale, scale);
+                    word(graphics, look, words[i], 0, i == current ? accentOf(look, i, words.length) : look.palette().text,
+                            look.alpha() * Easing.clamp01(pop * 1.5f));
+                    graphics.pose().popMatrix();
+                }
+                x += full + gap;
+            }
+            y += rowHeight;
         }
     }
 

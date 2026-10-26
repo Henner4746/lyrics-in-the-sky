@@ -50,16 +50,23 @@ you.
 - **Wobble on the beat** (optional): every sung word gives the lyrics a little kick, long words a stronger one.
 - **Behind the hills or always visible:** in the sky the text stands behind mountains, trees and clouds like
   the sun; one switch puts it in front of everything instead.
-- **Lyrics on the screen** as another display: as subtitles, as karaoke filling up word by word, or as big lines on
-  a stage like in Spotify's and Apple Music's lyrics view; at the bottom, in the middle or at the top.
-- **14 presets** set the whole look with one click: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas,
-  Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro and Schlicht.
+- **Lyrics on the screen** as another display, in eleven looks: subtitles (*Untertitel*), karaoke filling up word by
+  word, big lines on a stage (*Bühne*) like in Spotify's and Apple Music's lyrics view, only the word being sung big
+  (*Ein Wort*), typed letter by letter (*Schreibmaschine*), running by like a news ticker (*Laufband*), a ball hopping
+  from word to word (*Springender Ball*), words rolling like a wave (*Welle*), a column at the right edge
+  (*Seitenleiste*), words popping up in their own size and slant (*Kinetisch*) or speech bubbles like in a messenger
+  (*Chat*); at the bottom, in the middle or at the top.
+- **22 presets** set the whole look with one click: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas,
+  Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro, Schlicht, Ein Wort, Schreibmaschine, Laufband,
+  Karaoke-Ball, Welle, Seitenleiste, Kinetisch and Chat.
 - **The menu on Right Shift** shows every page and option in the quiet look it always had ("Minimal", default) or as
   the glass menu: a black glass window over the blurred world with a card for
   every part of the mod and switches right on the cards; each card opens a page with a **live preview** (a small
   night sky singing a sample line in your look), sections and rows with switches, sliders, choices and colors,
   "Auf Standard zurücksetzen" per page and a **live view** that steps the menu aside while the demo sings in the
-  sky. The lively and the minimal menu stay one click away (page *Menü*).
+  sky. A third look, *Prachtvoll*, adds an aurora, rising notes and light on the rim. All three looks have the same
+  pages and options, also the page *Menü* to switch between them, and options that do not apply right now (the screen
+  options without the screen display, say) are not shown.
 - **Make it yours:** capitals, animation speed, how strongly it wobbles on the beat, what happens on pause (dim, fade
   out, keep), lyrics further left or right; the bar's own accent color, a progress line, artist and equalizer on or
   off, how the sung word is marked (box, color, underline) and the bar's own font; the menu's accent color, blur and

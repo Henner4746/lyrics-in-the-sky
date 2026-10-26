@@ -26,18 +26,18 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 
 - **In the sky:** word groups of different sizes build up each line close above the horizon, on staggered, gently rising rows, so the line reads with depth. Every group fades in as it is sung. Like the sun, it stands behind everything: mountains, trees, houses and clouds are in front of it.
 - **Around you:** every sung word floats on its own at a fixed spot near you – big, slanted, slightly turned – and stays where it is while you walk or fight, until it fades out a couple of seconds later.
-- **On the screen** (*Bildschirm*): *Untertitel* (subtitles: the line at the bottom, the word being sung in color), *Karaoke* (the line fills with color word by word, the next one below) or *Bühne* (stage: big lines on the left as in music apps, gliding up as the song goes on) – at the bottom, in the middle or at the top, in any size.
+- **On the screen** (*Bildschirm*), in eleven looks: *Untertitel* (subtitles, the word being sung in color), *Karaoke* (the line fills with color word by word), *Bühne* (stage: big lines on the left as in music apps), *Ein Wort* (only the word being sung, big), *Schreibmaschine* (typed letter by letter), *Laufband* (running by like a news ticker), *Springender Ball* (a ball hopping from word to word), *Welle* (the sung words rolling like a wave), *Seitenleiste* (a column at the right edge), *Kinetisch* (each word popping up in its own size and slant) or *Chat* (speech bubbles like in a messenger) – at the bottom, in the middle or at the top, in any size.
 
 ## Features
 
 - Lyrics synced word by word: exact word timing when the lyrics have it, otherwise at the pace the song is sung; skipping within a song shows up at once
-- A settings menu on **Right Shift** with every option on its own page and a live preview, in three looks: *Minimal* (the plain panel, default), *Glas* (a black glass window over the blurred world) or *Prachtvoll* (lively, with an aurora)
-- 14 presets that set the whole look with one click: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas, Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro and Schlicht
+- A settings menu on **Right Shift** with every option on its own page and a live preview, in three looks with the same options: *Minimal* (the plain panel, default), *Glas* (a black glass window over the blurred world) or *Prachtvoll* (the glass window with an aurora); options that do not apply right now are not shown
+- 22 presets that set the whole look with one click: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas, Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro, Schlicht, Ein Wort, Schreibmaschine, Laufband, Karaoke-Ball, Welle, Seitenleiste, Kinetisch and Chat
 - Make it yours: gradient palettes, a rainbow or your own colors with a color picker; outline, shadow, glow, capitals; Modern (Poppins), handwriting (Kalam) or the Minecraft font; size, height, opacity, animation speed, a kick on the beat, what happens on pause, lyrics further left or right
 - A "now playing" bar you can drag anywhere, in four looks (pill, karaoke, plain, title only), with an optional progress line, artist, equalizer and the sung word highlighted
 - Timing per song: a song that runs early or late is fixed with one slider, and corrections many players agreed on apply for everyone (optional, see below)
 - More songs word by word with *Wortgenau*: optional word-time services, off until you switch them on (see below)
-- *Hörgenau* (Windows, optional): a speech AI listens on your PC and times songs no service has timed, and checks that word-timed songs are in sync with what you hear (see below)
+- *Hörgenau* (Windows, optional): a speech AI listens on your PC and times songs no service has timed – also when you hear them in parts on different days – and checks that word-timed songs are in sync with what you hear (see below); a short introduction explains it once
 - Streamer mode: explicit words in lyrics, titles and artists shown as "F***"
 - Works without any login for music on your PC; an optional Spotify login also covers your phone, console or other Spotify Connect devices
 - Lyrics found once are kept on your PC, so a song heard before shows them at once, even when LRCLIB is busy or you are offline
@@ -54,7 +54,7 @@ Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|aroun
 
 ## Hörgenau: the AI that listens (Windows, off until you switch it on)
 
-Some songs nobody has timed word by word. With *Hörgenau* on, the mod listens while such a song plays from its start and lets [whisper.cpp](https://github.com/ggml-org/whisper.cpp) – OpenAI's Whisper speech recognition, running on your own PC – find when each word is sung. From the next play on, the song runs word by word. For songs that already have word times, it listens once for 50 seconds and moves the lyrics when they come too early or too late.
+Some songs nobody has timed word by word. With *Hörgenau* on, the mod listens while such a song plays – if you hear only part of it, it keeps what it heard and hears the rest the next time – and lets [whisper.cpp](https://github.com/ggml-org/whisper.cpp) – OpenAI's Whisper speech recognition, running on your own PC – find when each word is sung. From the next play on, the song runs word by word. For songs that already have word times, it listens once for 50 seconds and moves the lyrics when they come too early or too late.
 
 - **Only your music app is heard:** it records only the sound of the app playing the song (Windows' process loopback, Windows 10 2004 and newer) – not voice chat, videos in other apps or the game. Where Windows cannot tell the app apart, it records what the PC plays.
 - **Nothing leaves your PC:** the recording stays in memory and is never uploaded.
@@ -120,13 +120,13 @@ Not affiliated with Mojang, Microsoft, Spotify, Amazon, Deezer, Apple, NetEase, 
 
 ## Changelog 1.3.0 (for the file upload)
 
-- Three ways to show lyrics: in the sky, around you, and new on the screen as subtitles, karaoke or a stage
-- New settings menu with every option on its own page and a live preview, in three looks (Minimal by default, Glas, Prachtvoll)
-- 14 presets and many new options: own colors and a color picker, rainbow, outline, shadow, capitals, animation speed, beat kick, pause behavior and more
+- Three ways to show lyrics: in the sky, around you, and new on the screen in eleven looks, from subtitles and karaoke to a news ticker, a hopping ball and speech bubbles
+- New settings menu with every option on its own page and a live preview, in three looks with the same options (Minimal by default, Glas, Prachtvoll); options that do not apply are hidden
+- 22 presets and many new options: own colors and a color picker, rainbow, outline, shadow, capitals, animation speed, beat kick, pause behavior and more
 - The now-playing bar can be dragged anywhere and comes in four looks, with progress line, artist and equalizer
 - Timing per song with one slider; corrections many players agreed on apply for everyone (optional)
 - Wortgenau: optional word-time services for many more songs word by word (off until you switch them on)
-- Hörgenau (Windows, optional): a speech AI on your PC times songs nobody has timed and checks the sync of word-timed songs; it hears only your music app, and shares only word times, never lyrics
+- Hörgenau (Windows, optional): a speech AI on your PC times songs nobody has timed, also heard in parts on different days, and checks the sync of word-timed songs; it hears only your music app, shares only word times, never lyrics, and introduces itself once
 - Streamer mode hides explicit words
 - More songs get lyrics: titles are also tried without version notes
 - Works with shader packs, lyrics kept on your PC, and many fixes

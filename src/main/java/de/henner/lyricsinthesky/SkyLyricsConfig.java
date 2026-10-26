@@ -644,6 +644,8 @@ public final class SkyLyricsConfig {
                 screenStyle = "sidebar";
                 screenPosition = "center";
                 palette = "lavender";
+                outline = true;
+                outlineColor = 0x1A1030;
                 showHud = false;
             }
             case "kinetic" -> {

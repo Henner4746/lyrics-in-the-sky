@@ -10,6 +10,30 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.16 – 2026-10-26
+
+- **One menu, three looks, the same options everywhere**: *Prachtvoll* is now a look of the one menu – the glass
+  window with an aurora, rising notes and light on its rim – with exactly the pages and options of *Minimal* and
+  *Glas*, so every look can switch back on the page *Menü*. The old lively menu, whose look switch hid at the bottom of
+  a page, is gone.
+- **Only the options that apply**: the screen options show only with the display "Bildschirm", height and "behind the
+  hills" only in the sky, own colors only with the own palette, contour settings only with the contour, the bar's
+  settings only with the bar on, the glass settings not in *Minimal*.
+- **Eight more looks on the screen**, eleven in all: *Ein Wort* (only the word being sung, big), *Schreibmaschine*
+  (typed letter by letter with the singing), *Laufband* (a news ticker, the sung word always at one spot),
+  *Springender Ball* (a ball hopping from word to word), *Welle* (the sung words rolling), *Seitenleiste* (a column at
+  the right edge), *Kinetisch* (each word popping up in its own size and slant) and *Chat* (speech bubbles, taking
+  turns left and right). Each has a preset: 22 presets in all.
+- **Hörgenau learns songs in parts**: it listens wherever a song plays and was not heard yet, not only from its start.
+  A part that ends early – another song, a pause, a skip – is heard and kept with the words' times in the song, and
+  the rest is heard the next time it plays; with four fifths heard, the song is learned from all parts. Tested with a
+  song with hand-made timings heard on two "days": every line within a second, the median 71 ms (*Schnell*) and 54 ms
+  (*Genau*) off.
+- **Hörgenau introduces itself, once**: a few seconds into the first world, on Windows, a short introduction says what
+  the AI does, what it hears and keeps and what it costs, with a button for each model and one for later. It never
+  comes again, also not after an update; the chat offers that came every session are gone (Hörgenau) or come once
+  (Wortgenau).
+
 ### 1.3.0-dev.15 – 2026-10-26
 
 - **Only word times are shared, never lyrics**: what Hörgenau learned on lrclib.net's text goes to the tracker on

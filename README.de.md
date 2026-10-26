@@ -53,17 +53,24 @@ als einzelne Wörter, die rund um dich schweben.
   stärkeren.
 - **Hinter Bergen oder immer sichtbar:** Am Himmel steht die Schrift wie die Sonne hinter Bergen, Bäumen und
   Wolken; ein Schalter holt sie vor alles.
-- **Songtexte auf dem Bildschirm** als weitere Anzeige: als Untertitel, als Karaoke, das sich Wort für Wort füllt,
-  oder als große Zeilen auf einer Bühne wie bei Spotify und Apple Music; unten, in der Mitte oder oben.
-- **14 Vorlagen** setzen den ganzen Look mit einem Klick: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas,
-  Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro und Schlicht.
+- **Songtexte auf dem Bildschirm** als weitere Anzeige, in elf Looks: als Untertitel, als Karaoke, das sich Wort für
+  Wort füllt, als große Zeilen auf einer Bühne wie bei Spotify und Apple Music, nur das gesungene Wort groß
+  („Ein Wort“), Buchstabe für Buchstabe getippt („Schreibmaschine“), als Nachrichtenticker („Laufband“), mit einem
+  Ball, der von Wort zu Wort hüpft („Springender Ball“), als Welle, als Spalte am rechten Rand („Seitenleiste“), mit
+  Wörtern in eigener Größe und Neigung („Kinetisch“) oder als Sprechblasen wie im Messenger („Chat“); unten, in der
+  Mitte oder oben.
+- **22 Vorlagen** setzen den ganzen Look mit einem Klick: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas,
+  Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro, Schlicht, Ein Wort, Schreibmaschine, Laufband,
+  Karaoke-Ball, Welle, Seitenleiste, Kinetisch und Chat.
 - **Das Menü auf der rechten Umschalttaste** zeigt alle Seiten und Optionen im ruhigen Look wie immer („Minimal“,
   Standard) oder als Glas-Menü: ein schwarzes Glasfenster über der weichgezeichneten
   Welt mit einer Karte für jeden Teil der Mod und Schaltern direkt auf den Karten; jede Karte öffnet eine Seite mit
   **Live-Vorschau** (ein kleiner Nachthimmel singt eine Beispielzeile in deinem Look), Abschnitten und Zeilen mit
   Schaltern, Reglern, Auswahl und Farben, „Auf Standard zurücksetzen“ je Seite und einer **Live-Ansicht**, bei der das
-  Menü zur Seite tritt, während die Demo am Himmel singt. Das prachtvolle und das minimale Menü bleiben einen Klick
-  entfernt (Seite *Menü*).
+  Menü zur Seite tritt, während die Demo am Himmel singt. Ein dritter Look, „Prachtvoll“, legt Polarlicht, aufsteigende
+  Noten und Licht am Rand dazu. Alle drei Looks haben dieselben Seiten und Optionen, auch die Seite *Menü* zum
+  Umschalten, und Optionen, die gerade nicht gelten (etwa die Bildschirm-Optionen ohne Anzeige „Bildschirm“), werden
+  ausgeblendet.
 - **Ganz nach deinem Geschmack:** Großbuchstaben, Animationstempo, wie stark es im Takt wackelt, was bei Pause passiert
   (abdunkeln, ausblenden, weiter zeigen), die Texte weiter links oder rechts; die eigene Akzentfarbe der Leiste, eine
   Fortschrittslinie, Künstler und Equalizer an oder aus, wie das gesungene Wort markiert ist (hinterlegt, Farbe, Linie)
