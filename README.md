@@ -225,7 +225,8 @@ LRCLIB lyrics, the first service that has the song stands in.
 ### Hörgenau: listening for songs no service knows (Windows only, off until you switch it on)
 
 Some songs nobody has timed, some have no lyrics anywhere. For those **Hörgenau** listens: when such a song plays
-from its start, the mod records what your PC plays (Windows audio loopback, in memory only) and after the song lets
+from its start, the mod records the sound of your music app (Windows audio loopback, in memory only) and after the
+song lets
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) time the words. If LRCLIB has the text without times, that text
 is placed on the recording; if there is none, what was heard becomes the lyrics. From the next play on the song runs
 word by word. If LRCLIB gets real lines later, they replace what was learned.
@@ -248,19 +249,26 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   the median, 71–88 % of them less than 200 ms and 91–100 % less than a second. Played through the speakers while the
   game ran, the pop song was learned in 55 s with line starts 60 ms off in the median. Stretches Whisper misses on the
   whole song are heard once more on their own; words it still does not understand are placed between their neighbours.
-- **Only the song may be playing:** while another player sounds too (a video in the browser), Hörgenau does not listen
-  or throws the recording away. Sounds no player reports, such as voice chat, it cannot tell apart: for a song without
-  known text they end up in the lyrics; with known text such a recording no longer matches and is thrown away.
+- **Only the player is heard:** Hörgenau records only the sound of the app playing the song (Spotify, say), through
+  Windows' process loopback (Windows 10 2004 and newer). Voice chat, videos in other apps and the game's own sounds
+  stay out. Measured on Windows 11: a test tone from another program was 8354 loud in the recording of everything and
+  12 in Spotify's; a voice talking over the song was written down by Whisper only from the recording of everything.
+  When Windows cannot find the player, or its sound stays silent while the PC plays something, Hörgenau records
+  everything as before. Then: while another player sounds too (a video in the browser), it does not listen or throws
+  the recording away, and voice chat it cannot tell apart.
+- **Quiet recordings, made-up lines:** the player's own sound comes without what Windows raises afterwards and was up
+  to 17 dB quieter; Hörgenau makes it louder before Whisper hears it (*Genau* otherwise heard only a made-up line in it,
+  and the whole song after). Lines Whisper makes up from subtitles ("Untertitel im Auftrag des ZDF") are dropped.
 - **What it learns counts for everyone:** a learned song is shared through the tracker on henrik.click, and songs
   other players learned run word by word here at once, without listening. The tracker checks text placed on
   lrclib.net's lyrics against lrclib.net itself; lyrics written down as heard count once players on two networks heard
   alike. On by default; "Teilen" on the page *Quellen* or `/skylyrics sharelearned off` switches it off.
-- **Privacy:** it hears everything that plays on the default speakers, voice chat included, while such a song plays
-  (and for the 50 s of a sync check).
+- **Privacy:** it hears the sound of your music app, where that cannot be told apart everything that plays on the
+  default speakers, voice chat included, while such a song plays (and for the 50 s of a sync check).
   The recording never leaves the PC and does not stay on disk, except briefly as a file for whisper.cpp that is
   deleted right after. With sharing on, the learned lyrics (text and word times) go to the tracker.
-- Switch it on on the page *Quellen* ("Hörgenau"), with `/skylyrics hoergenau on`, or with the button the mod offers
-  in chat when a song has no word times. A note in the corner tells what it is doing; while it records the playing
+- Switch it on on the page *Hörgenau (KI)* of the menu, which also explains step by step what the AI does, with
+  `/skylyrics hoergenau on`, or with the button the mod offers in chat when a song has no word times. A note in the corner tells what it is doing; while it records the playing
   song, the bar's icon is a red recording light.
 
 ## Privacy and fair use

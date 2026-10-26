@@ -104,6 +104,21 @@ public final class WhisperEngine {
      * sung lines took 0.5–1.3 s. A line of three words or more faster than this per word was not sung.
      */
     static final long UNSUNG_MS_PER_WORD = 60;
+    /**
+     * Lines Whisper makes up from the subtitles it learned from, never sung: credits of German TV subtitles ("WDR
+     * mediagroup GmbH im Auftrag des WDR", heard over a whole quiet recording) and video endings.
+     */
+    private static final Pattern MADE_UP = Pattern.compile("untertitel\\w*\\b.*\\b(zdf|ard|wdr|ndr|swr|br|funk|amara"
+            + "|auftrag|community)|wdr mediagroup|im auftrag des (wdr|zdf|ndr|swr|br|mdr|hr)\\b|amara ?org"
+            + "|(vielen )?dank(e)? f(ue|u|ü)rs zu(schauen|sehen)|thanks? (you )?for watching|subtitles by");
+    /**
+     * Recordings are made as loud as this before Whisper hears them (the 99.9th percentile of the samples): only the
+     * player's own sound comes without what Windows adds afterwards, and was measured 17 dB quieter than all the PC
+     * plays. Whisper "Genau" heard nothing but a made-up line in it, and the whole song once it was louder.
+     */
+    static final int LOUD = 29_500;
+    /** More than this is not added: a recording this quiet is silence, and noise should stay noise. */
+    static final double MAX_GAIN = 20;
     private static final Pattern DETECTED = Pattern.compile("auto-detected language: ([a-z]{2,3}) \\(p = ([0-9.]+)\\)");
 
     /** One word Whisper heard, with its start in ms from the start of the audio. */
@@ -368,6 +383,9 @@ public final class WhisperEngine {
                 words.add(new Heard(utf8(word), start));
             }
             words = withoutTags(words);
+            if (madeUp(words)) {
+                continue;
+            }
             if (words.size() >= 3) {
                 LongSummaryStatistics times = words.stream().mapToLong(Heard::startMs).summaryStatistics();
                 if (times.getMax() - times.getMin() < UNSUNG_MS_PER_WORD * (words.size() - 1)) {
@@ -407,6 +425,33 @@ public final class WhisperEngine {
         return kept;
     }
 
+    /** Whether a whole line is one Whisper makes up, never sung (see {@link #MADE_UP}). */
+    static boolean madeUp(List<Heard> words) {
+        StringBuilder line = new StringBuilder();
+        for (Heard word : words) {
+            line.append(' ').append(word.text().toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]", ""));
+        }
+        return !words.isEmpty() && MADE_UP.matcher(line.toString().replaceAll(" +", " ").strip()).find();
+    }
+
+    /** How much louder the samples are made for Whisper: up to {@link #LOUD}, never quieter, at most {@link #MAX_GAIN}. */
+    static double gain(short[] samples, int from, int count) {
+        if (count <= 0) {
+            return 1;
+        }
+        int[] histogram = new int[32_769];
+        for (int i = from; i < from + count; i++) {
+            histogram[Math.abs((int) samples[i])]++;
+        }
+        long below = 0;
+        long wanted = (long) Math.ceil(count * 0.999);
+        int level = 0;
+        while (level < histogram.length - 1 && below + histogram[level] < wanted) {
+            below += histogram[level++];
+        }
+        return level == 0 ? 1 : Math.max(1, Math.min(MAX_GAIN, (double) LOUD / level));
+    }
+
     /** A word read byte by byte, as text; a letter Whisper left unfinished becomes the replacement character. */
     private static String utf8(CharSequence bytes) {
         return new String(bytes.toString().getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
@@ -424,8 +469,9 @@ public final class WhisperEngine {
                 .putInt(LoopbackRecorder.RATE).putInt(LoopbackRecorder.RATE * 2).putShort((short) 2).putShort((short) 16)
                 .put("data".getBytes(StandardCharsets.US_ASCII)).putInt(count * 2);
         ByteBuffer data = ByteBuffer.allocate(count * 2).order(ByteOrder.LITTLE_ENDIAN);
+        double gain = gain(samples, from, count);
         for (int i = 0; i < count; i++) {
-            data.putShort(samples[from + i]);
+            data.putShort((short) Math.max(-32_768, Math.min(32_767, Math.round(samples[from + i] * gain))));
         }
         try (OutputStream out = Files.newOutputStream(path)) {
             out.write(header.array());

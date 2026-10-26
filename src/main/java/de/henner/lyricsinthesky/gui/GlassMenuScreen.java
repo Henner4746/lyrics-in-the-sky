@@ -388,19 +388,40 @@ public final class GlassMenuScreen extends Screen {
         return List.of(
                 new Info("Status", () -> !supported ? "Hörgenau gibt es nur unter Windows."
                         : !config.hoergenau ? "Aus. Schalte es ein, die KI lädt sich einmalig." : hoergenauStatus()),
+                new Explain("Was ist das?", "Eine Sprach-KI (Whisper), die auf deinem PC mithört und erkennt, wann "
+                        + "welches Wort gesungen wird. Sie läuft nur bei dir: Die Aufnahme bleibt im Arbeitsspeicher und "
+                        + "verlässt deinen PC nie."),
                 new Section("KI"),
                 new Toggle("Hörgenau", "Hört mit und timt Songs ohne Wortzeiten", c -> c.hoergenau,
                         (c, on) -> LyricsInTheSkyClient.setHoergenau(c, on)),
                 new Toggle("Sync prüfen", "Hört kurz mit und rückt Texte genau auf den Gesang", c -> c.hoergenauSyncCheck,
                         (c, on) -> c.hoergenauSyncCheck = on),
-                new Choice("Modell", "Schnell: 190 MB · Genau: hört besser, 574 MB", SkyLyricsConfig.HOERGENAU_MODELS,
-                        Map.of("small", "Schnell", "turbo", "Genau"), c -> c.hoergenauModel, (c, v) -> c.hoergenauModel = v),
+                new Choice("Modell", "Schnell: 190 MB, ~15 s · Genau: hört mehr, 574 MB, ~1 min",
+                        SkyLyricsConfig.HOERGENAU_MODELS, Map.of("small", "Schnell", "turbo", "Genau"),
+                        c -> c.hoergenauModel, (c, v) -> c.hoergenauModel = v),
                 new Choice("Leistung", "Wie viel vom PC die KI nutzen darf", SkyLyricsConfig.HOERGENAU_POWERS,
                         Map.of("low", "Sparsam", "normal", "Normal", "high", "Schnell"), c -> c.hoergenauPower,
                         (c, v) -> c.hoergenauPower = v),
                 new Section("Teilen"),
                 new Toggle("Gelerntes teilen", "Gelernte Songs gelten für alle Spieler", c -> c.shareLearned,
-                        (c, on) -> c.shareLearned = on));
+                        (c, on) -> c.shareLearned = on),
+                new Section("Genauer erklärt"),
+                new Explain("Songs lernen", "Hat niemand Wortzeiten für einen Song, hört die KI beim ersten Mal von "
+                        + "Anfang bis Ende mit. Lass ihn dafür einmal ganz durchlaufen, ohne zu spulen. Danach läuft er "
+                        + "Wort für Wort, auch bei allen weiteren Malen."),
+                new Explain("Sync prüfen", "Bei Songs mit Wortzeiten hört sie einmal 50 Sekunden zu. Kommen die Wörter "
+                        + "zu früh oder zu spät, rückt sie den Song zurecht und sagt es dir oben rechts. Ist sie sich "
+                        + "nicht sicher, lässt sie alles, wie es ist."),
+                new Explain("Was sie hört", "Nur dein Musikprogramm, zum Beispiel Spotify. Discord, Videos und die "
+                        + "Geräusche des Spiels hört sie nicht. Findet Windows das Programm nicht, hört sie alles, was "
+                        + "dein PC abspielt; dann am besten nebenher nicht reden."),
+                new Explain("Schnell oder Genau?", "Schnell lädt 190 MB und braucht für 50 Sekunden Musik etwa 15 "
+                        + "Sekunden. Genau lädt 574 MB, versteht mehr Wörter, gerade bei Rap und lauter Musik, und braucht "
+                        + "etwa eine Minute. Beides rechnet im Hintergrund mit niedriger Priorität, das Spiel läuft weiter."),
+                new Explain("Leistung", "Wie viele Prozessorkerne die KI nutzen darf: Sparsam zwei, Normal bis zu vier, "
+                        + "Schnell alle bis auf einen. Mehr Kerne, schneller fertig."),
+                new Explain("Woran du es siehst", "Ein roter Punkt vorn in der Leiste: Die KI hört gerade mit. Drei "
+                        + "gelbe Punkte: Sie rechnet. Was sie gerade tut, steht oben unter Status."));
     }
 
     private String hoergenauStatus() {
@@ -1196,6 +1217,38 @@ public final class GlassMenuScreen extends Screen {
                 Component c = Component.literal(String.valueOf(letter)).withStyle(label);
                 graphics.text(font, c, cursor, y + 8, ARGB.color(alpha, SECTION_TEXT), false);
                 cursor += font.width(c) + 1;
+            }
+        }
+    }
+
+    /** An explanation in full: its name, and the text wrapped below it in as many lines as it takes. */
+    private final class Explain extends Row {
+        private final String name;
+        private final String text;
+
+        Explain(String name, String text) {
+            this.name = name;
+            this.text = text;
+        }
+
+        private List<FormattedCharSequence> lines() {
+            return font.split(Component.literal(text).withStyle(plain() ? title : small), x1 - x0 - 2 * PAD);
+        }
+
+        @Override
+        int height() {
+            return (plain() ? 15 : 19) + lines().size() * 10 + 5;
+        }
+
+        @Override
+        void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            boolean plain = plain();
+            graphics.text(font, Component.literal(name).withStyle(plain ? title : label), x, y + (plain ? 3 : 5),
+                    plain ? P_HOVER : ARGB.color(alpha, TEXT), false);
+            int line = y + (plain ? 15 : 19);
+            for (FormattedCharSequence text : lines()) {
+                graphics.text(font, text, x, line, plain ? pDim() : ARGB.color(alpha, DESC), false);
+                line += 10;
             }
         }
     }

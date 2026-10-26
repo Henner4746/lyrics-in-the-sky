@@ -95,8 +95,8 @@ public final class SelfTest {
     private static final String[][] GLASS_MENU_SHOTS = {{"minimal", "start"}, {"minimal", "display"},
             {"minimal", "display-end"}, {"minimal", "look"}, {"minimal", "look-end"}, {"minimal", "motion"},
             {"minimal", "bar"}, {"minimal", "timing"}, {"minimal", "sources"}, {"minimal", "hoergenau"},
-            {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"}, {"minimal", "picker"},
-            {"glass", "start"}, {"glass", "look"}};
+            {"minimal", "hoergenau-end"}, {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"},
+            {"minimal", "picker"}, {"glass", "start"}, {"glass", "look"}, {"glass", "hoergenau-end"}};
     /**
      * Then the demo once more with the new looks: outline, capitals and own colors, the rainbow with the bar's underline
      * and progress line, the three looks on the screen and three of the new presets; each photographed while a line is
@@ -555,7 +555,7 @@ public final class SelfTest {
                 if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
                     switch (shot) {
                         case "start" -> menu.show(null);
-                        case "look-end", "display-end" -> {
+                        case "look-end", "display-end", "hoergenau-end" -> {
                             menu.show(shot.substring(0, shot.indexOf('-')));
                             menu.scrollToEnd();
                         }

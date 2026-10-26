@@ -232,8 +232,8 @@ hat fünf Minuten Pause, sodass nichts hängt. Ohne LRCLIB-Songtext springt der 
 ### Hörgenau: Mithören für Songs, die kein Dienst kennt (nur Windows, aus bis du es einschaltest)
 
 Manche Songs hat niemand getimt, manche haben nirgends einen Songtext. Für die hört **Hörgenau** mit: Läuft so ein
-Song von Anfang an, nimmt die Mod auf, was dein PC abspielt (Windows-Audio-Loopback, nur im Arbeitsspeicher), und
-lässt nach dem Song [whisper.cpp](https://github.com/ggml-org/whisper.cpp) die Wörter timen. Hat LRCLIB den Text
+Song von Anfang an, nimmt die Mod den Ton deines Musikprogramms auf (Windows-Audio-Loopback, nur im
+Arbeitsspeicher), und lässt nach dem Song [whisper.cpp](https://github.com/ggml-org/whisper.cpp) die Wörter timen. Hat LRCLIB den Text
 ohne Zeiten, wird dieser Text auf die Aufnahme gelegt; gibt es keinen, wird das Gehörte zum Songtext. Ab dem
 nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte Zeilen, ersetzen die das Gelernte.
 
@@ -256,19 +256,26 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   das Spiel lief, war der Pop-Song nach 55 s gelernt, die Zeilenanfänge im Median 60 ms daneben. Stellen, die Whisper
   im ganzen Song verpasst, werden einzeln noch einmal abgehört; was es dann noch nicht versteht, wird zwischen den
   Nachbarwörtern geschätzt.
-- **Nur der Song darf laufen:** Spielt ein anderer Player mit (ein Video im Browser), hört Hörgenau nicht mit oder
-  verwirft die Aufnahme. Geräusche, die kein Player meldet, etwa Sprachchat, kann es nicht unterscheiden: Bei einem
-  Song ohne bekannten Text landen sie im Songtext; mit bekanntem Text passt so eine Aufnahme nicht mehr und wird
-  verworfen.
+- **Nur der Player wird gehört:** Hörgenau nimmt nur den Ton des Programms auf, das den Song spielt (etwa Spotify),
+  über Windows' Process Loopback (ab Windows 10 2004). Sprachchat, Videos in anderen Programmen und die Geräusche des
+  Spiels bleiben draußen. Auf Windows 11 gemessen: Ein Prüfton aus einem anderen Programm war in der Aufnahme von allem
+  8354 laut, in der von Spotify 12; eine Stimme, die dazwischenredete, schrieb Whisper nur aus der Aufnahme von allem
+  ab. Findet Windows den Player nicht, oder bleibt sein Ton stumm, während der PC etwas spielt, nimmt Hörgenau wie
+  früher alles auf. Dann gilt: Spielt ein anderer Player mit (ein Video im Browser), hört es nicht mit oder verwirft
+  die Aufnahme, und Sprachchat kann es nicht unterscheiden.
+- **Leise Aufnahmen, erfundene Zeilen:** Der Ton des Players allein kommt ohne das, was Windows danach noch anhebt, und
+  war bis 17 dB leiser; Hörgenau macht ihn vor Whisper lauter (*Genau* hörte darin sonst nur eine erfundene Zeile,
+  danach den ganzen Song). Zeilen, die Whisper aus Untertiteln erfindet („Untertitel im Auftrag des ZDF“), verwirft
+  es.
 - **Gelerntes gilt für alle:** Ein gelernter Song wird über den Tracker auf henrik.click geteilt, und Songs, die andere
   gelernt haben, laufen hier sofort Wort für Wort, ohne Mithören. Text, der auf den Songtext von lrclib.net gelegt
   wurde, prüft der Tracker selbst bei lrclib.net; Abgeschriebenes gilt, sobald Spieler aus zwei Netzen es ähnlich
   gehört haben. Von Anfang an an; „Teilen“ auf der Seite *Quellen* oder `/skylyrics sharelearned off` schaltet es ab.
-- **Datenschutz:** Mitgehört wird alles, was über den Standardlautsprecher läuft, also auch Sprachchat, solange so ein
-  Song läuft (und für die 50 s einer Sync-Prüfung). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
+- **Datenschutz:** Mitgehört wird der Ton des Musikprogramms, wo das nicht geht alles, was über den
+  Standardlautsprecher läuft, also auch Sprachchat, solange so ein Song läuft (und für die 50 s einer Sync-Prüfung). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
   die gleich danach gelöscht wird. Mit „Teilen“ geht der gelernte Songtext (Text und Wortzeiten) an den Tracker.
-- Einschalten auf der Seite *Quellen* („Hörgenau“), mit `/skylyrics hoergenau on` oder mit dem Knopf, den die Mod im
-  Chat anbietet, wenn ein Song keine Wortzeiten hat. Ein kleiner Hinweis in der Ecke sagt, was es gerade tut; während
+- Einschalten auf der Seite *Hörgenau (KI)* im Menü, die auch Schritt für Schritt erklärt, was die KI tut, mit
+  `/skylyrics hoergenau on` oder mit dem Knopf, den die Mod im Chat anbietet, wenn ein Song keine Wortzeiten hat. Ein kleiner Hinweis in der Ecke sagt, was es gerade tut; während
   es den laufenden Song aufnimmt, ist das Symbol der Leiste ein rotes Aufnahmelicht.
 
 ## Datenschutz und faire Nutzung

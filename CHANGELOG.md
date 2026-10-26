@@ -10,6 +10,25 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.14 – 2026-10-26
+
+- **Hörgenau hears only the music player**: instead of everything the PC plays, it records only the sound of the app
+  playing the song (Windows' process loopback, Windows 10 2004 and newer) – voice chat, videos in other apps and
+  Minecraft's own sounds stay out of what Whisper hears, and out of lyrics it writes down. For its first three seconds
+  it also hears everything; when the player's own sound stays silent while the PC plays something, or the player
+  cannot be found, it records everything as before. The log says which (`Hoergenau records only Spotify.exe#…`).
+  Tested on Windows 11 with Spotify from the Store: a test tone from another program was 8354 loud in the recording
+  of everything and 12 in Spotify's; a Windows voice talking over the song was written down by Whisper only from the
+  recording of everything.
+- **Quiet recordings are made louder for Whisper**: the player's own sound comes without what Windows raises
+  afterwards and was 17 dB quieter. In it *Genau* heard nothing but a made-up line; made louder, all 93 words.
+- **Made-up lines are dropped**: lines Whisper makes up from the subtitles it learned from ("WDR mediagroup GmbH im
+  Auftrag des WDR", "Untertitel im Auftrag des ZDF", "Thanks for watching") never become lyrics.
+- **Hörgenau explained in the menu**: the page *Hörgenau (KI)* now says what the AI is, and step by step how it learns
+  songs, checks their sync, what it hears, *Schnell* or *Genau* with their real sizes and times, what *Leistung* means
+  and how to tell what it is doing.
+- Fixed: without a known player the recording helper did not start at all.
+
 ### 1.3.0-dev.13 – 2026-10-26
 
 Fixes found in a real game on Windows, with Spotify, real loopback listening and the "Genau" model:

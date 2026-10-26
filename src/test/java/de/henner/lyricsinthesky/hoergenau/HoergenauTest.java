@@ -184,6 +184,63 @@ class HoergenauTest {
     }
 
     @Test
+    void linesWhisperMakesUpFromSubtitlesAreDropped() {
+        // Heard by "Genau" over a whole quiet recording of a German rap song, at one moment as made up text is.
+        String json = """
+                {"transcription":[
+                 {"tokens":[{"text":" WDR","offsets":{"from":0,"to":0},"t_dtw":200},
+                  {"text":" mediagroup","offsets":{"from":0,"to":0},"t_dtw":290},
+                  {"text":" GmbH","offsets":{"from":0,"to":0},"t_dtw":400},
+                  {"text":" im","offsets":{"from":0,"to":0},"t_dtw":520},
+                  {"text":" Auftrag","offsets":{"from":0,"to":0},"t_dtw":610},
+                  {"text":" des","offsets":{"from":0,"to":0},"t_dtw":700},
+                  {"text":" WDR","offsets":{"from":0,"to":0},"t_dtw":800}]},
+                 {"tokens":[{"text":" Wo","offsets":{"from":0,"to":0},"t_dtw":1200},
+                  {"text":" war","offsets":{"from":0,"to":0},"t_dtw":1240},
+                  {"text":" ich","offsets":{"from":0,"to":0},"t_dtw":1290},
+                  {"text":" in","offsets":{"from":0,"to":0},"t_dtw":1330},
+                  {"text":" der","offsets":{"from":0,"to":0},"t_dtw":1370},
+                  {"text":" Nacht?","offsets":{"from":0,"to":0},"t_dtw":1420}]}]}""";
+        List<List<Heard>> segments = WhisperEngine.parse(json.getBytes(StandardCharsets.UTF_8));
+        assertEquals(1, segments.size());
+        assertEquals("Wo", segments.get(0).get(0).text());
+        assertTrue(WhisperEngine.madeUp(heard("Untertitel im Auftrag des ZDF für funk, 2017")));
+        assertTrue(WhisperEngine.madeUp(heard("Untertitelung aufgrund der Amara.org-Community")));
+        assertTrue(WhisperEngine.madeUp(heard("Vielen Dank fürs Zuschauen!")));
+        assertTrue(WhisperEngine.madeUp(heard("Thank you for watching.")));
+        assertTrue(!WhisperEngine.madeUp(heard("Ich danke dir fürs Zuhören, mein Freund")));
+        assertTrue(!WhisperEngine.madeUp(heard("Der Auftrag kam aus dem Funkhaus")));
+    }
+
+    private static List<Heard> heard(String line) {
+        List<Heard> words = new ArrayList<>();
+        for (String word : line.split(" ")) {
+            words.add(new Heard(word, words.size() * 400L));
+        }
+        return words;
+    }
+
+    @Test
+    void quietRecordingsAreMadeLouderForWhisper() {
+        // Only Spotify's own sound, as recorded on Windows: peaks near 2,400 of 32,767.
+        short[] quiet = new short[16_000];
+        short[] loud = new short[16_000];
+        for (int i = 0; i < quiet.length; i++) {
+            double wave = Math.sin(i * 0.05);
+            quiet[i] = (short) (2_400 * wave);
+            loud[i] = (short) (30_000 * wave);
+        }
+        double gain = WhisperEngine.gain(quiet, 0, quiet.length);
+        assertTrue(gain > 11 && gain < 13, "gain " + gain);
+        assertEquals(1, WhisperEngine.gain(loud, 0, loud.length));
+        // Silence and a faint hiss are not blown up beyond the limit.
+        assertEquals(1, WhisperEngine.gain(new short[16_000], 0, 16_000));
+        short[] hiss = new short[16_000];
+        java.util.Arrays.fill(hiss, (short) 30);
+        assertEquals(WhisperEngine.MAX_GAIN, WhisperEngine.gain(hiss, 0, hiss.length));
+    }
+
+    @Test
     void aSongFirstSeenPausedIsCheckedOnceItPlaysAlone(@TempDir Path dir) throws Exception {
         // As found in the game: Spotify paused mid-song when the world opened, then played on.
         CountingRecorder recorder = new CountingRecorder();
