@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +28,7 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
 
     private final Path helperScript;
     private volatile NowPlaying current;
+    private volatile String otherPlaying;
     private volatile boolean running;
     private Thread worker;
 
@@ -36,6 +39,11 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
     @Override
     public NowPlaying current() {
         return current;
+    }
+
+    @Override
+    public String otherPlaying() {
+        return otherPlaying;
     }
 
     @Override
@@ -113,6 +121,7 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
             String line;
             while (running && (line = reader.readLine()) != null) {
                 current = parse(line);
+                otherPlaying = othersOf(line);
             }
         }
     }
@@ -138,6 +147,21 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
                     json.get("updatedAtMs").getAsLong());
         } catch (RuntimeException e) {
             LOGGER.debug("Unreadable SMTC line: {}", line);
+            return null;
+        }
+    }
+
+    /** The other players the helper saw playing beside the chosen one, comma separated, or {@code null}. */
+    static String othersOf(String line) {
+        try {
+            JsonObject json = JsonParser.parseString(line).getAsJsonObject();
+            if (!json.has("othersPlaying") || !json.get("othersPlaying").isJsonArray()) {
+                return null;
+            }
+            List<String> apps = new ArrayList<>();
+            json.getAsJsonArray("othersPlaying").forEach(app -> apps.add(app.getAsString()));
+            return apps.isEmpty() ? null : String.join(", ", apps);
+        } catch (RuntimeException e) {
             return null;
         }
     }

@@ -64,6 +64,28 @@ class PreferredSourceTest {
     }
 
     @Test
+    void whatElseSoundsOnThisPcIsReported() {
+        NowPlaying account = new NowPlaying("Spotify (Konto)", "Song", "Artist", "Album", true, 40_000, 200_000, 1_000);
+        NowPlaying here = new NowPlaying("Spotify", "song", "Artist", "Album", true, 40_000, 200_000, 1_000);
+        NowPlaying video = new NowPlaying("Brave", "Ein Video", "Kanal", "", true, 10_000, 600_000, 1_000);
+        // The account's song plays on this PC: only the media session's own report counts.
+        assertNull(new PreferredNowPlayingSource(fixed(account), fixed(here)).otherPlaying());
+        // It plays on a phone while the PC plays a video, or nothing the media session knows of.
+        assertEquals("Brave", new PreferredNowPlayingSource(fixed(account), fixed(video)).otherPlaying());
+        assertEquals("the song plays on another device", new PreferredNowPlayingSource(fixed(account), fixed(null)).otherPlaying());
+        // Without the account playing, nothing is added.
+        assertNull(new PreferredNowPlayingSource(fixed(SPOTIFY_PAUSED), fixed(video)).otherPlaying());
+    }
+
+    @Test
+    void theHelperReportsOtherPlayersOnce() {
+        assertNull(SmtcNowPlayingSource.othersOf("{\"ok\":true,\"title\":\"t\",\"othersPlaying\":[]}"));
+        assertNull(SmtcNowPlayingSource.othersOf("{\"ok\":true,\"title\":\"t\"}"));
+        assertEquals("Brave, Brave", SmtcNowPlayingSource.othersOf("{\"ok\":true,\"othersPlaying\":[\"Brave\",\"Brave\"]}"));
+        assertNull(SmtcNowPlayingSource.othersOf("not json"));
+    }
+
+    @Test
     void fallsBackWhenOneIsMissing() {
         assertEquals(AMAZON_PAUSED, pick(null, AMAZON_PAUSED));
         assertNull(pick(null, null));

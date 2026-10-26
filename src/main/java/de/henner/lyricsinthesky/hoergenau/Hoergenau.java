@@ -95,8 +95,9 @@ public final class Hoergenau {
      * @param key   the song's key in the lyrics store
      * @param shown whether it has lyrics with times, only text, or nothing; {@code null} while still looking
      * @param text  the lines of the text without times when {@code shown} is {@link Shown#TEXT_ONLY}
+     * @param other another player playing at the same time, or {@code null}: its sound would end up in the recording
      */
-    public synchronized void observe(NowPlaying now, String key, Shown shown, List<String> text) {
+    public synchronized void observe(NowPlaying now, String key, Shown shown, List<String> text, String other) {
         if (!config.hoergenau || !WhisperEngine.supported()) {
             drop("switched off");
             return;
@@ -124,6 +125,10 @@ public final class Hoergenau {
                 LOGGER.info("Hoergenau: '{}' started {} s ago, listens only from the start", now.title(), position / 1000);
                 return;
             }
+            if (other != null) {
+                LOGGER.info("Hoergenau: '{}' plays together with {}, listens only to a song playing alone", now.title(), other);
+                return;
+            }
             try {
                 recorder.start();
                 take = new Take(key, now, shown == Shown.TEXT_ONLY ? List.copyOf(text) : List.of());
@@ -139,6 +144,8 @@ public final class Hoergenau {
         }
         if (recorder.failure() != null) {
             take.broken = "audio: " + recorder.failure();
+        } else if (other != null) {
+            take.broken = "another player sounded at the same time (" + other + ")";
         } else if (!now.playing() && take.track.durationMs() > 0
                 && take.lastPositionMs >= take.track.durationMs() - END_MS) {
             // Played to the end and the player stopped there (or went back to its start): the song is complete.

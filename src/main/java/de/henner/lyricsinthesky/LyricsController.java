@@ -158,7 +158,7 @@ public final class LyricsController {
         if (now == null) {
             trackKey = null;
             if (listener != null) {
-                listener.observe(null, null, null, List.of());
+                listener.observe(null, null, null, List.of(), null);
             }
             return;
         }
@@ -172,7 +172,7 @@ public final class LyricsController {
         if (listener != null) {
             listener.observe(now, key, shownFor(cached), cached == null ? List.of() : cached.lyrics()
                     .filter(Lyrics::isEstimated).map(found -> found.lines().stream().map(Lyrics.Line::text).toList())
-                    .orElse(List.of()));
+                    .orElse(List.of()), simulated != null ? null : source.otherPlaying());
         }
         if (cached != null && tracker != null) {
             // Once per song: did other players correct its timing?

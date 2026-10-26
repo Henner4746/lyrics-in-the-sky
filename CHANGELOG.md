@@ -10,6 +10,13 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.8 – 2026-10-26
+
+- **Hörgenau only learns a song that plays alone:** when another player sounds at the same time (a video in the
+  browser, also in another tab) it does not start listening, and a recording under way is thrown away. A song the
+  Spotify account plays on another device is not listened to either, since the PC sounds something else then. In a
+  test a YouTube video playing beside the song had ended up in the lyrics.
+
 ### 1.3.0-dev.7 – 2026-10-26
 
 - **Hörgenau tested in the game with real playback:** a song with hand-made timings played through the speakers while

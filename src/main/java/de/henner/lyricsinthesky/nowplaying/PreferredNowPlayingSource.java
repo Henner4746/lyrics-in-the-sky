@@ -44,4 +44,18 @@ public final class PreferredNowPlayingSource implements NowPlayingSource {
         }
         return first != null ? first : second;
     }
+
+    /**
+     * When the account's song is not what this PC plays (it plays on a phone or a console), whatever the PC sounds is
+     * something else; otherwise the media session's own report.
+     */
+    @Override
+    public String otherPlaying() {
+        NowPlaying first = preferred.current();
+        NowPlaying second = fallback.current();
+        if (first != null && first.playing() && (second == null || !second.playing() || !second.sameSong(first))) {
+            return second != null && second.playing() ? second.app() : "the song plays on another device";
+        }
+        return fallback.otherPlaying();
+    }
 }

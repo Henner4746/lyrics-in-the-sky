@@ -233,8 +233,10 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   das Spiel lief, war der Pop-Song nach 55 s gelernt, die Zeilenanfänge im Median 60 ms daneben. Stellen, die Whisper
   im ganzen Song verpasst, werden einzeln noch einmal abgehört; was es dann noch nicht versteht, wird zwischen den
   Nachbarwörtern geschätzt.
-- **Nur der Song sollte laufen:** Bei einem Song ohne bekannten Text landet ein gleichzeitig laufendes Video oder ein
-  Sprachchat im Songtext. Mit bekanntem Text passt so eine Aufnahme nicht mehr und wird verworfen.
+- **Nur der Song darf laufen:** Spielt ein anderer Player mit (ein Video im Browser), hört Hörgenau nicht mit oder
+  verwirft die Aufnahme. Geräusche, die kein Player meldet, etwa Sprachchat, kann es nicht unterscheiden: Bei einem
+  Song ohne bekannten Text landen sie im Songtext; mit bekanntem Text passt so eine Aufnahme nicht mehr und wird
+  verworfen.
 - **Datenschutz:** Mitgehört wird alles, was über den Standardlautsprecher läuft, also auch Sprachchat, solange so ein
   Song läuft. Nichts davon verlässt den PC oder landet auf der Platte, außer kurz als Datei für whisper.cpp, die
   gleich danach gelöscht wird.

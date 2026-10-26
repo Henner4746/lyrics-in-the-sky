@@ -50,6 +50,13 @@ while ($true) {
             $timeline = $session.GetTimelineProperties()
             $playback = $session.GetPlaybackInfo()
             $updated = $timeline.LastUpdatedTime.ToUnixTimeMilliseconds()
+            # Other players playing at the same time (a video beside the music, also in another tab of the same
+            # browser); Hoergenau would hear them too. All playing sessions but the chosen one, once.
+            $others = New-Object System.Collections.ArrayList
+            foreach ($s in $manager.GetSessions()) {
+                if ($s.GetPlaybackInfo().PlaybackStatus -eq 'Playing') { [void]$others.Add($s.SourceAppUserModelId) }
+            }
+            if ($playback.PlaybackStatus -eq 'Playing') { $others.Remove($session.SourceAppUserModelId) }
             $line = @{
                 ok          = $true
                 app         = $session.SourceAppUserModelId
@@ -61,6 +68,7 @@ while ($true) {
                 durationMs  = [long]($timeline.EndTime - $timeline.StartTime).TotalMilliseconds
                 updatedAtMs = $updated
                 nowMs       = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+                othersPlaying = @($others)
             }
         }
     } catch {

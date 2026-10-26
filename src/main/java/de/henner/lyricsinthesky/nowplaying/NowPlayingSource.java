@@ -12,6 +12,11 @@ public interface NowPlayingSource {
     /** Latest snapshot, or {@code null} when nothing is playing or the source is not running. */
     NowPlaying current();
 
+    /** Another player sounding at the same time as {@link #current()} (a video beside the music), or {@code null}. */
+    default String otherPlaying() {
+        return null;
+    }
+
     /** The source for this OS, or {@code null} when the OS is not supported yet. */
     static NowPlayingSource forCurrentOs(Path workDir) {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
