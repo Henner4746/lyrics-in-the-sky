@@ -1,8 +1,10 @@
 package de.henner.lyricsinthesky.gui;
 
 import de.henner.lyricsinthesky.LyricsController;
+import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.WordSourceInfo;
+import de.henner.lyricsinthesky.hoergenau.WhisperEngine;
 import de.henner.lyricsinthesky.render.Glass;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
 import de.henner.lyricsinthesky.spotify.SpotifyAccount;
@@ -362,6 +364,12 @@ public final class SettingsScreen extends Screen {
                 controller.refreshWordTimes();
             }, WordSourceInfo.hint(name)));
         }
+        y = row("Hörgenau", left, y, new Toggle(control, () -> config.hoergenau,
+                value -> LyricsInTheSkyClient.setHoergenau(config, value),
+                WhisperEngine.supported()
+                        ? "Für Songs ohne Wortzeiten: hört ab Songanfang mit (nur im Speicher) und timt danach die Wörter "
+                        + "mit whisper.cpp, je Song einmal ca. 1–2 Min. im Hintergrund, einmalig 190 MB Download."
+                        : "Hörgenau gibt es nur unter Windows."));
         return y + 6;
     }
 

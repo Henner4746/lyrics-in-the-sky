@@ -10,6 +10,19 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.5 – 2026-10-26
+
+- **Hörgenau (Windows, off by default):** for songs no service has timed, or whose lyrics nobody has, the mod listens
+  while the song plays from its start (Windows audio loopback, in memory only) and afterwards lets whisper.cpp time the
+  words: LRCLIB's text without times is placed on the recording, or what was heard becomes the lyrics. From the next
+  play on the song runs word by word; real LRCLIB lines replace it once they exist. Switching it on downloads
+  whisper.cpp and its model once (about 190 MB, checked against fixed checksums); each learned song then costs about
+  1–2 minutes of up to four cores at low priority in a separate process. Page *Quellen*, `/skylyrics hoergenau on|off`.
+- **Two more word time services:** SyncLRC and Better Lyrics (mostly Apple Music's timing), both only for songs
+  someone asked for before; a song they have not kept yet is asked again later instead of counting as "nothing".
+- **All word time services are asked at once** and still weighed in their measured order, so the answer comes as soon
+  as the best fitting service has answered, not after all before it.
+
 ### 1.3.0-dev.4 – 2026-10-26
 
 - **Word times for most songs:** "Wortgenau" now asks four unofficial services one after the other – Deezer

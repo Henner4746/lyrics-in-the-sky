@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky;
 
+import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
@@ -13,6 +14,7 @@ import de.henner.lyricsinthesky.timing.SongTimings;
 import de.henner.lyricsinthesky.timing.TimingTracker;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -101,6 +103,8 @@ public final class LyricsController {
     private volatile boolean sourcesMuted;
     /** The song ID of the lyrics shown last; worked out once per lyrics, not every frame. */
     private volatile SongRef songRef;
+    /** Learns word times by listening for songs nobody timed; {@code null} where it is not set up. */
+    private volatile Hoergenau hoergenau;
 
     public LyricsController(NowPlayingSource source, LrclibClient lrclib, WordTimeFinder wordTimeFinder,
             LyricsPlusClient lyricsPlus, LyricsCache saved, SkyLyricsConfig config, SongTimings timings,
@@ -117,6 +121,19 @@ public final class LyricsController {
 
     public SkyLyricsConfig config() {
         return config;
+    }
+
+    public void listenWith(Hoergenau hoergenau) {
+        this.hoergenau = hoergenau;
+    }
+
+    public Hoergenau hoergenau() {
+        return hoergenau;
+    }
+
+    /** A song's kept lyrics changed (Hoergenau learned it): the next play reads them again. */
+    public void forget(String key) {
+        cache.remove(key);
     }
 
     public SongTimings timings() {
@@ -137,8 +154,12 @@ public final class LyricsController {
     public void tick() {
         NowPlaying now = simulated != null ? simulated : sourcesMuted ? null : source.current();
         track = now;
+        Hoergenau listener = hoergenau;
         if (now == null) {
             trackKey = null;
+            if (listener != null) {
+                listener.observe(null, null, null, List.of());
+            }
             return;
         }
         String key = key(now);
@@ -147,6 +168,11 @@ public final class LyricsController {
         if (!Boolean.TRUE.equals(config.lrclibAllowed)) {
             // Lyrics found before stay where they are, so switching the lookup back on shows them again at once.
             return;
+        }
+        if (listener != null) {
+            listener.observe(now, key, shownFor(cached), cached == null ? List.of() : cached.lyrics()
+                    .filter(Lyrics::isEstimated).map(found -> found.lines().stream().map(Lyrics.Line::text).toList())
+                    .orElse(List.of()));
         }
         if (cached != null && tracker != null) {
             // Once per song: did other players correct its timing?
@@ -164,6 +190,22 @@ public final class LyricsController {
         int failures = cached == null ? 0 : cached.failures();
         cache.put(key, new CacheEntry(Optional.empty(), LookupState.SEARCHING, nowMs, failures));
         lookups.submit(() -> lookup(key, now, failures));
+    }
+
+    /** What Hoergenau needs to know about a song's lyrics; {@code null} while still looking or after a failure. */
+    private static Hoergenau.Shown shownFor(CacheEntry entry) {
+        if (entry == null || entry.state() == LookupState.SEARCHING || entry.state() == LookupState.ERROR
+                || entry.state() == LookupState.IDLE) {
+            return null;
+        }
+        Optional<Lyrics> lyrics = entry.lyrics().filter(found -> !found.isInstrumental());
+        if (entry.state() == LookupState.INSTRUMENTAL) {
+            return Hoergenau.Shown.TIMED;  // nothing to sing along to
+        }
+        if (lyrics.isEmpty()) {
+            return Hoergenau.Shown.NOTHING;
+        }
+        return lyrics.get().isEstimated() ? Hoergenau.Shown.TEXT_ONLY : Hoergenau.Shown.TIMED;
     }
 
     /**
@@ -193,7 +235,9 @@ public final class LyricsController {
 
     private void lookup(String key, NowPlaying now, int failuresBefore) {
         Optional<Lyrics> kept = saved.get(key);
-        if (kept.isPresent()) {
+        // Lyrics learned by listening are kept only until LRCLIB has lines for the song; so LRCLIB is asked again.
+        boolean learned = kept.isPresent() && Hoergenau.learned(kept.get());
+        if (kept.isPresent() && !learned) {
             cache.put(key, new CacheEntry(kept, stateOf(kept), System.currentTimeMillis()));
             LOGGER.info("Lyrics for '{}' by '{}': {} (saved)", now.title(), now.artist(), stateOf(kept));
             refine(key, now, kept.get());
@@ -203,6 +247,11 @@ public final class LyricsController {
             LrclibClient.Lookup lookup = lrclib.lookup(now);
             Optional<Lyrics> lyrics = lookup.synced();
             lyrics.ifPresent(found -> saved.put(key, found));
+            if (lyrics.isEmpty() && learned) {
+                cache.put(key, new CacheEntry(kept, LookupState.FOUND, System.currentTimeMillis()));
+                LOGGER.info("Lyrics for '{}' by '{}': FOUND (learned by Hoergenau)", now.title(), now.artist());
+                return;
+            }
             if (lyrics.isEmpty()) {
                 Optional<Lyrics> standIn = standIn(key, now);
                 if (standIn.isPresent()) {
@@ -226,6 +275,10 @@ public final class LyricsController {
             lyrics.ifPresent(found -> refine(key, now, found));
         } catch (Exception e) {
             int failures = failuresBefore + 1;
+            if (learned) {
+                cache.put(key, new CacheEntry(kept, LookupState.FOUND, System.currentTimeMillis()));
+                return;
+            }
             // LRCLIB busy or unreachable: with word time services on, theirs show right away instead of after the retry.
             Optional<Lyrics> standIn = standIn(key, now);
             if (standIn.isPresent()) {
@@ -436,15 +489,19 @@ public final class LyricsController {
         CacheEntry entry = cache.get(key(now));
         String state = !Boolean.TRUE.equals(config.lrclibAllowed) ? LookupState.NOT_ALLOWED.name()
                 : entry == null ? LookupState.IDLE.name() : entry.state().name();
-        if (entry != null && entry.lyrics().map(Lyrics::hasWordTiming).orElse(false)) {
+        if (entry != null && entry.lyrics().map(Hoergenau::learned).orElse(false)) {
+            state += " (wortgenau, durch Mithören gelernt)";
+        } else if (entry != null && entry.lyrics().map(Lyrics::hasWordTiming).orElse(false)) {
             state += entry.lyrics().flatMap(found -> WordTimeFinder.sourceOf(found.lrc()))
                     .map(from -> " (wortgenau, " + from + ")").orElse(" (wortgenau)");
         } else if (entry != null && entry.lyrics().map(Lyrics::isEstimated).orElse(false)) {
             state += " (ohne Zeiten, ungefähr)";
         }
-        return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms%s",
+        Hoergenau listener = hoergenau;
+        return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms%s%s",
                 now.artist(), now.title(), now.app(), now.playing() ? "spielt" : "pausiert",
-                now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs, songTimingText());
+                now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs, songTimingText(),
+                listener != null && config.hoergenau ? ", " + listener.statusText() : "");
     }
 
     /** ", dieser Song +300 ms (eigenes)" and the like, or nothing when the song has no correction. */

@@ -8,6 +8,7 @@ import com.mojang.brigadier.context.CommandContext;
 import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
+import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.lyrics.BetterLyricsClient;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
@@ -99,8 +100,11 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         // SyncLRC and Better Lyrics came last and only have songs someone asked for before.
         WordTimeFinder wordTimes = new WordTimeFinder(List.of(new DeezerClient(version), lyricsPlus, netease,
                 new KugouClient(version), new SyncLrcClient(version), new BetterLyricsClient(version)));
-        controller = new LyricsController(source, lrclib, wordTimes, lyricsPlus,
-                new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")), config, timings, tracker);
+        LyricsCache store = new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics"));
+        controller = new LyricsController(source, lrclib, wordTimes, lyricsPlus, store, config, timings, tracker);
+        // Off unless switched on; listens only on Windows and only to songs nobody has word times for.
+        controller.listenWith(new Hoergenau(configDir.resolve(MOD_ID).resolve("hoergenau"), config, store,
+                LyricsInTheSkyClient::tell, controller::forget));
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the
         // helper process out of the busy resource-loading phase.
@@ -259,6 +263,31 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal(command))));
     }
 
+    /**
+     * Switches Hoergenau; switching it on says once what it does and costs. A failed download is tried again.
+     */
+    public static void setHoergenau(SkyLyricsConfig settings, boolean on) {
+        settings.hoergenau = on;
+        Hoergenau listener = controller.hoergenau();
+        if (on && listener != null) {
+            listener.reset();
+            tell("Hörgenau hört bei Songs ohne Wortzeiten mit, was dein PC abspielt (ab Songanfang, nur im Speicher), "
+                    + "und lässt danach whisper.cpp die Wörter timen: einmal je Song etwa 1–2 Minuten bis zu vier "
+                    + "CPU-Kerne mit niedriger Priorität und bis 750 MB Arbeitsspeicher in einem eigenen Prozess. "
+                    + "Beim ersten Mal ca. 190 MB Download.");
+        }
+    }
+
+    /** A message in chat from any thread, e.g. Hoergenau's background work. */
+    private static void tell(String message) {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> {
+            if (client.player != null) {
+                client.gui.hud.getChat().addClientSystemMessage(prefix().append(message));
+            }
+        });
+    }
+
     private static MutableComponent prefix() {
         return Component.literal("[Lyrics in the Sky] ").withStyle(ChatFormatting.AQUA);
     }
@@ -366,6 +395,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                         c.setWordTimes(value);
                         controller.refreshWordTimes();
                     }, "Grauzone (alle inoffiziellen Dienste)"))
+                    .then(toggle("hoergenau", (c, value) -> setHoergenau(c, value),
+                            "Hörgenau (Mithören für Songs ohne Wortzeiten, nur Windows)"))
                     .then(toggle("lyricsplus", (c, value) -> {
                         c.setWordSource("lyricsplus", value);
                         controller.refreshWordTimes();

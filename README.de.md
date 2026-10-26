@@ -195,7 +195,8 @@ LRCLIB hat meist nur Zeiten für ganze Zeilen; die Wörter dazwischen werden ges
 jedes Wort timen. **Alle sind inoffiziell („Grauzone“):** frei erreichbar ohne Konto, Cookie oder Schlüssel, aber
 nicht für fremde Apps gedacht, sie können sich jederzeit ändern oder wegfallen, und jeder ist aus, bis du ihn
 einschaltest – alle auf einmal mit „Wortgenau“ (oder „Grauzone“ auf der Seite *Quellen*), einzeln dort und mit
-`/skylyrics source <name> on|off`. Gefragt wird nacheinander, in der Reihenfolge, die in Tests am meisten Songs traf:
+`/skylyrics source <name> on|off`. Gefragt werden alle eingeschalteten gleichzeitig; gewertet wird in der Reihenfolge,
+die in Tests am meisten Songs traf:
 
 | Dienst | Woher die Wortzeiten stammen | Was er bekommt |
 |---|---|---|
@@ -203,6 +204,8 @@ einschaltest – alle auf einmal mit „Wortgenau“ (oder „Grauzone“ auf de
 | **LyricsPlus** | der Server der Erweiterung YouLy+, der Apple Music und QQ Music liest | Titel, Künstler, Album, Länge (an `lyricsplus.prjktla.my.id`) |
 | **NetEase** | „YRC“-Songtexte von NetEase Cloud Music, auch zu vielen westlichen Songs | Künstler und Titel (an `music.163.com`) |
 | **Kugou** | „KRC“-Songtexte von Kugou Music, oft dieselben wie bei QQ Music | Künstler, Titel, Länge (an `lyrics.kugou.com`) |
+| **SyncLRC** | freie Lyrics-API mit Karaoke-Zeiten pro Wort, nur für Songs, die schon jemand getimt hat | Titel, Künstler, Album, Länge (an `api.synclrc.dev`) |
+| **Better Lyrics** | der Server der Erweiterung [Better Lyrics](https://better-lyrics.boidu.dev/), meist Apple Musics Wortzeiten; ohne Schlüssel nur für Songs, die er schon gespeichert hat | Titel, Künstler, Album, Länge (an `api.betterlyrics.org`) |
 
 Wortzeiten werden nur gezeigt, wenn sie zu der Aufnahme gehören, die du hörst: Die ersten Wörter jeder LRCLIB-Zeile
 müssen gesungen werden, wenn die Zeile beginnt, bis auf eine gleichbleibende Verschiebung (ein längeres Intro einer
@@ -211,6 +214,26 @@ gesetzte LRCLIB-Zeilen driften manchmal um eine Sekunde). Streuen LRCLIBs Zeilen
 in derselben Reihenfolge, gelten dessen Zeiten, außer ein anderer Dienst passt genauer. Sonst werden die Wörter wie bisher geschätzt. Ergebnisse,
 und „nichts gefunden“ für zwei Wochen, bleiben in `config/lyricsinthesky/lyrics`; ein Dienst, der nicht antwortet,
 hat fünf Minuten Pause, sodass nichts hängt. Ohne LRCLIB-Songtext springt der erste Dienst ein, der den Song hat.
+
+### Hörgenau: Mithören für Songs, die kein Dienst kennt (nur Windows, aus bis du es einschaltest)
+
+Manche Songs hat niemand getimt, manche haben nirgends einen Songtext. Für die hört **Hörgenau** mit: Läuft so ein
+Song von Anfang an, nimmt die Mod auf, was dein PC abspielt (Windows-Audio-Loopback, nur im Arbeitsspeicher), und
+lässt nach dem Song [whisper.cpp](https://github.com/ggml-org/whisper.cpp) die Wörter timen. Hat LRCLIB den Text
+ohne Zeiten, wird dieser Text auf die Aufnahme gelegt; gibt es keinen, wird das Gehörte zum Songtext. Ab dem
+nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte Zeilen, ersetzen die das Gelernte.
+
+- **Kosten:** einmal ca. 190 MB Download (whisper.cpp von GitHub, Modell „small“ von Hugging Face, beide mit fester
+  Prüfsumme). Je gelerntem Song einmal etwa 1–2 Minuten bis zu vier CPU-Kerne mit niedriger Priorität und bis 750 MB
+  Arbeitsspeicher in einem eigenen Prozess; das Mithören selbst kostet kaum etwas. Songs mit Zeiten werden nie
+  mitgehört.
+- **Genauigkeit:** In Tests mit einer künstlichen Stimme über Musik lagen die Zeilenanfänge 80–160 ms neben den
+  echten. Echter Gesang über lauter Musik ist schwerer; was Whisper nicht versteht, wird zwischen den Nachbarwörtern
+  geschätzt.
+- **Datenschutz:** Mitgehört wird alles, was über den Standardlautsprecher läuft, also auch Sprachchat, solange so ein
+  Song läuft. Nichts davon verlässt den PC oder landet auf der Platte, außer kurz als Datei für whisper.cpp, die
+  gleich danach gelöscht wird.
+- Einschalten auf der Seite *Quellen* („Hörgenau“) oder mit `/skylyrics hoergenau on`.
 
 ## Datenschutz und faire Nutzung
 

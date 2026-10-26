@@ -190,7 +190,8 @@ LRCLIB mostly times whole lines; the words in between are estimated. "Wortgenau"
 word. **All of them are unofficial ("Grauzone"):** they are free to reach without any account, cookie or key, but
 they are not meant for other apps, can change or disappear any day, and are each off until you switch them on –
 all at once with "Wortgenau" (or "Grauzone" on the page *Quellen*), or one by one there and with
-`/skylyrics source <name> on|off`. Asked one after the other, in the order that fitted most songs in tests:
+`/skylyrics source <name> on|off`. All switched on are asked at once; their answers are weighed in the order that
+fitted most songs in tests:
 
 | Service | Where its word times come from | What it gets |
 |---|---|---|
@@ -198,6 +199,8 @@ all at once with "Wortgenau" (or "Grauzone" on the page *Quellen*), or one by on
 | **LyricsPlus** | the server of the YouLy+ extension, which reads Apple Music and QQ Music | title, artist, album, length (to `lyricsplus.prjktla.my.id`) |
 | **NetEase** | NetEase Cloud Music's "YRC" lyrics, also for many western songs | artist and title (to `music.163.com`) |
 | **Kugou** | Kugou Music's "KRC" lyrics, often the same as QQ Music's | artist, title, length (to `lyrics.kugou.com`) |
+| **SyncLRC** | a free lyrics API with karaoke times per word, only for songs someone timed before | title, artist, album, length (to `api.synclrc.dev`) |
+| **Better Lyrics** | the server of the [Better Lyrics](https://better-lyrics.boidu.dev/) extension, mostly Apple Music's word times; without a key only for songs it has kept | title, artist, album, length (to `api.betterlyrics.org`) |
 
 Word times are only shown when they belong to the recording you hear: each LRCLIB line's first words have to be
 sung when the line starts, give or take one steady shift (a longer intro of another mastering), or two services
@@ -206,6 +209,24 @@ second). Where LRCLIB's lines only scatter a little around the service's, in the
 are taken unless another service fits closely. Otherwise the words are estimated as before. Results, and "nothing found" for two weeks, are kept in
 `config/lyricsinthesky/lyrics`; a service that fails is left alone for five minutes, so nothing hangs. Without
 LRCLIB lyrics, the first service that has the song stands in.
+
+### Hörgenau: listening for songs no service knows (Windows only, off until you switch it on)
+
+Some songs nobody has timed, some have no lyrics anywhere. For those **Hörgenau** listens: when such a song plays
+from its start, the mod records what your PC plays (Windows audio loopback, in memory only) and after the song lets
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) time the words. If LRCLIB has the text without times, that text
+is placed on the recording; if there is none, what was heard becomes the lyrics. From the next play on the song runs
+word by word. If LRCLIB gets real lines later, they replace what was learned.
+
+- **Cost:** a one-time download of about 190 MB (whisper.cpp from GitHub, the "small" model from Hugging Face, both
+  checked against a fixed checksum). Per learned song, once, about 1–2 minutes of up to four CPU cores at low priority
+  and up to 750 MB of memory in a separate process; the listening itself costs next to nothing. Songs with times are
+  never listened to.
+- **Accuracy:** in tests with a synthetic voice over music, line starts were 80–160 ms off the real ones. Real singing
+  over loud music is harder; words Whisper does not understand are placed between their neighbours.
+- **Privacy:** it hears everything that plays on the default speakers, voice chat included, while such a song plays.
+  Nothing of it leaves the PC or stays on disk, except briefly as a file for whisper.cpp that is deleted right after.
+- Switch it on on the page *Quellen* ("Hörgenau") or with `/skylyrics hoergenau on`.
 
 ## Privacy and fair use
 

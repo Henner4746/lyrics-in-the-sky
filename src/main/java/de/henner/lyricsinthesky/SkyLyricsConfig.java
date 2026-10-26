@@ -77,6 +77,11 @@ public final class SkyLyricsConfig {
     public boolean lrclibNoticeShown = false;
     /** The {@link #WORD_SOURCES} switched on; none unless the player switched them on ("Wortgenau"). */
     public List<String> wordSources = new ArrayList<>();
+    /**
+     * "Hoergenau": songs no service has timed are listened to on this PC and timed by whisper.cpp. Windows only; off
+     * unless switched on, which downloads whisper.cpp and its model once.
+     */
+    public boolean hoergenau = false;
     /** Up to 1.3.0-dev.3 the only word time service; only read to carry the choice over to {@link #wordSources}. */
     public boolean lyricsPlus = false;
     /**
