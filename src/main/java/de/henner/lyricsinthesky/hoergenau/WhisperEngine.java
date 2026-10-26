@@ -146,14 +146,24 @@ public final class WhisperEngine {
 
     /** What is still to download for the chosen model, in MB. */
     public long downloadMb() {
-        return (Files.isRegularFile(cli()) ? 0 : BUILD_MB) + (Files.isRegularFile(model()) ? 0 : chosen().megabytes());
+        return (Files.isRegularFile(cli()) || !windows() ? 0 : BUILD_MB)
+                + (Files.isRegularFile(model()) ? 0 : chosen().megabytes());
     }
 
-    /** Hoergenau needs Windows: the loopback recording and the whisper.cpp build are Windows ones. */
+    /**
+     * Where Hoergenau can listen: on Windows (64 bit), which records with the loopback and gets whisper.cpp's build
+     * downloaded, and on Linux, which records with PulseAudio or PipeWire and needs whisper.cpp built by the player,
+     * since whisper.cpp ships no build for it.
+     */
     public static boolean supported() {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
-        return os.contains("win") && (arch.contains("amd64") || arch.contains("x86_64"));
+        return os.contains("win") ? arch.contains("amd64") || arch.contains("x86_64") : os.contains("linux");
+    }
+
+    /** Windows, where whisper.cpp's build is downloaded with the model, so Hoergenau is set up with one click. */
+    public static boolean windows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
     }
 
     public boolean installed() {
@@ -161,7 +171,7 @@ public final class WhisperEngine {
     }
 
     private Path cli() {
-        return dir.resolve("bin").resolve("whisper-cli.exe");
+        return dir.resolve("bin").resolve(windows() ? "whisper-cli.exe" : "whisper-cli");
     }
 
     private Path model() {
@@ -173,7 +183,7 @@ public final class WhisperEngine {
         Files.createDirectories(dir);
         HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(Duration.ofSeconds(15)).build();
-        if (!Files.isRegularFile(cli())) {
+        if (!Files.isRegularFile(cli()) && windows()) {
             Path zip = download(http, BUILD_URL, BUILD_SHA256, dir.resolve("whisper-bin-x64.zip"), 0, 5, percent);
             unpack(zip);
             Files.deleteIfExists(zip);
@@ -182,6 +192,10 @@ public final class WhisperEngine {
         Path file = dir.resolve(model.file());
         if (!Files.isRegularFile(file)) {
             download(http, model.url(), model.sha256(), file, 5, 100, percent);
+        }
+        if (!Files.isRegularFile(cli())) {
+            throw new IOException("whisper.cpp fehlt: unter Linux whisper-cli selbst bauen und mit seinen Bibliotheken "
+                    + "nach " + cli().getParent() + " legen");
         }
         percent.accept(100);
     }
@@ -315,15 +329,34 @@ public final class WhisperEngine {
         List<String> command = new ArrayList<>(List.of(cli().toString(), "-m", model().toString(),
                 "-t", Integer.toString(threads(powerChoice.get(), Runtime.getRuntime().availableProcessors()))));
         command.addAll(List.of(args));
-        Process process = new ProcessBuilder(command).redirectErrorStream(true)
-                .redirectOutput(log == null ? ProcessBuilder.Redirect.DISCARD : ProcessBuilder.Redirect.to(log.toFile()))
-                .start();
+        ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true)
+                .redirectOutput(log == null ? ProcessBuilder.Redirect.DISCARD : ProcessBuilder.Redirect.to(log.toFile()));
+        if (!windows()) {
+            // A build of its own keeps its libraries beside it.
+            String libraries = builder.environment().get("LD_LIBRARY_PATH");
+            builder.environment().put("LD_LIBRARY_PATH", cli().getParent()
+                    + (libraries == null || libraries.isEmpty() ? "" : ":" + libraries));
+        }
+        Process process = builder.start();
         lowerPriority(process.pid());
         return process;
     }
 
-    /** Windows has no Java call for it; a short PowerShell line sets the recognizer below normal priority. */
+    /**
+     * Java has no call for it: on Windows a short PowerShell line sets the recognizer below normal priority, elsewhere
+     * renice.
+     */
     private static void lowerPriority(long pid) {
+        if (!windows()) {
+            try {
+                new ProcessBuilder("renice", "-n", "10", "-p", Long.toString(pid))
+                        .redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD)
+                        .start();
+            } catch (IOException e) {
+                // Normal priority then.
+            }
+            return;
+        }
         try {
             String systemRoot = System.getenv().getOrDefault("SystemRoot", "C:\\Windows");
             new ProcessBuilder(systemRoot + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile",

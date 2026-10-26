@@ -364,7 +364,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
      * settings, so it never comes again, also not after an update; whoever has Hoergenau on already knows it.
      */
     private static void introduceHoergenau(Minecraft client) {
-        if (config.hoergenauIntroShown || client.player == null || SelfTest.isEnabled() || !WhisperEngine.supported()) {
+        // Only where one click sets it up: on Linux whisper.cpp is built by the player.
+        if (config.hoergenauIntroShown || client.player == null || SelfTest.isEnabled() || !WhisperEngine.windows()) {
             introTicks = 0;
             return;
         }
@@ -509,7 +510,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                         controller.refreshWordTimes();
                     }, "Grauzone (alle inoffiziellen Dienste)"))
                     .then(toggle("hoergenau", (c, value) -> setHoergenau(c, value),
-                            "Hörgenau (Mithören für Songs ohne Wortzeiten, nur Windows)"))
+                            "Hörgenau (Mithören für Songs ohne Wortzeiten, Windows und Linux)"))
                     .then(toggle("sharelearned", (c, value) -> c.shareLearned = value,
                             "Gelerntes teilen (Wortzeiten; Text nur, wo es keinen gibt)"))
                     .then(toggle("lyricsplus", (c, value) -> {

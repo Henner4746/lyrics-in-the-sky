@@ -38,6 +38,13 @@ public final class MprisNowPlayingSource implements NowPlayingSource {
         return current;
     }
 
+    /** The player as its MPRIS name ends ({@code spotify}), while it plays; its stream is what Hoergenau records. */
+    @Override
+    public String localPlayer() {
+        NowPlaying now = current;
+        return now != null && now.playing() ? now.app() : null;
+    }
+
     @Override
     public synchronized void start() {
         if (running) {

@@ -2,7 +2,10 @@ package de.henner.lyricsinthesky.hoergenau;
 
 import java.io.IOException;
 
-/** What Hoergenau records with: the PC's sound on Windows ({@link LoopbackRecorder}), a recording played back in tests. */
+/**
+ * What Hoergenau records with: the PC's sound on Windows ({@link LoopbackRecorder}) or Linux ({@link PulseRecorder}), a
+ * recording played back in tests.
+ */
 interface Recorder {
     /** @param player the app playing the song as the media session names it, to hear only it; {@code null} for all */
     void start(String player) throws IOException;

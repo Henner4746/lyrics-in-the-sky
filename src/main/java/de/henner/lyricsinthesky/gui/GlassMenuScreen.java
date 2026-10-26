@@ -390,7 +390,7 @@ public final class GlassMenuScreen extends Screen {
     private List<Row> hoergenauRows() {
         boolean supported = WhisperEngine.supported();
         return List.of(
-                new Info("Status", () -> !supported ? "Hörgenau gibt es nur unter Windows."
+                new Info("Status", () -> !supported ? "Hörgenau gibt es unter Windows und Linux."
                         : !config.hoergenau ? "Aus. Schalte es ein, die KI lädt sich einmalig." : hoergenauStatus()),
                 new Explain("Was ist das?", "Eine Sprach-KI (Whisper), die auf deinem PC mithört und erkennt, wann "
                         + "welches Wort gesungen wird. Sie läuft nur bei dir: Die Aufnahme bleibt im Arbeitsspeicher und "
@@ -420,7 +420,7 @@ public final class GlassMenuScreen extends Screen {
                         + "nicht sicher, lässt sie alles, wie es ist. Was sie misst, gilt über henrik.click gleich für "
                         + "alle Spieler, auch ohne Hörgenau."),
                 new Explain("Was sie hört", "Nur dein Musikprogramm, zum Beispiel Spotify. Discord, Videos und die "
-                        + "Geräusche des Spiels hört sie nicht. Findet Windows das Programm nicht, hört sie alles, was "
+                        + "Geräusche des Spiels hört sie nicht. Findet sie das Programm nicht, hört sie alles, was "
                         + "dein PC abspielt; dann am besten nebenher nicht reden."),
                 new Explain("Was geteilt wird", "Mit „Gelerntes teilen“ gehen bei Songs mit Text auf lrclib.net nur die "
                         + "Zeiten der Wörter an henrik.click; andere legen sie auf ihren eigenen Text. Hat niemand den "

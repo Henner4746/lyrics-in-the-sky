@@ -165,8 +165,8 @@ public final class SkyLyricsConfig {
     /** The {@link #WORD_SOURCES} switched on; none unless the player switched them on ("Wortgenau"). */
     public List<String> wordSources = new ArrayList<>();
     /**
-     * "Hoergenau": songs no service has timed are listened to on this PC and timed by whisper.cpp. Windows only; off
-     * unless switched on, which downloads whisper.cpp and its model once.
+     * "Hoergenau": songs no service has timed are listened to on this PC and timed by whisper.cpp. On Windows and Linux;
+     * off unless switched on, which downloads the model once, and on Windows whisper.cpp too.
      */
     public boolean hoergenau = false;
     /**

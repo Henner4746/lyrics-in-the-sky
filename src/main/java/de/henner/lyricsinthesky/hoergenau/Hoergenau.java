@@ -22,8 +22,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * "Hoergenau": word times for songs no service has timed, by listening. Off unless the player switches it on, and only
- * on Windows. For such a song it records what the music player plays (in memory) wherever the song plays and was not
+ * "Hoergenau": word times for songs no service has timed, by listening. Off unless the player switches it on; on
+ * Windows and Linux. For such a song it records what the music player plays (in memory) wherever the song plays and was not
  * heard yet, and whisper.cpp hears the words of each part: kept with their times in the song, so a song heard only
  * partly is completed the next time it plays. Once nearly all of it was heard, LRCLIB's text without times is placed
  * on the heard words, or, when nobody has the song's text, the heard words become the lyrics. The result is kept like
@@ -59,7 +59,7 @@ public final class Hoergenau {
 
     private final WhisperEngine engine;
     private final Recorder recorder;
-    /** Whether this PC can listen: Windows, where the loopback recording and the whisper.cpp build are made for. */
+    /** Whether this PC can listen: Windows (loopback recording) or Linux (PulseAudio), see {@link WhisperEngine#supported}. */
     private final java.util.function.BooleanSupplier platform;
     private final LyricsCache saved;
     private final SkyLyricsConfig config;
@@ -152,7 +152,7 @@ public final class Hoergenau {
 
     public Hoergenau(Path dir, SkyLyricsConfig config, LyricsCache saved, Notifier notifier, Consumer<String> learned) {
         this(config, saved, notifier, learned, new WhisperEngine(dir, () -> config.hoergenauModel, () -> config.hoergenauPower),
-                new LoopbackRecorder(dir), WhisperEngine::supported);
+                WhisperEngine.windows() ? new LoopbackRecorder(dir) : new PulseRecorder(), WhisperEngine::supported);
     }
 
     /** With another engine, recorder and platform check; for tests, which play a recording back. */
@@ -622,7 +622,7 @@ public final class Hoergenau {
             return "Hörgenau aus";
         }
         if (!platform.getAsBoolean()) {
-            return "Hörgenau nur unter Windows";
+            return "Hörgenau nur unter Windows und Linux";
         }
         if (installing) {
             return "Hörgenau lädt (" + Math.max(0, percent) + " %)";
