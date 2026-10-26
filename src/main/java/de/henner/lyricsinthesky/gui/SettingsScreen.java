@@ -76,7 +76,8 @@ public final class SettingsScreen extends Screen {
             "standard", "Standard", "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig",
             "glass", "Glas");
     private static final Map<String, String> THEME_NAMES = Map.of("classic", "Klassisch", "glass", "Liquid Glass");
-    private static final Map<String, String> MENU_STYLE_NAMES = Map.of("minimal", "Minimal", "fancy", "Prachtvoll");
+    private static final Map<String, String> MENU_STYLE_NAMES = Map.of("glass", "Glas", "minimal", "Minimal",
+            "fancy", "Prachtvoll");
     /** The pages of the menu, chosen with the tabs under the title. */
     private static final List<String> PAGES = List.of("general", "look", "sources");
     private static final Map<String, String> PAGE_NAMES = Map.of("general", "Allgemein", "look", "Aussehen",
@@ -367,10 +368,17 @@ public final class SettingsScreen extends Screen {
         rightY = row("Menü", rightX, rightY, new Choice(control, SkyLyricsConfig.MENU_STYLES, MENU_STYLE_NAMES,
                 () -> config.menuStyle, value -> {
                     config.menuStyle = value;
-                    rebuildPending = true;
-                }, value -> "fancy".equals(value)
-                        ? "Prachtvoll: bewegter Hintergrund, Funken, alles gleitet, leuchtet und federt."
-                        : "Minimal: ruhiges Menü mit schlichten Linien, ohne Animationen."));
+                    if ("glass".equals(value)) {
+                        config.save();
+                        minecraft.gui.setScreen(new GlassMenuScreen(parent, controller, spotify));
+                    } else {
+                        rebuildPending = true;
+                    }
+                }, value -> switch (value) {
+                    case "glass" -> "Glas: schwarzes Glasfenster mit Karten, Live-Vorschau und vielen Optionen.";
+                    case "fancy" -> "Prachtvoll: bewegter Hintergrund, Funken, alles gleitet, leuchtet und federt.";
+                    default -> "Minimal: ruhiges Menü mit schlichten Linien, ohne Animationen.";
+                }));
         return Math.max(leftY, rightY) + 6;
     }
 

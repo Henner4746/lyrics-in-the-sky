@@ -22,9 +22,23 @@ import org.slf4j.LoggerFactory;
 public final class SkyLyricsConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    /** "standard": rose in the sky, white to lavender around the player; "auto": a different palette per song. */
+    /**
+     * "standard": rose in the sky, white to lavender around the player; "auto": a different palette per song; "custom":
+     * the player's own colors ({@link #customTop} and the others); "rainbow": a new hue for every line.
+     */
     public static final List<String> PALETTES = List.of("standard", "rose", "lavender", "auto", "aurora", "sunset", "gold",
-            "sakura", "ocean", "white", "glass", "neon");
+            "sakura", "ocean", "white", "glass", "neon", "rainbow", "custom");
+    /** What the lyrics do while the music is paused: "dim" fade to 40 %, "hide" fade out, "keep" stay as they are. */
+    public static final List<String> PAUSE_MODES = List.of("dim", "hide", "keep");
+    /**
+     * Hoergenau's speech model: "small" (190 MB, quick on any PC) or "turbo" (Whisper large-v3-turbo, 574 MB, hears
+     * sung words far better and times them more closely, needs a few times as long).
+     */
+    public static final List<String> HOERGENAU_MODELS = List.of("small", "turbo");
+    /** How much of the PC Hoergenau may use: "low" two cores, "normal" four, "high" all but one. */
+    public static final List<String> HOERGENAU_POWERS = List.of("low", "normal", "high");
+    /** Bumped when a default changes for players who never chose: 2 made the glass menu the default. */
+    static final int CONFIG_VERSION = 2;
     /** "sans": a round modern sans-serif (Poppins), "script": handwriting (Kalam), "minecraft": the game font. */
     public static final List<String> FONTS = List.of("sans", "script", "minecraft");
     /** "sky": far away in the sky behind everything, like the sun. "around": close around the player, always visible. */
@@ -50,10 +64,10 @@ public final class SkyLyricsConfig {
      */
     public static final List<String> THEMES = List.of("classic", "glass");
     /**
-     * Looks of the menu itself: "fancy" lively, with a moving backdrop, sparkles and everything sliding and glowing,
-     * "minimal" the quiet panel with plain lines.
+     * Looks of the menu itself: "glass" a black glass window with cards, a live preview and sections, "fancy" lively,
+     * with a moving backdrop, sparkles and everything sliding and glowing, "minimal" the quiet panel with plain lines.
      */
-    public static final List<String> MENU_STYLES = List.of("minimal", "fancy");
+    public static final List<String> MENU_STYLES = List.of("glass", "fancy", "minimal");
     /**
      * Looks of the now-playing bar: "pill" the rounded bar with the line and the word being sung, "karaoke" two lines
      * in a box with every word filling up as it is sung, "plain" just the words with a shadow, "title" only the song.
@@ -128,7 +142,9 @@ public final class SkyLyricsConfig {
     /** One of {@link #THEMES}. */
     public String theme = "glass";
     /** One of {@link #MENU_STYLES}. */
-    public String menuStyle = "fancy";
+    public String menuStyle = "glass";
+    /** Version of the defaults this file was written with; see {@link #CONFIG_VERSION}. */
+    public int configVersion = 0;
     /** Streamer mode: explicit words in lyrics, titles and artists show as their first letter and stars. */
     public boolean streamerMode = false;
     /** Size of the bar, 0.75 to 1.5. */
@@ -151,6 +167,53 @@ public final class SkyLyricsConfig {
     public boolean beatBounce = false;
     /** The lyrics turn along with the view, closely behind, instead of staying where they appeared. */
     public boolean followAlong = false;
+
+    /** The palette "custom": color at the top and at the bottom of the letters, of the words being sung, of the glow. */
+    public int customTop = 0xFFFFFF;
+    public int customBottom = 0xC9B6FF;
+    public int customAccent = 0xA855F7;
+    public int customGlow = 0xB98CFF;
+    /** A dark ring around every letter, so the lyrics read on any background. */
+    public boolean outline = false;
+    public int outlineColor = 0x000000;
+    /** Width of that ring, 0.5 to 2. */
+    public float outlineWidth = 1f;
+    /** Strength of the soft shadow by day, 0 to 2. */
+    public float shadow = 1f;
+    /** Lyrics, titles and artists in capital letters. */
+    public boolean uppercase = false;
+    /** Speed of fading, gliding and building up, 0.5 (slow) to 2 (fast); the timing of the words stays exact. */
+    public float animationSpeed = 1f;
+    /** How strongly the lyrics kick on the beat, 0.25 to 2. */
+    public float beatStrength = 1f;
+    /** One of {@link #PAUSE_MODES}. */
+    public String pauseMode = "dim";
+    /** The lyrics in the sky further left (negative) or right (positive) of where the player looks, -60 to 60 degrees. */
+    public float sideOffsetDeg = 0f;
+    /** The bar's words being sung in an own color instead of the palette's. */
+    public boolean hudOwnAccent = false;
+    public int hudAccentColor = 0xA855F7;
+    /** A thin line in the bar showing how far the song has played. */
+    public boolean hudProgress = false;
+    /** The artist next to the song's title in the bar. */
+    public boolean hudArtist = true;
+    /** The little equalizer at the right end of the pill. */
+    public boolean hudEqualizer = true;
+    /** Accent of the glass menu: switches, sliders, the selected tab. */
+    public int menuAccent = 0xA855F7;
+    /** The world behind the glass menu softly blurred. */
+    public boolean menuBlur = true;
+    /** The glass menu's movements: opening, gliding switches, hovering cards. */
+    public boolean menuAnimations = true;
+    /** One of {@link #HOERGENAU_MODELS}. */
+    public String hoergenauModel = "small";
+    /** One of {@link #HOERGENAU_POWERS}. */
+    public String hoergenauPower = "normal";
+    /**
+     * Hoergenau also listens briefly to songs that have word times and moves them to where they are really sung, when
+     * the source was timed for another version of the song; the correction is kept per song and shared.
+     */
+    public boolean hoergenauSyncCheck = true;
     /**
      * Client ID of the player's own Spotify developer app, needed for "Connect with Spotify". Not a secret:
      * the login uses PKCE, so no client secret is involved.
@@ -182,6 +245,11 @@ public final class SkyLyricsConfig {
             config.save();
         }
         return config;
+    }
+
+    /** The Spotify app built into the mod; empty in a build without one. */
+    public static String builtInSpotifyClientId() {
+        return defaultSpotifyClientId();
     }
 
     /** Client ID baked in at build time, so the Spotify login works without setting up an own app. */
@@ -251,6 +319,35 @@ public final class SkyLyricsConfig {
         hudOpacity = Float.isFinite(hudOpacity) ? Math.max(0f, Math.min(1f, hudOpacity)) : 1f;
         hudRoundness = Float.isFinite(hudRoundness) ? Math.max(0f, Math.min(1f, hudRoundness)) : 1f;
         glow = Float.isFinite(glow) ? Math.max(0f, Math.min(2f, glow)) : 1f;
+        if (configVersion < 2 && "fancy".equals(menuStyle)) {
+            // The lively menu was the default up to 1.3.0-dev.10; the glass menu replaces it for those who kept it.
+            menuStyle = "glass";
+        }
+        configVersion = CONFIG_VERSION;
+        if (menuStyle == null || !MENU_STYLES.contains(menuStyle)) {
+            menuStyle = "glass";
+        }
+        if (pauseMode == null || !PAUSE_MODES.contains(pauseMode)) {
+            pauseMode = "dim";
+        }
+        if (hoergenauModel == null || !HOERGENAU_MODELS.contains(hoergenauModel)) {
+            hoergenauModel = "small";
+        }
+        if (hoergenauPower == null || !HOERGENAU_POWERS.contains(hoergenauPower)) {
+            hoergenauPower = "normal";
+        }
+        customTop &= 0xFFFFFF;
+        customBottom &= 0xFFFFFF;
+        customAccent &= 0xFFFFFF;
+        customGlow &= 0xFFFFFF;
+        outlineColor &= 0xFFFFFF;
+        hudAccentColor &= 0xFFFFFF;
+        menuAccent &= 0xFFFFFF;
+        outlineWidth = within(outlineWidth, 0.5f, 2f, 1f);
+        shadow = within(shadow, 0f, 2f, 1f);
+        animationSpeed = within(animationSpeed, 0.5f, 2f, 1f);
+        beatStrength = within(beatStrength, 0.25f, 2f, 1f);
+        sideOffsetDeg = within(sideOffsetDeg, -60f, 60f, 0f);
         // The bar is kept on screen when drawn; this only keeps the numbers sane.
         hudOffsetX = Math.max(-4000, Math.min(4000, hudOffsetX));
         hudOffsetY = Math.max(-4000, Math.min(4000, hudOffsetY));
@@ -262,6 +359,10 @@ public final class SkyLyricsConfig {
         }
         sources.retainAll(WORD_SOURCES);
         wordSources = new ArrayList<>(WORD_SOURCES.stream().filter(sources::contains).toList());
+    }
+
+    private static float within(float value, float min, float max, float fallback) {
+        return Float.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
     }
 
     /** Whether any word time service is switched on: the switch "Wortgenau". */

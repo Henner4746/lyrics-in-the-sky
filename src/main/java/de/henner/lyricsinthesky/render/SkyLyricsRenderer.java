@@ -83,6 +83,8 @@ public final class SkyLyricsRenderer {
     private float viewElevation;
     private float fixedYaw = Float.NaN;
     private long lastFrameNanos;
+    /** The clock the lyrics animate by: the wall clock, run faster or slower by the player's "Animationstempo". */
+    private static volatile long animationNanos;
     private float pauseDim = 1f;
     private long lastSongPositionMs;
     /** Set by the sky pass; the world pass after it then only draws {@link #inFront}. */
@@ -94,6 +96,12 @@ public final class SkyLyricsRenderer {
     private final Matrix4f shaderPackView = new Matrix4f();
 
     private SkyLyricsRenderer() {}
+
+    /** Now on the clock the lyrics animate by, for lines and stacks noting when they came. */
+    static long animationNanos() {
+        long nanos = animationNanos;
+        return nanos == 0 ? System.nanoTime() : nanos;
+    }
 
     /**
      * Called right after the vanilla sky: draws the text that belongs in the sky, so terrain, clouds and entities
@@ -195,7 +203,12 @@ public final class SkyLyricsRenderer {
         return new SkyGlyph(glyph.renderable(), glyph.pose(), glyph.argb(), glyph.argbBottom(), glyph.layer(), true, false);
     }
 
-    /** The wobble from the word being sung now. */
+    /** The wobble from the word being sung now, as strong as the player's "Takt-Stärke". */
+    private static Beat.Kick kick(LyricsController.Timeline timeline, float strength) {
+        Beat.Kick kick = kick(timeline);
+        return strength == 1f ? kick : new Beat.Kick(kick.strength() * strength, kick.tilt() * strength);
+    }
+
     private static Beat.Kick kick(LyricsController.Timeline timeline) {
         Lyrics lyrics = timeline.lyrics();
         if (lyrics == null || lyrics.isEmpty()) {
@@ -216,11 +229,16 @@ public final class SkyLyricsRenderer {
         if (controller == null || minecraft.level == null) {
             return List.of();
         }
-        long now = System.nanoTime();
-        float dt = lastFrameNanos == 0 ? 0f : Math.min(0.25f, (now - lastFrameNanos) / 1e9f);
-        lastFrameNanos = now;
+        long real = System.nanoTime();
+        float dt = lastFrameNanos == 0 ? 0f : Math.min(0.25f, (real - lastFrameNanos) / 1e9f);
         SkyLyricsConfig config = controller.config();
-        GlyphEffects.strength = config.glow;
+        // Fading, gliding and building up run on their own clock, faster or slower by the player's "Animationstempo";
+        // which word is sung when still follows the song's position alone.
+        animationNanos = lastFrameNanos == 0 || animationNanos == 0 ? real
+                : animationNanos + Math.round((real - lastFrameNanos) * (double) config.animationSpeed);
+        lastFrameNanos = real;
+        long now = animationNanos;
+        GlyphEffects.configure(config);
         var camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
         updateAnchor(camera.yRot, dt, config.followView);
         // "Turn along": a stiff spring after the view, so the lyrics keep up with turns without jerking.
@@ -256,7 +274,11 @@ public final class SkyLyricsRenderer {
                 updateWanted(timeline, config, minecraft, now, wanted);
             }
             lastSongPositionMs = timeline.positionMs();
-            pauseTarget = timeline.playing() ? 1f : 0.4f;
+            pauseTarget = timeline.playing() ? 1f : switch (config.pauseMode) {
+                case "hide" -> 0f;
+                case "keep" -> 1f;
+                default -> 0.4f;
+            };
         }
         if (timeline == null || !flowStyle) {
             leaveFlow(now);
@@ -287,7 +309,8 @@ public final class SkyLyricsRenderer {
         float nightness = 1f - Easing.smoothstep(0.12f, 0.45f, skyLuminance);
         SkyLine.Frame frame = new SkyLine.Frame(now, lastSongPositionMs, BLOCKS_PER_PIXEL_AT_100 * config.scale,
                 MAX_WIDTH_AT_100 * config.scale, config.opacity * pauseDim, nightness, minecraft.font, Style.EMPTY,
-                config.beatBounce && timeline != null && timeline.playing() ? kick(timeline) : Beat.Kick.NONE,
+                config.beatBounce && timeline != null && timeline.playing() ? kick(timeline, config.beatStrength)
+                        : Beat.Kick.NONE,
                 config.followAlong ? alongYaw.value() : Float.NaN);
         List<SkyGlyph> glyphs = new ArrayList<>(2048);
         for (LyricFlow leaving : leavingFlows) {
@@ -319,7 +342,7 @@ public final class SkyLyricsRenderer {
             placements.reset(trackKey.hashCode());
         }
         boolean around = "around".equals(config.mode);
-        Palette palette = Palette.pick(config.palette, trackKey, around);
+        Palette palette = Palette.pick(config, trackKey, around);
         SkyLine.Look look = around ? SkyLine.AROUND : SkyLine.SKY;
         Style regular = regularStyle(config.font);
         Style bold = boldStyle(config.font, false);
@@ -340,7 +363,7 @@ public final class SkyLyricsRenderer {
                     if (existing == null || existing.isExiting()) {
                         Placements.Placement placement = around
                                 ? placements.nextAround(anchorYaw, viewElevation)
-                                : placements.next(anchorYaw, config.elevationDeg);
+                                : placements.next(anchorYaw + config.sideOffsetDeg, config.elevationDeg);
                         lines.put(key, SkyLine.lyric(key, line.text(), lyrics.wordTimes(index, timeline.durationMs()),
                                 placement, look, palette, nextSeed(), minecraft.font, regular, bold));
                     }
@@ -358,7 +381,8 @@ public final class SkyLyricsRenderer {
             wanted.add(titleKey);
             if (!titleExists) {
                 Placements.Placement placement = around
-                        ? placements.titleAround(anchorYaw, viewElevation) : placements.title(anchorYaw, config.elevationDeg);
+                        ? placements.titleAround(anchorYaw, viewElevation)
+                        : placements.title(anchorYaw + config.sideOffsetDeg, config.elevationDeg);
                 lines.put(titleKey, SkyLine.title(titleKey, timeline.title(), subtitle(timeline), placement, look,
                         palette, nextSeed(), minecraft.font, regular, bold));
             }
@@ -367,7 +391,7 @@ public final class SkyLyricsRenderer {
 
     /** The gliding stack: one per song, mode and look; a change lets the old stack glide away. */
     private void updateFlow(LyricsController.Timeline timeline, SkyLyricsConfig config, Minecraft minecraft, long now) {
-        String key = timeline.trackKey() + "#" + config.mode + "#" + config.font + "#" + config.palette + "#"
+        String key = timeline.trackKey() + "#" + config.mode + "#" + config.font + "#" + Palette.key(config) + "#"
                 + config.showTitleCard;
         if (flow != null && !flow.key.equals(key)) {
             leaveFlow(now);
@@ -383,7 +407,7 @@ public final class SkyLyricsRenderer {
             boolean around = "around".equals(config.mode);
             // While an old stack is still gliding away, the new one waits a moment so the two never overlap.
             flow = new LyricFlow(key, around ? SkyLine.AROUND : SkyLine.SKY,
-                    Palette.pick(config.palette, timeline.trackKey(), around), regularStyle(config.font),
+                    Palette.pick(config, timeline.trackKey(), around), regularStyle(config.font),
                     boldStyle(config.font, false), config.showTitleCard, BLOCKS_PER_PIXEL_AT_100,
                     leavingFlows.isEmpty() ? 0 : FLOW_HANDOVER_MS);
         }
@@ -421,7 +445,7 @@ public final class SkyLyricsRenderer {
         if (line.text().isBlank() || timeline.positionMs() >= lyrics.endOf(index, timeline.durationMs())) {
             return;
         }
-        String key = trackKey + "#" + index + "#arc#" + config.style + "#" + config.font + "#" + config.palette;
+        String key = trackKey + "#" + index + "#arc#" + config.style + "#" + config.font + "#" + Palette.key(config);
         wanted.add(key);
         // Skipped back to a line that is still fading out: it starts over.
         ArcLine existing = arcs.get(key);
@@ -429,10 +453,10 @@ public final class SkyLyricsRenderer {
             // Natural: right above the hills, the height setting moves the lines up from there (16° by default
             // becomes about 6°).
             Placements.Placement placement = natural
-                    ? placements.nextHorizon(anchorYaw, Math.max(3f, config.elevationDeg - NATURAL_HEIGHT_DROP))
-                    : placements.nextLow(anchorYaw, config.elevationDeg);
+                    ? placements.nextHorizon(anchorYaw + config.sideOffsetDeg, Math.max(3f, config.elevationDeg - NATURAL_HEIGHT_DROP))
+                    : placements.nextLow(anchorYaw + config.sideOffsetDeg, config.elevationDeg);
             arcs.put(key, ArcLine.create(key, line.text(), lyrics.wordTimes(index, timeline.durationMs()), placement,
-                    SkyLine.SKY, Palette.pick(config.palette, trackKey, false), nextSeed(), minecraft.font,
+                    SkyLine.SKY, Palette.pick(config, trackKey, false), nextSeed(), minecraft.font,
                     boldStyle(config.font, false), natural ? ArcLine.LOW_HORIZON_MARGIN_DEG : ArcLine.HORIZON_MARGIN_DEG));
         }
     }
@@ -440,13 +464,13 @@ public final class SkyLyricsRenderer {
     /** The video look around the player: one set of floating words per song. */
     private void updateFloating(LyricsController.Timeline timeline, SkyLyricsConfig config, Minecraft minecraft,
             double camX, double camY, double camZ, float cameraYaw, float cameraPitch, long now, boolean natural) {
-        String key = timeline.trackKey() + "#float#" + config.style + "#" + config.font + "#" + config.palette + "#"
+        String key = timeline.trackKey() + "#float#" + config.style + "#" + config.font + "#" + Palette.key(config) + "#"
                 + config.showTitleCard;
         if (floating != null && !floating.key.equals(key)) {
             leaveFloating(now);
         }
         if (floating == null) {
-            floating = new FloatingWords(key, Palette.pick(config.palette, timeline.trackKey(), true),
+            floating = new FloatingWords(key, Palette.pick(config, timeline.trackKey(), true),
                     boldStyle(config.font, true), config.showTitleCard, natural);
         }
         floating.update(timeline, subtitle(timeline), camX, camY, camZ, cameraYaw, cameraPitch, now, minecraft.font);
@@ -501,7 +525,7 @@ public final class SkyLyricsRenderer {
      */
     private void aimFlow(float cameraYaw, float cameraElevation, SkyLyricsConfig config, float dt) {
         boolean around = "around".equals(config.mode);
-        float yaw = config.followView || Float.isNaN(fixedYaw) ? cameraYaw : fixedYaw;
+        float yaw = (config.followView || Float.isNaN(fixedYaw) ? cameraYaw : fixedYaw) + (around ? 0f : config.sideOffsetDeg);
         float elevation = around ? (config.followView ? Mth.clamp(cameraElevation * 0.85f, -35f, 55f) : 0f)
                 : config.elevationDeg;
         flowYaw.step(flowYaw.value() + Mth.wrapDegrees(yaw - flowYaw.value()), dt);

@@ -125,7 +125,7 @@ final class LyricFlow {
         this.withTitle = withTitle;
         this.maxRowPx = WRAP_AT_100 / (blocksPerPixelAt100 * look.size() * SIZE);
         this.fadeDelayMs = fadeDelayMs;
-        this.createdNanos = System.nanoTime();
+        this.createdNanos = SkyLyricsRenderer.animationNanos();
     }
 
     /** Takes this frame's song state; rebuilds the entries when lyrics arrive or the title card text changes. */

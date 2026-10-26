@@ -169,7 +169,7 @@ final class SkyLine {
         this.seed = seed;
         this.wallClock = wallClock;
         this.words = words;
-        this.createdNanos = System.nanoTime();
+        this.createdNanos = SkyLyricsRenderer.animationNanos();
         this.nextShimmerNanos = createdNanos + 600_000_000L;
         this.entry = pick(Entry.values(), new int[] {3, 3, 2, 2, 1, 1}, Easing.hash(seed, 11));
         this.exit = pick(Exit.values(), new int[] {3, 2, 2, 1}, Easing.hash(seed, 12));

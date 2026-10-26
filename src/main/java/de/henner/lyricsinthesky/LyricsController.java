@@ -18,6 +18,7 @@ import de.henner.lyricsinthesky.timing.TimingTracker;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -466,14 +467,37 @@ public final class LyricsController {
         Lyrics lyrics = entry == null ? null : entry.lyrics().filter(found -> !found.isInstrumental()).orElse(null);
         long position = clock.at(key, nowMs, now.estimatePositionMs(nowMs), now.playing());
         int songOffset = lyrics == null ? 0 : timings.offsetFor(songId(now, lyrics));
+        String title = now.title();
+        String artist = now.artist();
+        Lyrics shown = lyrics;
         if (config.streamerMode) {
             Explicit filter = lyrics == null ? Explicit.ANY : censored(lyrics).filter();
-            return new Timeline(key, filter.hide(now.title()), filter.hide(now.artist()),
-                    lyrics == null ? null : censored(lyrics).lyrics(), state, position + config.offsetMs + songOffset,
-                    now.durationMs(), now.playing());
+            title = filter.hide(title);
+            artist = filter.hide(artist);
+            shown = lyrics == null ? null : censored(lyrics).lyrics();
         }
-        return new Timeline(key, now.title(), now.artist(), lyrics, state, position + config.offsetMs + songOffset,
+        if (config.uppercase) {
+            title = title.toUpperCase(Locale.ROOT);
+            artist = artist.toUpperCase(Locale.ROOT);
+            shown = shown == null ? null : upper(shown);
+        }
+        return new Timeline(key, title, artist, shown, state, position + config.offsetMs + songOffset,
                 now.durationMs(), now.playing());
+    }
+
+    private record Upper(Lyrics source, Lyrics lyrics) {}
+
+    /** The last lyrics shown in capitals; made once per song, not per frame. */
+    private volatile Upper upper;
+
+    private Lyrics upper(Lyrics lyrics) {
+        Upper last = upper;
+        if (last == null || last.source() != lyrics) {
+            // "ß" becomes "SS": a word gets longer, but stays one word, so its time still fits.
+            last = new Upper(lyrics, lyrics.mapText(text -> text.toUpperCase(Locale.ROOT)));
+            upper = last;
+        }
+        return last.lyrics();
     }
 
     /** The lyrics found for the song playing now, as they are kept (not hidden for streamer mode); else {@code null}. */

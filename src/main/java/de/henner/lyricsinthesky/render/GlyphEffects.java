@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.render;
 
+import de.henner.lyricsinthesky.SkyLyricsConfig;
 import java.util.List;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.font.TextRenderable;
@@ -29,8 +30,38 @@ final class GlyphEffects {
      * set once per frame from the config.
      */
     static volatile float strength = 1f;
+    /** The player's "Schatten": the soft dark shadow by day, 0 to 2. */
+    static volatile float shadowStrength = 1f;
+    /** The player's "Kontur": a ring of copies in {@link #outlineColor} around every letter, {@link #outlineWidth} wide. */
+    static volatile boolean outline;
+    static volatile int outlineColor;
+    static volatile float outlineWidth = 1f;
+    private static final float OUTLINE_PX = 0.55f;
 
     private GlyphEffects() {}
+
+    /** Takes this frame's look from the config. */
+    static void configure(SkyLyricsConfig config) {
+        strength = config.glow;
+        shadowStrength = config.shadow;
+        outline = config.outline;
+        outlineColor = config.outlineColor;
+        outlineWidth = config.outlineWidth;
+    }
+
+    /** The outline ring, drawn with the glow so the letters stay on top of it. */
+    private static void outline(TextRenderable glyph, Matrix4f pose, float alpha, boolean overlay, boolean occluded,
+            List<SkyGlyph> out) {
+        if (!outline) {
+            return;
+        }
+        int ring = ARGB.color(Math.min(1f, alpha * 0.9f), outlineColor);
+        float width = OUTLINE_PX * outlineWidth;
+        for (int i = 0; i < GLOW_COPIES; i++) {
+            out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(GLOW_COS[i] * width, GLOW_SIN[i] * width, 0f),
+                    ring, ring, SkyGlyph.LAYER_GLOW, overlay, occluded));
+        }
+    }
 
     /**
      * @param alpha     opacity of the glyph itself
@@ -41,12 +72,14 @@ final class GlyphEffects {
     static void emit(TextRenderable glyph, Matrix4f pose, int color, float alpha, int glowColor, float glowAlpha,
             float dayness, float blur, boolean overlay, List<SkyGlyph> out) {
         float strength = GlyphEffects.strength;
-        if (dayness > 0.05f && strength > 0.01f) {
+        float shadow = shadowStrength;
+        if (dayness > 0.05f && shadow > 0.01f) {
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(0.55f, 0.75f, 0f),
-                    ARGB.color(Math.min(1f, alpha * 0.38f * dayness * strength), DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
+                    ARGB.color(Math.min(1f, alpha * 0.38f * dayness * shadow), DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(1.0f, 1.3f, 0f),
-                    ARGB.color(Math.min(1f, alpha * 0.2f * dayness * strength), DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
+                    ARGB.color(Math.min(1f, alpha * 0.2f * dayness * shadow), DAY_HALO), SkyGlyph.LAYER_GLOW, overlay));
         }
+        outline(glyph, pose, alpha, overlay, false, out);
         int glow = ARGB.color(Math.min(1f, alpha * glowAlpha * strength), glowColor);
         for (int i = 0; i < GLOW_COPIES; i++) {
             out.add(new SkyGlyph(glyph, new Matrix4f(pose).translate(GLOW_COS[i] * GLOW_PX, GLOW_SIN[i] * GLOW_PX, 0f),
@@ -74,7 +107,8 @@ final class GlyphEffects {
     static void emitPlain(TextRenderable glyph, Matrix4f pose, int top, int bottom, float alpha, float shadow, float blur,
             boolean overlay, boolean occluded, List<SkyGlyph> out) {
         float strength = GlyphEffects.strength;
-        shadow *= strength;
+        shadow *= shadowStrength;
+        outline(glyph, pose, alpha, overlay, occluded, out);
         if (strength > 1.01f) {
             // Above the designed strength: a soft dark ring as well, which reads like an outline on a bright sky.
             int ring = ARGB.color(Math.min(1f, alpha * 0.14f * (strength - 1f)), DAY_HALO);

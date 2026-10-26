@@ -8,6 +8,7 @@ import com.mojang.brigadier.context.CommandContext;
 import de.henner.lyricsinthesky.dev.LiveTest;
 import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
+import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.hoergenau.SharedLearned;
@@ -48,6 +49,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -176,7 +178,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
 
     /** Opens the settings screen on top of whatever is shown now. */
     public static void openSettings(Minecraft client) {
-        client.gui.setScreen(new SettingsScreen(client.gui.screen(), controller, spotify));
+        Screen parent = client.gui.screen();
+        client.gui.setScreen("glass".equals(config.menuStyle) ? new GlassMenuScreen(parent, controller, spotify)
+                : new SettingsScreen(parent, controller, spotify));
     }
 
     private static void handleKeys(Minecraft client) {

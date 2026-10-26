@@ -51,11 +51,47 @@ class SkyLyricsConfigTest {
     @Test
     void unknownValuesFallBackToTheDefaults(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("lyricsinthesky.json");
-        Files.writeString(file, "{\"style\": \"neon\", \"palette\": \"rainbow\", \"mode\": \"moon\"}", StandardCharsets.UTF_8);
+        Files.writeString(file, "{\"style\": \"neon\", \"palette\": \"plaid\", \"mode\": \"moon\", \"pauseMode\": \"sleep\", "
+                + "\"hoergenauModel\": \"huge\", \"hoergenauPower\": \"max\", \"menuStyle\": \"wood\"}", StandardCharsets.UTF_8);
         SkyLyricsConfig config = SkyLyricsConfig.load(file);
         assertEquals("elegant", config.style);
         assertEquals("standard", config.palette);
         assertEquals("sky", config.mode);
+        assertEquals("dim", config.pauseMode);
+        assertEquals("small", config.hoergenauModel);
+        assertEquals("normal", config.hoergenauPower);
+        assertEquals("glass", config.menuStyle);
+    }
+
+    @Test
+    void newLookOptionsAreKeptInRange(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("lyricsinthesky.json");
+        Files.writeString(file, "{\"palette\": \"rainbow\", \"outlineWidth\": 7, \"shadow\": -2, \"animationSpeed\": 0.1, "
+                + "\"beatStrength\": 9, \"sideOffsetDeg\": -400, \"customTop\": -1, \"menuAccent\": -15584170}",
+                StandardCharsets.UTF_8);
+        SkyLyricsConfig config = SkyLyricsConfig.load(file);
+        assertEquals("rainbow", config.palette);
+        assertEquals(2f, config.outlineWidth);
+        assertEquals(0f, config.shadow);
+        assertEquals(0.5f, config.animationSpeed);
+        assertEquals(2f, config.beatStrength);
+        assertEquals(-60f, config.sideOffsetDeg);
+        // Colors are plain RGB: whatever alpha came along is dropped.
+        assertEquals(0xFFFFFF, config.customTop);
+        assertEquals(0x123456, config.menuAccent);
+    }
+
+    @Test
+    void theLivelyMenuKeptByDefaultBecomesTheGlassMenuButAChoiceAfterwardsStays(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("lyricsinthesky.json");
+        Files.writeString(file, "{\"menuStyle\": \"fancy\"}", StandardCharsets.UTF_8);
+        SkyLyricsConfig config = SkyLyricsConfig.load(file);
+        assertEquals("glass", config.menuStyle);
+        config.menuStyle = "fancy";
+        config.save();
+        assertEquals("fancy", SkyLyricsConfig.load(file).menuStyle);
+        Files.writeString(file, "{\"menuStyle\": \"minimal\"}", StandardCharsets.UTF_8);
+        assertEquals("minimal", SkyLyricsConfig.load(file).menuStyle);
     }
 
     @Test

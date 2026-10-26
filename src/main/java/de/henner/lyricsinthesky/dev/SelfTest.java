@@ -3,6 +3,7 @@ package de.henner.lyricsinthesky.dev;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
@@ -86,13 +87,21 @@ public final class SelfTest {
     /** Then "Wortgenau" with all services on: the song gets word times from one of them. */
     private static final double WORD_TIMES_ON = 67.0;
     private static final double WORD_TIMES_CHECK = 77.0;
+    /**
+     * Then the glass menu: its start, every page, the look page scrolled to its end and the color picker, each a second
+     * after opening so the cards and rows have come in.
+     */
+    private static final double GLASS_MENU_FROM = 79.0;
+    private static final String[] GLASS_MENU_SHOTS = {"start", "display", "look", "look-end", "motion", "bar", "timing",
+            "sources", "hoergenau", "spotify", "streamer", "menu", "picker"};
     /** The end of the fixed steps; the songs of {@link #SONG_LIST}, if any, come after it, then the game quits. */
-    private static final double QUIT_AT = 79.0;
+    private static final double QUIT_AT = GLASS_MENU_FROM + GLASS_MENU_SHOTS.length + 1.0;
     private static final String SONG_LIST = "selftest-songs.tsv";
     private static final double SONG_SECONDS = 6.0;
     private static final double SONG_CHECK_AFTER = 5.0;
     private static List<String[]> songs;
     private static String themeBefore;
+    private static String menuStyleBefore;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
 
@@ -200,6 +209,7 @@ public final class SelfTest {
             introSteps(minecraft, controller);
             glassSteps(minecraft, controller);
             menuSteps(minecraft, controller);
+            glassMenuSteps(minecraft, controller);
             wordTimeSteps(controller);
             songSteps(minecraft, controller);
         }
@@ -508,6 +518,58 @@ public final class SelfTest {
             }
             config.theme = themeBefore != null ? themeBefore : config.theme;
             minecraft.player.connection.sendCommand("time set noon");
+        }
+    }
+
+    /** The glass menu, page by page; each has to fit the screen. */
+    private static void glassMenuSteps(Minecraft minecraft, LyricsController controller) {
+        SkyLyricsConfig config = controller.config();
+        for (int i = 0; i < GLASS_MENU_SHOTS.length; i++) {
+            double at = GLASS_MENU_FROM + i;
+            String shot = GLASS_MENU_SHOTS[i];
+            if (atSecond(at)) {
+                clearScreen(minecraft);
+                if (i == 0) {
+                    menuStyleBefore = config.menuStyle;
+                    config.menuStyle = "glass";
+                    minecraft.player.connection.sendCommand("time set noon");
+                }
+                if (!(minecraft.gui.screen() instanceof GlassMenuScreen)) {
+                    LyricsInTheSkyClient.openSettings(minecraft);
+                }
+                if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
+                    switch (shot) {
+                        case "start" -> menu.show(null);
+                        case "look-end" -> {
+                            menu.show("look");
+                            menu.scrollToEnd();
+                        }
+                        case "picker" -> {
+                            menu.show("look");
+                            menu.openFirstColor();
+                        }
+                        default -> menu.show(shot);
+                    }
+                }
+            }
+            if (atSecond(at + 0.7)) {
+                clearScreen(minecraft);
+            }
+            if (atSecond(at + 0.85)) {
+                if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
+                    LOGGER.info("SELFTEST glass menu {}: {}", shot, menu.fits() ? "fits" : "TOO BIG");
+                } else {
+                    LOGGER.info("SELFTEST glass menu {}: NOT open", shot);
+                }
+                shoot(minecraft, "glass menu " + shot);
+            }
+        }
+        if (atSecond(GLASS_MENU_FROM + GLASS_MENU_SHOTS.length)) {
+            if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
+                menu.show(null);
+                menu.onClose();
+            }
+            config.menuStyle = menuStyleBefore != null ? menuStyleBefore : config.menuStyle;
         }
     }
 

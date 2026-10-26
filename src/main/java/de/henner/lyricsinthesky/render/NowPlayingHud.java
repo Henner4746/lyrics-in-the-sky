@@ -3,6 +3,7 @@ package de.henner.lyricsinthesky.render;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
@@ -69,7 +70,11 @@ public final class NowPlayingHud implements HudElement {
     private long lineEndMs;
     private boolean lyricLine;
     private long positionMs;
+    private long durationMs;
     private boolean playing;
+    /** The player's choices: a progress line along the bottom, the equalizer at the pill's end. */
+    private boolean progress;
+    private boolean equalizer = true;
     private Palette palette = Palette.AURORA;
     private Style textStyle = Style.EMPTY;
     /** Highlight the words being sung as one group instead of only the current word. */
@@ -104,7 +109,8 @@ public final class NowPlayingHud implements HudElement {
         Minecraft minecraft = Minecraft.getInstance();
         LyricsController controller = LyricsInTheSkyClient.controller();
         Screen screen = minecraft.gui.screen();
-        if (controller == null || screen instanceof SettingsScreen) {
+        if (controller == null || screen instanceof SettingsScreen
+                || screen instanceof GlassMenuScreen menu && !menu.peeking()) {
             // The settings panel covers the top of the screen; the bar would shine through it.
             lastBounds = null;
             return;
@@ -129,6 +135,7 @@ public final class NowPlayingHud implements HudElement {
 
         Font font = minecraft.font;
         String style = config.hudStyle;
+        equalizer = config.hudEqualizer;
         int maxText = Math.min(MAX_TEXT, graphics.guiWidth() - 90);
         int textWidth = Math.min(maxText, textWidth(font, words));
         int height;
@@ -144,12 +151,13 @@ public final class NowPlayingHud implements HudElement {
             }
             default -> {
                 height = HEIGHT;
-                targetWidth = PADDING + ICON + GAP + textWidth + GAP + EQ_WIDTH + PADDING;
+                targetWidth = PADDING + ICON + GAP + textWidth + (equalizer ? GAP + EQ_WIDTH : 0) + PADDING;
             }
         }
         width = width < 0 ? targetWidth : width + (targetWidth - width) * (1f - (float) Math.exp(-dt / 0.12f));
         int w = Math.round(width);
         float scale = config.hudScale;
+        progress = config.hudProgress;
         glass = "glass".equals(config.theme);
         density = config.hudOpacity;
         roundness = config.hudRoundness;
@@ -201,13 +209,27 @@ public final class NowPlayingHud implements HudElement {
         graphics.centeredText(font, icon, iconX + ICON / 2 + 1, iconY + 2, ARGB.color(alpha, 0xFFFFFF));
 
         int textX = iconX + ICON + GAP;
-        int textRight = x0 + w - PADDING - EQ_WIDTH - GAP;
+        int textRight = x0 + w - PADDING - (equalizer ? EQ_WIDTH + GAP : 0);
         int textY = y0 + 5 + Math.round((1f - slide) * 6f);
         graphics.enableScissor(textX - 2, y0 + 1, textRight + 2, y0 + HEIGHT - 1);
         drawWords(graphics, font, textX, textY, alpha * slide);
         graphics.disableScissor();
 
-        drawEqualizer(graphics, textRight + GAP, y0, now);
+        if (equalizer) {
+            drawEqualizer(graphics, textRight + GAP, y0, now);
+        }
+        drawProgress(graphics, x0 + Math.round(HEIGHT / 2f * roundness), x0 + w - Math.round(HEIGHT / 2f * roundness),
+                y0 + HEIGHT - 2);
+    }
+
+    /** A thin line along the bottom of the bar: how far the song has played, when the player wants it. */
+    private void drawProgress(GuiGraphicsExtractor graphics, int left, int right, int y) {
+        if (!progress || durationMs <= 0 || right - left < 8) {
+            return;
+        }
+        float played = Easing.clamp01(positionMs / (float) durationMs);
+        graphics.fill(left, y, right, y + 1, ARGB.color(alpha * 0.22f, 0xFFFFFF));
+        graphics.fill(left, y, left + Math.round((right - left) * played), y + 1, ARGB.color(alpha * 0.95f, palette.accentEnd));
     }
 
     /** Just the words with a shadow: sung ones white, the current one in the accent color, the rest grey. */
@@ -233,6 +255,7 @@ public final class NowPlayingHud implements HudElement {
             cursor += font.width(word) + space;
         }
         graphics.disableScissor();
+        drawProgress(graphics, x0 + 2, x0 + w - 2, y0 + PLAIN_HEIGHT);
         drawHoergenauDot(graphics, x0 + w + 9, y0 - 2, System.nanoTime());
     }
 
@@ -252,6 +275,7 @@ public final class NowPlayingHud implements HudElement {
             }
         }
         graphics.disableScissor();
+        drawProgress(graphics, x0 + 8, x0 + w - 8, y0 + KARAOKE_HEIGHT - 3);
         drawHoergenauDot(graphics, x0 + w - 2, y0 + 1, System.nanoTime());
     }
 
@@ -287,10 +311,11 @@ public final class NowPlayingHud implements HudElement {
     }
 
     private void update(LyricsController.Timeline timeline, SkyLyricsConfig config, long now) {
-        palette = Palette.pick(config.palette, timeline.trackKey(), "around".equals(config.mode));
+        palette = barPalette(config, timeline.trackKey());
         textStyle = barStyle(config);
         groupHighlight = "natural".equals(config.style);
         positionMs = timeline.positionMs();
+        durationMs = timeline.durationMs();
         playing = timeline.playing();
         Hoergenau listener = LyricsInTheSkyClient.controller() == null ? null : LyricsInTheSkyClient.controller().hoergenau();
         recording = listener != null && config.hoergenau && listener.listeningTo(timeline.trackKey());
@@ -317,10 +342,10 @@ public final class NowPlayingHud implements HudElement {
         }
         // The song; when lyrics are off, not found or LRCLIB does not answer, first why no line shows, so the bar's
         // width limit cuts the title rather than the reason.
-        key = timeline.trackKey() + "#title#" + timeline.state();
+        key = timeline.trackKey() + "#title#" + timeline.state() + "#" + config.hudArtist;
         if (!key.equals(contentKey)) {
             String hint = SkyLyricsRenderer.hint(timeline.state());
-            String song = timeline.artist().isBlank() || !hint.isEmpty() ? timeline.title()
+            String song = timeline.artist().isBlank() || !hint.isEmpty() || !config.hudArtist ? timeline.title()
                     : timeline.title() + " · " + timeline.artist();
             showTitle(key, (hint.isEmpty() ? "" : hint + " · ") + song, now);
         }
@@ -328,11 +353,12 @@ public final class NowPlayingHud implements HudElement {
 
     /** While the bar is being moved and nothing plays: a sample line, sung over and over. */
     private void preview(SkyLyricsConfig config, long now) {
-        palette = Palette.pick(config.palette, "preview", "around".equals(config.mode));
+        palette = barPalette(config, "preview");
         textStyle = barStyle(config);
         groupHighlight = "natural".equals(config.style);
         playing = true;
         positionMs = now / 1_000_000L % PREVIEW_CYCLE_MS;
+        durationMs = PREVIEW_CYCLE_MS;
         if ("title".equals(config.hudStyle)) {
             if (!contentKey.equals("preview#title")) {
                 showTitle("preview#title", "Lyrics in the Sky · Vorschau", now);
@@ -363,6 +389,12 @@ public final class NowPlayingHud implements HudElement {
         lyricLine = false;
         estimated = false;
         changed(key, now);
+    }
+
+    /** The lyrics' palette, with the bar's own accent color when the player chose one. */
+    private static Palette barPalette(SkyLyricsConfig config, String trackKey) {
+        Palette palette = Palette.pick(config, trackKey, "around".equals(config.mode));
+        return config.hudOwnAccent ? palette.withAccent(config.hudAccentColor) : palette;
     }
 
     /** The bar speaks in the same type as the lyrics, except handwriting, which is too busy at this size. */

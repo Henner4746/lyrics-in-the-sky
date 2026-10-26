@@ -1,0 +1,15 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "lyricsinthesky:poppins-medium.ttf",
+      "size": 9.5,
+      "oversample": 6.0,
+      "shift": [0.0, 1.5]
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:default"
+    }
+  ]
+}
