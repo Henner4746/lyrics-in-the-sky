@@ -245,7 +245,7 @@ class HoergenauTest {
         CountingRecorder recorder = new CountingRecorder();
         LyricsCache saved = new LyricsCache(dir.resolve("lyrics"));
         // Its first half was heard another day.
-        saved.write("song heard", HeardParts.none().with(0, 104_500, List.of(), "de").format());
+        saved.write("song\u0000heard", HeardParts.none().with(0, 104_500, List.of(), "de").format());
         Hoergenau hoergenau = checking(dir, recorder, saved);
         // Joined in the half heard before: nothing new to hear there.
         hoergenau.observe(track(true, 60_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);

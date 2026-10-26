@@ -447,13 +447,13 @@ public final class Hoergenau {
         LOGGER.info("Hoergenau learned '{}' in {} s ({})", done.track.title(), (System.nanoTime() - started) / 1_000_000_000,
                 how);
         SharedLearned sharer = this.sharer;
-        // Only word times on lrclib.net's text go to the others, never words: a song written down as heard stays here.
-        boolean shared = sharer != null && config.shareLearned && !done.lines.isEmpty()
-                && sharer.share(done.key, done.track, lrc, matched);
-        notifier.toast("Gelernt: " + shown(done.track.title()),
-                "ab jetzt Wort für Wort" + (shared ? ", Zeiten für alle geteilt" : ""));
+        // On lrclib.net's text only its word times go to the others; a song nobody has the text of goes as written down.
+        boolean shared = sharer != null && config.shareLearned && (done.lines.isEmpty()
+                ? sharer.shareHeard(done.key, done.track, lrc) : sharer.share(done.key, done.track, lrc, matched));
+        notifier.toast("Gelernt: " + shown(done.track.title()), "ab jetzt Wort für Wort" + (shared ? ", für alle geteilt" : ""));
         notifier.chat("Hörgenau hat „" + shown(done.track.title()) + "“ gelernt (" + how
-                + "). Ab jetzt Wort für Wort" + (shared ? ", und die Wortzeiten sind für alle geteilt." : "."));
+                + "). Ab jetzt Wort für Wort" + (shared ? done.lines.isEmpty() ? ", und für alle geteilt."
+                        : ", und die Wortzeiten sind für alle geteilt." : "."));
         return true;
     }
 

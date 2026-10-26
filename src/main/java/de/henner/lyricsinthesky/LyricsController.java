@@ -268,8 +268,7 @@ public final class LyricsController {
                 // Another player may have learned the song by listening: its word times, put on LRCLIB's text here, run
                 // it word by word without listening again. Kept like lyrics learned here, so LRCLIB's lines still
                 // replace it once they exist.
-                Optional<Lyrics> learnedElsewhere = lookup.plain()
-                        .flatMap(text -> sharedLearned(key, text, now.durationMs()));
+                Optional<Lyrics> learnedElsewhere = sharedLearned(key, lookup.plain().orElse(null), now.durationMs());
                 if (learnedElsewhere.isPresent()) {
                     cache.put(key, new CacheEntry(learnedElsewhere, LookupState.FOUND, System.currentTimeMillis()));
                     LOGGER.info("Lyrics for '{}' by '{}': FOUND (learned by another player)", now.title(), now.artist());
@@ -320,7 +319,8 @@ public final class LyricsController {
         if (from == null || !config.shareLearned) {
             return Optional.empty();
         }
-        Optional<String> lrc = from.fetch(key, Lyrics.estimated(text, durationMs));
+        // With lrclib.net's text the shared word times go on it; without, what another player wrote down as heard.
+        Optional<String> lrc = from.fetch(key, text == null ? null : Lyrics.estimated(text, durationMs));
         lrc.ifPresent(found -> saved.write(key, found));
         return lrc.map(Lyrics::parseLrc);
     }

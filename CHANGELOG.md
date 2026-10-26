@@ -10,6 +10,13 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.17 – 2026-10-26
+
+- **Songs nobody has the text of are shared with their text again**: what Hörgenau wrote down for such a song goes to
+  the tracker with its text and word times, so other players get it word by word at once. It counts once players on
+  two networks heard it alike, and the tracker takes it only while lrclib.net has no text for the song. Songs whose
+  text lrclib.net has stay shared as word times only, put on each player's own text.
+
 ### 1.3.0-dev.16 – 2026-10-26
 
 - **One menu, three looks, the same options everywhere**: *Prachtvoll* is now a look of the one menu – the glass

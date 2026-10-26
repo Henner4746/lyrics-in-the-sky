@@ -29,13 +29,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Word times Hoergenau learned, shared through the tracker on henrik.click: what this PC learns is sent there, and before
- * a song nobody has timed is only estimated, the tracker is asked whether another player learned it. No lyrics are sent
- * or received: only the times of the words and a fingerprint of lrclib.net's text they belong to; the times are put on
- * the text this PC got from lrclib.net itself, and only when it is exactly the same. They count on the tracker once it
- * found that text on lrclib.net. Lyrics written down as heard, for songs nobody has the text of, are not shared. Sent
- * are the song (artist, title, album, length), the word times, the fingerprint and the random install ID; nothing at
- * all while sharing is switched off.
+ * What Hoergenau learned, shared through the tracker on henrik.click: what this PC learns is sent there, and before a
+ * song nobody has timed is only estimated, the tracker is asked whether another player learned it. For a song whose
+ * text lrclib.net has, no lyrics are sent or received: only the times of the words and a fingerprint of that text; the
+ * times are put on the text this PC got from lrclib.net itself, and only when it is exactly the same. They count on the
+ * tracker once it found that text on lrclib.net. For a song nobody has the text of, what was written down as heard is
+ * shared with its text; it counts once players on two networks heard it alike. Sent are the song (artist, title,
+ * album, length), the word times with the fingerprint or the lyrics written down, and the random install ID; nothing
+ * at all while sharing is switched off.
  */
 public final class SharedLearned {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
@@ -66,9 +67,9 @@ public final class SharedLearned {
     }
 
     /**
-     * The word times another player learned for this song ({@code artist\0title\0album}), put on {@code text}, the
-     * song's lyrics from lrclib.net without times spread over it; empty when the tracker has none for exactly that text.
-     * Blocks briefly.
+     * What another player learned for this song ({@code artist\0title\0album}): word times put on {@code text}, the
+     * song's lyrics from lrclib.net without times spread over it, or, with {@code text} {@code null} for a song nobody
+     * has the text of, the lyrics written down as heard; empty when the tracker has none that fit. Blocks briefly.
      */
     public Optional<String> fetch(String songKey, Lyrics text) {
         String id = LyricsCache.idOf(songKey);
@@ -87,7 +88,7 @@ public final class SharedLearned {
             if (response.statusCode() != 200) {
                 throw new java.io.IOException("tracker answered HTTP " + response.statusCode());
             }
-            Optional<String> lrc = timingOf(response.body()).flatMap(timing -> onto(timing, text));
+            Optional<String> lrc = learnedOf(response.body(), text);
             if (lrc.isEmpty()) {
                 notBefore.put(id, now + ASK_AGAIN_MS);
             }
@@ -100,6 +101,25 @@ public final class SharedLearned {
             LOGGER.debug("Shared word times not reached: {}", e.toString());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Learned lyrics from the tracker's answer: with lrclib.net's text, its word times put on it; without, the lyrics
+     * another player wrote down as heard, if they are learned lyrics with word times.
+     */
+    static Optional<String> learnedOf(String body, Lyrics text) {
+        if (text != null) {
+            return timingOf(body).flatMap(timing -> onto(timing, text));
+        }
+        JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+        if (!root.has("lrc") || !root.get("lrc").isJsonPrimitive() || !root.has("kind")
+                || !"heard".equals(root.get("kind").getAsString())) {
+            return Optional.empty();
+        }
+        String lrc = root.get("lrc").getAsString();
+        Lyrics lyrics = Lyrics.parseLrc(lrc);
+        return lrc.startsWith(HeardLyrics.MARK) && !lyrics.isEmpty() && lyrics.hasWordTiming()
+                ? Optional.of(lrc) : Optional.empty();
     }
 
     /** The word times in the tracker's answer, if it has some. */
@@ -209,6 +229,21 @@ public final class SharedLearned {
         return body;
     }
 
+    /** What is sent for a song nobody has the text of: its names and length, and the lyrics written down as heard. */
+    static JsonObject heardBody(String songKey, NowPlaying track, String lrc, String installId, String version) {
+        JsonObject body = new JsonObject();
+        body.addProperty("song", LyricsCache.idOf(songKey));
+        body.addProperty("artist", track.artist());
+        body.addProperty("title", track.title());
+        body.addProperty("album", track.album());
+        body.addProperty("durationMs", track.durationMs());
+        body.addProperty("kind", "heard");
+        body.addProperty("lrc", lrc);
+        body.addProperty("install", installId);
+        body.addProperty("version", version);
+        return body;
+    }
+
     /**
      * Sends the word times this PC learned for a song on lrclib.net's text, in the background. Whether they are sent:
      * only with sharing on and when every word has its time.
@@ -218,26 +253,37 @@ public final class SharedLearned {
         if (!sharing.getAsBoolean() || track.durationMs() <= 0 || timing.isEmpty()) {
             return false;
         }
+        send(track, body(songKey, track, timing.get(), matched, installId, version));
+        return true;
+    }
+
+    /** Sends the lyrics this PC wrote down as heard for a song nobody has the text of, in the background. */
+    public boolean shareHeard(String songKey, NowPlaying track, String lrc) {
+        if (!sharing.getAsBoolean() || track.durationMs() <= 0) {
+            return false;
+        }
+        send(track, heardBody(songKey, track, lrc, installId, version));
+        return true;
+    }
+
+    private void send(NowPlaying track, JsonObject body) {
         worker.execute(() -> {
             try {
-                JsonObject body = body(songKey, track, timing.get(), matched, installId, version);
                 // The tracker checks the text on lrclib.net before it answers, which can take a while.
                 HttpRequest request = HttpRequest.newBuilder(URI.create(BASE)).timeout(Duration.ofSeconds(45))
                         .header("User-Agent", userAgent()).header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8)).build();
                 HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                LOGGER.info("Hoergenau shared the word times of '{}' (HTTP {}: {})", track.title(), response.statusCode(),
-                        response.body());
+                LOGGER.info("Hoergenau shared '{}' (HTTP {}: {})", track.title(), response.statusCode(), response.body());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
                 LOGGER.info("Hoergenau could not share '{}': {}", track.title(), e.toString());
             }
         });
-        return true;
     }
 
     private String userAgent() {
-        return "LyricsInTheSky/" + version + " (Minecraft mod; shared Hoergenau word times)";
+        return "LyricsInTheSky/" + version + " (Minecraft mod; shared Hoergenau learning)";
     }
 }

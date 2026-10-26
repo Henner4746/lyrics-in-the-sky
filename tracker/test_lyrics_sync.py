@@ -133,6 +133,9 @@ TIMES = [[419, 769, 1119, 1469, 1819], [2169, 2519, 2869, 3289], [4369, 4629, 51
 TEXT = "08e0e4adfa0c37b0eb994e0c4d161e90"
 HEARD = ("[re:Hoergenau] heard\n[00:01.907]<00:01.907>Das <00:02.152>ist <00:02.772>die <00:03.272>Haarschlacht, "
          "<00:04.272>Lokomotive\n[00:14.252]<00:14.252>Himmel <00:14.872>in <00:15.072>den <00:15.232>Arsch\n")
+HEARD_TOO = ("[re:Hoergenau] heard\n[00:01.900]<00:01.900>Das <00:02.100>ist <00:02.700>die <00:03.300>Aarschlacht "
+             "<00:04.300>Lokomotive\n[00:14.200]<00:14.200>Himmel <00:14.900>in <00:15.000>den <00:15.200>Arsch\n")
+NO_TEXT = ("SUV WHATEVER", "Arschloch Lokomotive", "Arschloch Lokomotive")
 
 
 def learned(times=TIMES, text=TEXT, install="cccccccc-0000-0000-0000-000000000001",
@@ -142,8 +145,9 @@ def learned(times=TIMES, text=TEXT, install="cccccccc-0000-0000-0000-00000000000
             "install": install, "version": "t"}
 
 
-def older(lrc=ALIGNED, kind="aligned", install="cccccccc-0000-0000-0000-000000000002"):
-    body = learned(install=install)
+def older(lrc=ALIGNED, kind="aligned", install="cccccccc-0000-0000-0000-000000000002",
+          names=("Peter Petersen", "Staubsaugerliebe", "Staubsaugerliebe")):
+    body = learned(install=install, names=names)
     del body["times"], body["text"]
     return {**body, "kind": kind, "lrc": lrc}
 
@@ -175,8 +179,15 @@ class LearnedTest(unittest.TestCase):
         for bad in ({**learned(), "song": "0" * 32}, {**learned(), "kind": "x"}, {**learned(), "times": [[1, 2]]},
                     {**learned(), "times": [["a", 2, 3]]}, {**learned(), "text": "Die Tür"}, older("[00:01.00]x"),
                     {**learned(), "durationMs": 5}, {**learned(), "matched": 2}, {**learned(), "install": "a"},
-                    {**learned(), "title": "x" * 400}, older(HEARD, "heard")):
+                    {**learned(), "title": "x" * 400}, older("[00:01.00]x", "heard"), older(ALIGNED[15:], "heard")):
             self.assertIsNotNone(ls.parse_learned(json.dumps(bad))[1], bad)
+        heard, error = ls.parse_learned(json.dumps(older(HEARD, "heard", names=NO_TEXT)))
+        self.assertIsNone(error)
+        self.assertEqual(("heard", HEARD), (heard["kind"], heard["lrc"]))
+
+    def test_heard_alike(self):
+        self.assertTrue(ls.heard_alike(HEARD, HEARD_TOO))
+        self.assertFalse(ls.heard_alike(HEARD, ALIGNED))
 
 
 class LearnedHttpTest(HttpTest):
@@ -192,7 +203,8 @@ class LearnedHttpTest(HttpTest):
     def fake_lrclib(self, artist, title, album, duration_ms):
         if self.unreachable:
             raise ls.LrclibUnreachable("503")
-        return self.plain
+        # Nobody has the text of this one.
+        return None if title == NO_TEXT[1] else self.plain
 
     def test_word_times_count_for_everyone_once_lrclib_has_the_text(self):
         key = learned()["song"]
@@ -206,7 +218,24 @@ class LearnedHttpTest(HttpTest):
         self.assertEqual((200, {"ok": True, "verified": True}), self.request("/v1/learned", older()))
         status, body = self.request(f"/v1/learned/{learned()['song']}")
         self.assertEqual((200, TIMES), (status, body["times"]))
-        self.assertEqual(400, self.request("/v1/learned", older(HEARD, "heard"))[0])
+
+    def test_heard_lyrics_of_a_song_nobody_has_count_once_two_networks_heard_alike(self):
+        key = ls.song_key(*NO_TEXT)
+        self.assertEqual((200, {"ok": True, "verified": False}), self.request(
+            "/v1/learned", older(HEARD, "heard", "dddddddd-0000-0000-0000-000000000001", NO_TEXT), "198.51.100.1"))
+        self.assertEqual(404, self.request(f"/v1/learned/{key}")[0])
+        # A second install on the same network does not count.
+        self.request("/v1/learned", older(HEARD_TOO, "heard", "dddddddd-0000-0000-0000-000000000002", NO_TEXT),
+                     "198.51.100.1")
+        self.assertEqual(404, self.request(f"/v1/learned/{key}")[0])
+        self.request("/v1/learned", older(HEARD_TOO, "heard", "dddddddd-0000-0000-0000-000000000003", NO_TEXT),
+                     "198.51.100.9")
+        status, body = self.request(f"/v1/learned/{key}")
+        self.assertEqual((200, "heard"), (status, body["kind"]))
+        self.assertTrue(body["lrc"].startswith(ls.LEARNED_MARK))
+
+    def test_heard_lyrics_of_a_song_lrclib_has_are_refused(self):
+        self.assertEqual(422, self.request("/v1/learned", older(HEARD, "heard"))[0])
 
     def test_times_for_another_text_are_refused(self):
         self.assertEqual(422, self.request("/v1/learned", learned(text="0" * 32))[0])

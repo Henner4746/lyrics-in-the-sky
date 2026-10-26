@@ -5,22 +5,25 @@ player. Stored per vote: the song ID (a hash the mod makes of artist, title and 
 correction in milliseconds and two keyed hashes, of the random install ID and of the network the vote came from.
 No IP addresses, names or Minecraft accounts are kept.
 
-Word times Hoergenau learned by listening, for songs whose text lrclib.net has without times, are shared here too, so
-every player gets them. No lyrics are kept or sent: only the times of the words and a fingerprint of the text they
-belong to; every player puts them on lrclib.net's text on their own PC. Stored per song and player: the song key (a
-hash of artist, title and album), the song's names and length, the word times, the fingerprint and the same two keyed
-hashes. They count once this server finds exactly that text on lrclib.net. Lyrics written down as heard, of songs
-nobody has the text of, are not shared at all.
+What Hoergenau learned by listening is shared here too, so every player gets it. For songs whose text lrclib.net has
+without times, no lyrics are kept or sent: only the times of the words and a fingerprint of the text they belong to;
+every player puts them on lrclib.net's text on their own PC. They count once this server finds exactly that text on
+lrclib.net. For songs nobody has the text of, what Hoergenau wrote down as heard (text with word times) is kept, and
+counts once players on two networks heard it alike, so no single person can put words under a song for all; it is
+taken only while lrclib.net has no text for the song. Stored per song and player: the song key (a hash of artist,
+title and album), the song's names and length, the word times with the fingerprint or the lyrics written down, and
+the same two keyed hashes.
 
 Endpoints (behind nginx at https://henrik.click/lyrics-sync/):
     GET  /health
     GET  /v1/corrections/<song>   -> {"players": n, "offsetMs": ms or null}
     POST /v1/corrections          <- {"song": ..., "offsetMs": ms or null, "install": ..., "version": ...}
-    GET  /v1/learned/<key>        -> {"times": [[ms, ...], ...], "text": fingerprint, "kind": "aligned", "players": n},
-                                     404 when none counts
+    GET  /v1/learned/<key>        -> {"times": [[ms, ...], ...], "text": fingerprint, "kind": "aligned", "players": n}
+                                     or {"lrc": ..., "kind": "heard", "players": n}, 404 when none counts
     POST /v1/learned              <- {"song": key, "artist", "title", "album", "durationMs", "kind": "aligned",
                                       "matched", "times", "text", "install", "version"}
                                      (older mods send "lrc" instead of "times" and "text": its text is dropped here)
+                                  <- {..., "kind": "heard", "lrc": lyrics written down with word times, ...}
 
 Python standard library only. Settings come from the environment, see ``Settings``.
 """
@@ -58,6 +61,8 @@ WORD_TAG = re.compile(r"<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>([^<]*)")
 LABEL_LINE = re.compile(r"^[\[(].*[\])]$")
 SPACES = re.compile(r"[ \t\n\x0b\f\r]+")
 FINGERPRINT = re.compile(r"^[0-9a-f]{32}$")
+ANY_TAG = re.compile(r"[\[<]\d{1,3}:\d{2}(?:[.:]\d{1,3})?[\]>]")
+HEARD_ALIKE = 0.5
 RECHECK_S = 600
 LRCLIB = "https://lrclib.net/api"
 
@@ -137,6 +142,26 @@ def lines_and_times(lrc):
     return lines, times
 
 
+def words_of(text):
+    """The words of a text, lower case, without punctuation; "ß" as "ss" like the mod."""
+    return re.findall(r"[^\W_]+", text.lower().replace("ß", "ss"))
+
+
+def lrc_words(lrc):
+    """The sung words of an LRC, without its time tags and header lines."""
+    found = []
+    for line in lrc.splitlines():
+        if TIMED_LINE.match(line):
+            found += words_of(ANY_TAG.sub(" ", line))
+    return found
+
+
+def heard_alike(lrc_a, lrc_b):
+    """Whether two players heard the same song alike: half of their words in common at least."""
+    a, b = set(lrc_words(lrc_a)), set(lrc_words(lrc_b))
+    return bool(a) and bool(b) and len(a & b) / len(a | b) >= HEARD_ALIKE
+
+
 def valid_times(times):
     """Word times as sent: lines of song positions in ms, at least three words, within the size limits."""
     if not isinstance(times, list) or not 1 <= len(times) <= MAX_LINES:
@@ -201,15 +226,20 @@ def parse_learned(body):
         return None, "bad song"
     if not isinstance(install, str) or not INSTALL.match(install):
         return None, "bad install"
-    if kind == "heard":
-        return None, "lyrics written down as heard are not shared"
-    if kind != "aligned":
+    if kind not in ("aligned", "heard"):
         return None, "bad kind"
     if isinstance(duration, bool) or not isinstance(duration, int) or not 10_000 <= duration <= 3_600_000:
         return None, "bad durationMs"
     if isinstance(matched, bool) or not isinstance(matched, (int, float)) or not 0 <= matched <= 1:
         return None, "bad matched"
     lrc = data.get("lrc")
+    if kind == "heard":
+        # A song nobody has the text of: what was heard, with its word times.
+        if (not isinstance(lrc, str) or not lrc.startswith(LEARNED_MARK) or len(lrc) > MAX_LRC
+                or lrc.count("\n") > MAX_LINES or len(lrc_words(lrc)) < 3):
+            return None, "bad lrc"
+        return {"song": song, "artist": names[0], "title": names[1], "album": names[2], "duration_ms": duration,
+                "kind": "heard", "lrc": lrc, "install": install.lower()}, None
     if times is None and isinstance(lrc, str):
         # Older mods send the lyrics with their times: only the times and a fingerprint are taken, the text dropped.
         if not lrc.startswith(LEARNED_MARK) or len(lrc) > MAX_LRC:
@@ -221,7 +251,7 @@ def parse_learned(body):
     if not isinstance(text, str) or not FINGERPRINT.match(text):
         return None, "bad text"
     return {"song": song, "artist": names[0], "title": names[1], "album": names[2], "duration_ms": duration,
-            "matched": float(matched), "times": times, "text": text, "install": install.lower()}, None
+            "kind": "aligned", "matched": float(matched), "times": times, "text": text, "install": install.lower()}, None
 
 
 def network_of(address):
@@ -276,6 +306,11 @@ class Tracker:
                 "verified INTEGER NOT NULL, checked INTEGER NOT NULL, matched REAL NOT NULL, artist TEXT NOT NULL, "
                 "title TEXT NOT NULL, album TEXT NOT NULL, duration_ms INTEGER NOT NULL, text TEXT NOT NULL, "
                 "times TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
+            # Songs nobody has the text of: the lyrics written down as heard.
+            self.db.execute(
+                "CREATE TABLE IF NOT EXISTS heard (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
+                "artist TEXT NOT NULL, title TEXT NOT NULL, album TEXT NOT NULL, duration_ms INTEGER NOT NULL, "
+                "lrc TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
             self.db.commit()
             self._forget_lyrics()
         self.reads = RateLimit(settings.reads_per_window, settings.window_s)
@@ -345,8 +380,32 @@ class Tracker:
             raise ValueError("text not on lrclib.net")
         return 1
 
+    def check_no_text(self, entry):
+        """Lyrics written down as heard are only for songs lrclib.net has no text of; raises ValueError when it has."""
+        try:
+            plain = self.plain_lyrics(entry["artist"], entry["title"], entry["album"], entry["duration_ms"])
+        except LrclibUnreachable:
+            return
+        if plain and text_lines(plain):
+            raise ValueError("lrclib.net has the text; only its word times are shared")
+
     def learn(self, entry, network):
-        """Keeps a player's word times, checked against lrclib.net's text first. Raises ValueError."""
+        """Keeps a player's word times, checked against lrclib.net's text first, or the lyrics written down as heard of
+        a song lrclib.net has no text of. Whether they count already. Raises ValueError."""
+        if entry["kind"] == "heard":
+            self.check_no_text(entry)
+            with self.lock:
+                self.db.execute(
+                    "INSERT INTO heard (song, install, network, artist, title, album, duration_ms, lrc, updated) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (song, install) DO UPDATE SET "
+                    "network = excluded.network, artist = excluded.artist, title = excluded.title, "
+                    "album = excluded.album, duration_ms = excluded.duration_ms, lrc = excluded.lrc, "
+                    "updated = excluded.updated",
+                    (entry["song"], self.hash("install", entry["install"]), self.hash("network", network),
+                     entry["artist"], entry["title"], entry["album"], entry["duration_ms"], entry["lrc"],
+                     int(time.time())))
+                self.db.commit()
+            return False
         verified = self.check_text(entry)
         now = int(time.time())
         with self.lock:
@@ -377,10 +436,22 @@ class Tracker:
             if not row["verified"] and now - row["checked"] >= RECHECK_S:
                 self.recheck(song, row, now)
         verified = [row for row in rows if row["verified"] == 1]
-        if not verified:
+        if verified:
+            best = max(verified, key=lambda row: row["matched"])
+            return {"times": best["times"], "text": best["text"], "kind": "aligned", "players": len(verified)}
+        return self.heard_for(song)
+
+    def heard_for(self, song):
+        """The lyrics written down as heard that count for everyone: those players on two networks heard alike."""
+        with self.lock:
+            heard = [dict(zip(("install", "network", "lrc"), row)) for row in self.db.execute(
+                "SELECT install, network, lrc FROM heard WHERE song = ?", (song,)).fetchall()]
+        confirmed = [row for row in heard if any(other["install"] != row["install"] and other["network"] != row["network"]
+                                                 and heard_alike(row["lrc"], other["lrc"]) for other in heard)]
+        if not confirmed:
             return None
-        best = max(verified, key=lambda row: row["matched"])
-        return {"times": best["times"], "text": best["text"], "kind": "aligned", "players": len(verified)}
+        best = max(confirmed, key=lambda row: len(lrc_words(row["lrc"])))
+        return {"lrc": best["lrc"], "kind": "heard", "players": len(confirmed)}
 
     def recheck(self, song, row, now):
         """Times whose text could not be checked when they came: asked again, dropped when lrclib.net disagrees."""

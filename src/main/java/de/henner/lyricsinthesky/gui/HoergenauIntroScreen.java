@@ -34,7 +34,7 @@ public final class HoergenauIntroScreen extends Screen {
             "Songs mit Wortzeiten hört sie einmal 50 s an und rückt die Wörter zurecht, wenn sie zu früh oder zu spät "
                     + "kommen.",
             "Sie hört nur dein Musikprogramm, nicht Discord oder das Spiel. Die Aufnahme verlässt nie deinen PC; "
-                    + "geteilt werden höchstens Wortzeiten, nie Songtexte.",
+                    + "geteilt wird Gelerntes, Text nur bei Songs, für die es keinen gibt.",
             "Schnell: 190 MB, etwa 15 s Rechnen je 50 s Musik. Genau: 574 MB, versteht mehr, etwa eine Minute. Beides "
                     + "läuft im Hintergrund.");
     private static final String HINT_TEXT = "Später jederzeit im Menü unter „Hörgenau (KI)“.";

@@ -407,7 +407,7 @@ public final class GlassMenuScreen extends Screen {
                         Map.of("low", "Sparsam", "normal", "Normal", "high", "Schnell"), c -> c.hoergenauPower,
                         (c, v) -> c.hoergenauPower = v),
                 new Section("Teilen"),
-                new Toggle("Gelerntes teilen", "Nur die Wortzeiten, nie den Songtext, für alle Spieler",
+                new Toggle("Gelerntes teilen", "Wortzeiten für alle; Text nur, wo es keinen gibt",
                         c -> c.shareLearned, (c, on) -> c.shareLearned = on),
                 new Section("Genauer erklärt"),
                 new Explain("Songs lernen", "Hat niemand Wortzeiten für einen Song, hört die KI mit, wo er gerade "
@@ -419,9 +419,10 @@ public final class GlassMenuScreen extends Screen {
                 new Explain("Was sie hört", "Nur dein Musikprogramm, zum Beispiel Spotify. Discord, Videos und die "
                         + "Geräusche des Spiels hört sie nicht. Findet Windows das Programm nicht, hört sie alles, was "
                         + "dein PC abspielt; dann am besten nebenher nicht reden."),
-                new Explain("Was geteilt wird", "Mit „Gelerntes teilen“ gehen nur die Zeiten der Wörter an henrik.click, "
-                        + "nie der Songtext. Andere Spieler legen sie auf ihren eigenen Text von lrclib.net, und nur, "
-                        + "wenn er genau gleich ist. Songs, deren Text niemand hat, bleiben bei dir."),
+                new Explain("Was geteilt wird", "Mit „Gelerntes teilen“ gehen bei Songs mit Text auf lrclib.net nur die "
+                        + "Zeiten der Wörter an henrik.click; andere legen sie auf ihren eigenen Text. Hat niemand den "
+                        + "Text eines Songs, wird das Abgeschriebene geteilt. Es gilt erst, wenn Spieler aus zwei Netzen "
+                        + "den Song ähnlich gehört haben."),
                 new Explain("Schnell oder Genau?", "Schnell lädt 190 MB und braucht für 50 Sekunden Musik etwa 15 "
                         + "Sekunden. Genau lädt 574 MB, versteht mehr Wörter, gerade bei Rap und lauter Musik, und braucht "
                         + "etwa eine Minute. Beides rechnet im Hintergrund mit niedriger Priorität, das Spiel läuft weiter."),

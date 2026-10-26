@@ -275,14 +275,17 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   war bis 17 dB leiser; Hörgenau macht ihn vor Whisper lauter (*Genau* hörte darin sonst nur eine erfundene Zeile,
   danach den ganzen Song). Zeilen, die Whisper aus Untertiteln erfindet („Untertitel im Auftrag des ZDF“), verwirft
   es.
-- **Gelerntes gilt für alle, aber nur die Zeiten:** Hat Hörgenau einen Song auf den Text von lrclib.net gelegt, gehen
-  nur die Zeiten der Wörter und ein Fingerabdruck dieses Textes an den Tracker auf henrik.click, nie der Songtext.
-  Andere Spieler legen die Zeiten auf ihren eigenen Text von lrclib.net, und nur, wenn er genau derselbe ist; der
-  Tracker prüft das vorher selbst bei lrclib.net. Songs, deren Text niemand hat, werden nicht geteilt. Von Anfang an
-  an; „Gelerntes teilen“ auf der Seite *Hörgenau (KI)* oder `/skylyrics sharelearned off` schaltet es ab.
+- **Gelerntes gilt für alle:** Hat Hörgenau einen Song auf den Text von lrclib.net gelegt, gehen nur die Zeiten der
+  Wörter und ein Fingerabdruck dieses Textes an den Tracker auf henrik.click, nicht der Songtext; andere Spieler legen
+  die Zeiten auf ihren eigenen Text von lrclib.net, und nur, wenn er genau derselbe ist, was der Tracker vorher bei
+  lrclib.net prüft. Hat niemand den Text eines Songs, wird das Abgeschriebene mit Text geteilt, damit andere den Song
+  gleich Wort für Wort bekommen; es gilt erst, wenn Spieler aus zwei Netzen ihn ähnlich gehört haben, und nur, solange
+  lrclib.net keinen Text dazu hat. Von Anfang an an; „Gelerntes teilen“ auf der Seite *Hörgenau (KI)* oder
+  `/skylyrics sharelearned off` schaltet es ab.
 - **Datenschutz:** Mitgehört wird der Ton des Musikprogramms, wo das nicht geht alles, was über den
   Standardlautsprecher läuft, also auch Sprachchat, solange so ein Song läuft (und für die 50 s einer Sync-Prüfung). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
-  die gleich danach gelöscht wird. Mit „Gelerntes teilen“ gehen nur die Wortzeiten an den Tracker, kein Text.
+  die gleich danach gelöscht wird. Mit „Gelerntes teilen“ gehen die Wortzeiten an den Tracker, und Text nur bei
+  Songs, deren Text niemand hat.
 - Einschalten auf der Seite *Hörgenau (KI)* im Menü, die auch Schritt für Schritt erklärt, was die KI tut, mit
   `/skylyrics hoergenau on` oder mit dem Knopf, den die Mod im Chat anbietet, wenn ein Song keine Wortzeiten hat. Ein kleiner Hinweis in der Ecke sagt, was es gerade tut; während
   es den laufenden Song aufnimmt, ist das Symbol der Leiste ein rotes Aufnahmelicht.
@@ -300,10 +303,10 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   speichert pro Korrektur nur die Song-Prüfsumme, die Millisekunden und gesalzene Prüfsummen deiner
   Installations-Kennung und deines Netzes, keine IP-Adressen und kein Zugriffsprotokoll.
 - Lyrics werden beim Abspielen geholt; gefundene bleiben auf deinem PC in `config/lyricsinthesky/lyrics`,
-  den Ordner kannst du jederzeit löschen. Die Mod liefert keine Songtexte mit, und der Tracker speichert keine: Von
-  Songs, die Hörgenau bei Spielern gelernt hat, kennt er nur die Wortzeiten (Song-Prüfsumme, Namen, Länge, Wortzeiten,
-  Fingerabdruck des Textes, gesalzene Prüfsummen von Installations-Kennung und Netz); mit „Gelerntes teilen“ aus wird
-  nichts geteilt.
+  den Ordner kannst du jederzeit löschen. Die Mod liefert keine Songtexte mit. Von Songs, die Hörgenau bei Spielern
+  gelernt hat, speichert der Tracker die Wortzeiten (Song-Prüfsumme, Namen, Länge, Wortzeiten, Fingerabdruck des
+  Textes, gesalzene Prüfsummen von Installations-Kennung und Netz) und das Abgeschriebene nur bei Songs, deren Text
+  niemand hat; mit „Gelerntes teilen“ aus wird nichts geteilt.
 - Der Streamer-Modus (`/skylyrics streamer on`) zeigt explizite Wörter in Songtexten, Titeln und Künstlern als „F***“.
 - Nicht verbunden mit Mojang, Microsoft, Spotify, Amazon oder LRCLIB.
 

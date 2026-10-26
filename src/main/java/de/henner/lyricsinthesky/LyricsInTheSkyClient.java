@@ -337,7 +337,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             tell("Hörgenau ist an. Bei Songs ohne Wortzeiten hört es dein Musikprogramm mit (nur im Speicher) und "
                     + "lernt die Wörter im Hintergrund. Hörst du einen Song nur zum Teil, hört es beim nächsten Mal den "
                     + "Rest dazu; danach läuft er Wort für Wort."
-                    + (settings.shareLearned ? " Geteilt werden nur Wortzeiten, nie Songtexte." : ""));
+                    + (settings.shareLearned ? " Geteilt werden Wortzeiten; Text nur bei Songs, für die es keinen gibt."
+                            : ""));
         }
     }
 
@@ -506,7 +507,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(toggle("hoergenau", (c, value) -> setHoergenau(c, value),
                             "Hörgenau (Mithören für Songs ohne Wortzeiten, nur Windows)"))
                     .then(toggle("sharelearned", (c, value) -> c.shareLearned = value,
-                            "Gelerntes teilen (nur Hörgenaus Wortzeiten, kein Songtext)"))
+                            "Gelerntes teilen (Wortzeiten; Text nur, wo es keinen gibt)"))
                     .then(toggle("lyricsplus", (c, value) -> {
                         c.setWordSource("lyricsplus", value);
                         controller.refreshWordTimes();

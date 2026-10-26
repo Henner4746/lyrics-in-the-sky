@@ -95,12 +95,12 @@ This mod connects to the internet. Everything it sends, and to whom, is listed h
   - Kugou: artist, title, length to `lyrics.kugou.com`
   - SyncLRC: title, artist, album, length to `api.synclrc.dev`
   - Better Lyrics: title, artist, album, length to `api.betterlyrics.org`
-- **Hörgenau:** downloads whisper.cpp once from GitHub and the model from Hugging Face, both checked against a fixed SHA-256. The recording never leaves your PC. With "Gelerntes teilen" (on with Hörgenau) it sends the **word times** of a song it learned on lrclib.net's text to the tracker on henrik.click – the song's names and length, the times of the words, a fingerprint of the text and the random installation ID, **never the lyrics** – and asks it for word times others learned, which the mod puts on lrclib.net's text on your own PC. Songs whose text nobody has are not shared. Off: `/skylyrics sharelearned off`.
+- **Hörgenau:** downloads whisper.cpp once from GitHub and the model from Hugging Face, both checked against a fixed SHA-256. The recording never leaves your PC. With "Gelerntes teilen" (on with Hörgenau) it sends the **word times** of a song it learned on lrclib.net's text to the tracker on henrik.click – the song's names and length, the times of the words, a fingerprint of the text and the random installation ID, **not the lyrics** – and asks it for word times others learned, which the mod puts on lrclib.net's text on your own PC. For a song **nobody has the text of**, it sends what it wrote down as heard, **with its text**, so others get the song word by word; that counts once players on two networks heard it alike, and only while lrclib.net has no text for it. Off: `/skylyrics sharelearned off`.
 - **Spotify Web API** (only if you connect your account): reads which song is playing (scopes `user-read-currently-playing` and `user-read-playback-state`). The tokens stay in `config/lyricsinthesky/spotify.json` on your PC; disconnect at any time.
 
 **On your PC only:** on Windows a small PowerShell script bundled in the mod (`lyricsinthesky/smtc-helper.ps1`, readable inside the jar) reads the system media session – the same information Windows shows in its volume overlay. On Linux the mod asks MPRIS via `gdbus`. Hörgenau's recording helper (`lyricsinthesky/loopback-helper.ps1`) runs only while it listens.
 
-No telemetry, no ads, no cookies. The mod ships no lyrics, and the tracker keeps none.
+No telemetry, no ads, no cookies. The mod ships no lyrics; the tracker keeps lyrics only of songs nobody has the text of, as players' Hörgenau wrote them down.
 
 ## Known limitations
 
@@ -126,7 +126,7 @@ Not affiliated with Mojang, Microsoft, Spotify, Amazon, Deezer, Apple, NetEase, 
 - The now-playing bar can be dragged anywhere and comes in four looks, with progress line, artist and equalizer
 - Timing per song with one slider; corrections many players agreed on apply for everyone (optional)
 - Wortgenau: optional word-time services for many more songs word by word (off until you switch them on)
-- Hörgenau (Windows, optional): a speech AI on your PC times songs nobody has timed, also heard in parts on different days, and checks the sync of word-timed songs; it hears only your music app, shares only word times, never lyrics, and introduces itself once
+- Hörgenau (Windows, optional): a speech AI on your PC times songs nobody has timed, also heard in parts on different days, and checks the sync of word-timed songs; it hears only your music app, shares word times – and the text only of songs nobody has the text of – and introduces itself once
 - Streamer mode hides explicit words
 - More songs get lyrics: titles are also tried without version notes
 - Works with shader packs, lyrics kept on your PC, and many fixes

@@ -61,4 +61,22 @@ class SharedLearnedTest {
         assertTrue(SharedLearned.timingOf("{\"lrc\":\"[re:Hoergenau]\\n[00:01.00]<00:01.00>Nur\"}").isEmpty());
         assertTrue(SharedLearned.timingOf("{\"error\":\"none\"}").isEmpty());
     }
+
+    @Test
+    void lyricsWrittenDownAsHeardAreSharedOnlyForASongNobodyHasTheTextOf() {
+        String lrc = "[re:Hoergenau] heard\n[00:01.907]<00:01.907>Das <00:02.152>ist <00:02.772>die <00:03.272>Haarschlacht\n";
+        JsonObject answer = new JsonObject();
+        answer.addProperty("lrc", lrc);
+        answer.addProperty("kind", "heard");
+        answer.addProperty("players", 2);
+        assertEquals(java.util.Optional.of(lrc), SharedLearned.learnedOf(answer.toString(), null));
+        // With lrclib.net's text only word times are put on it, never lyrics written down by someone else.
+        assertTrue(SharedLearned.learnedOf(answer.toString(), Lyrics.estimated(PLAIN, 210_841)).isEmpty());
+        NowPlaying track = new NowPlaying("test", "Arschloch Lokomotive", "SUV WHATEVER", "Arschloch Lokomotive", true, 0,
+                180_000, 0);
+        JsonObject body = SharedLearned.heardBody("SUV WHATEVER\u0000Arschloch Lokomotive\u0000Arschloch Lokomotive", track,
+                lrc, "cccccccc-0000-0000-0000-000000000001", "t");
+        assertEquals("heard", body.get("kind").getAsString());
+        assertEquals(lrc, body.get("lrc").getAsString());
+    }
 }
