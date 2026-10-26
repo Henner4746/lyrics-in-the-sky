@@ -490,6 +490,7 @@ public final class SettingsScreen extends Screen {
         scene.frame();
         if (fancy()) {
             scene.backdrop(graphics, width, height);
+            scene.notes(graphics, font, text, width, height);
         }
         boolean opening = fancy() && scene.openTransform(graphics, (panelLeft + panelRight) / 2f, (panelTop + panelBottom) / 2f);
         if (glass()) {
@@ -503,7 +504,6 @@ public final class SettingsScreen extends Screen {
         }
         if (fancy()) {
             scene.rim(graphics, panelLeft, panelTop, panelRight, panelBottom, glass() ? 16 : 0);
-            scene.notes(graphics, font, text, panelLeft, panelTop + 30, panelRight, panelBottom);
         }
         if (opening) {
             graphics.pose().popMatrix();

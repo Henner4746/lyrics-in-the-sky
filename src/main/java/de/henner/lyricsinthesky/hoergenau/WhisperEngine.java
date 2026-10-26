@@ -47,7 +47,7 @@ public final class WhisperEngine {
     static final String BUILD_SHA256 = "6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb";
     static final String MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin";
     static final String MODEL_SHA256 = "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb";
-    static final long DOWNLOAD_MB = 190;
+    public static final long DOWNLOAD_MB = 190;
     /**
      * A quarter of the cores, two to four, at below normal priority: Windows lets the game go first, and a song still
      * takes about a minute instead of seconds.

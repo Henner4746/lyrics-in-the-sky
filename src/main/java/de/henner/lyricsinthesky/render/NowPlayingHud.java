@@ -5,6 +5,7 @@ import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
+import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
@@ -75,6 +76,9 @@ public final class NowPlayingHud implements HudElement {
     private boolean groupHighlight;
     /** The line's times were spread over the song from plain text; the icon says so. */
     private boolean estimated;
+    /** Hoergenau records this song now (a red dot), or learns a song in the background (an amber one). */
+    private boolean recording;
+    private boolean learning;
     private boolean glass;
     /** The player's density of the bar's background, 0 to 1. */
     private float density = 1f;
@@ -184,13 +188,17 @@ public final class NowPlayingHud implements HudElement {
 
         int iconX = x0 + PADDING;
         int iconY = y0 + (HEIGHT - ICON) / 2;
+        // While Hoergenau records the song the icon is a pulsing red recording light, while it learns an amber one.
+        int iconColor = recording ? 0xE53935 : learning ? 0xFFB300 : palette.accentEnd;
+        float iconAlpha = recording || learning ? alpha * (0.65f + 0.35f * pulse(now, recording ? 4.0 : 2.5)) : alpha;
         Glass.fill(graphics, iconX, iconY, iconX + ICON, iconY + ICON, Math.round(ICON / 2f * Math.max(0.35f, roundness)),
-                ARGB.color(alpha, palette.accentEnd));
+                ARGB.color(iconAlpha, iconColor));
         if (glass) {
             Glass.rim(graphics, iconX, iconY, iconX + ICON, iconY + ICON, Math.round(ICON / 2f * Math.max(0.35f, roundness)),
                     alpha * 0.8f);
         }
-        graphics.centeredText(font, estimated ? "≈" : "♪", iconX + ICON / 2 + 1, iconY + 2, ARGB.color(alpha, 0xFFFFFF));
+        String icon = recording ? "●" : learning ? "…" : estimated ? "≈" : "♪";
+        graphics.centeredText(font, icon, iconX + ICON / 2 + 1, iconY + 2, ARGB.color(alpha, 0xFFFFFF));
 
         int textX = iconX + ICON + GAP;
         int textRight = x0 + w - PADDING - EQ_WIDTH - GAP;
@@ -225,6 +233,7 @@ public final class NowPlayingHud implements HudElement {
             cursor += font.width(word) + space;
         }
         graphics.disableScissor();
+        drawHoergenauDot(graphics, x0 + w + 9, y0 - 2, System.nanoTime());
     }
 
     /** Two lines in a box: the current one fills up word by word as it is sung, the next one waits faintly below. */
@@ -243,6 +252,7 @@ public final class NowPlayingHud implements HudElement {
             }
         }
         graphics.disableScissor();
+        drawHoergenauDot(graphics, x0 + w - 2, y0 + 1, System.nanoTime());
     }
 
     /** Each word dim first; as it is sung, the accent color wipes over it from left to right. */
@@ -282,6 +292,9 @@ public final class NowPlayingHud implements HudElement {
         groupHighlight = "natural".equals(config.style);
         positionMs = timeline.positionMs();
         playing = timeline.playing();
+        Hoergenau listener = LyricsInTheSkyClient.controller() == null ? null : LyricsInTheSkyClient.controller().hoergenau();
+        recording = listener != null && config.hoergenau && listener.listeningTo(timeline.trackKey());
+        learning = listener != null && config.hoergenau && listener.learning();
         Lyrics lyrics = timeline.lyrics();
         String key;
         if (lyrics != null && !lyrics.isEmpty() && !"title".equals(config.hudStyle)) {
@@ -427,6 +440,20 @@ public final class NowPlayingHud implements HudElement {
             first--;
         }
         return first;
+    }
+
+    private static float pulse(long now, double perSecond) {
+        return 0.5f + 0.5f * (float) Math.sin(now / 1e9 * perSecond * Math.PI);
+    }
+
+    /** In the looks without an icon: a small dot in the top right corner while Hoergenau records or learns. */
+    private void drawHoergenauDot(GuiGraphicsExtractor graphics, int right, int top, long now) {
+        if (!recording && !learning) {
+            return;
+        }
+        int color = recording ? 0xE53935 : 0xFFB300;
+        Glass.fill(graphics, right - 7, top + 3, right - 3, top + 7, 2,
+                ARGB.color(alpha * (0.6f + 0.4f * pulse(now, recording ? 4.0 : 2.5)), color));
     }
 
     private void drawEqualizer(GuiGraphicsExtractor graphics, int x, int y0, long now) {

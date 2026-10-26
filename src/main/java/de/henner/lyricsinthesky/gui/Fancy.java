@@ -238,16 +238,19 @@ final class Fancy {
             }
         }
 
-        /** Notes rising slowly from the bottom of the panel, behind the options; call after the panel is drawn. */
-        void notes(GuiGraphicsExtractor graphics, Font font, Style style, int x0, int y0, int x1, int y1) {
+        /**
+         * Notes rising slowly from the bottom of the screen through the aurora; call before the panel, which then
+         * covers them, so they never run through text.
+         */
+        void notes(GuiGraphicsExtractor graphics, Font font, Style style, int width, int height) {
             noteTimer -= dt;
-            if (noteTimer <= 0f && x1 - x0 > 40) {
-                noteTimer = 0.42f + random.nextFloat() * 0.3f;
-                behind.add(new Spark(x0 + 12 + random.nextFloat() * (x1 - x0 - 24), y1 - 6, 0f,
-                        -(11f + random.nextFloat() * 9f), 3.2f + random.nextFloat() * 1.5f, accent(random.nextFloat()),
+            if (noteTimer <= 0f && width > 40) {
+                noteTimer = 0.22f + random.nextFloat() * 0.25f;
+                behind.add(new Spark(8 + random.nextFloat() * (width - 16), height - 2, 0f,
+                        -(14f + random.nextFloat() * 12f), 6f + random.nextFloat() * 3f, accent(random.nextFloat()),
                         NOTES[random.nextInt(NOTES.length)]));
             }
-            draw(graphics, font, style, behind, 0.32f, y0 + 6);
+            draw(graphics, font, style, behind, 0.55f, 0);
         }
 
         /** The sparks of switching; call last, above everything. */

@@ -230,9 +230,16 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
 - **Only the song may be playing:** while another player sounds too (a video in the browser), Hörgenau does not listen
   or throws the recording away. Sounds no player reports, such as voice chat, it cannot tell apart: for a song without
   known text they end up in the lyrics; with known text such a recording no longer matches and is thrown away.
+- **What it learns counts for everyone:** a learned song is shared through the tracker on henrik.click, and songs
+  other players learned run word by word here at once, without listening. The tracker checks text placed on
+  lrclib.net's lyrics against lrclib.net itself; lyrics written down as heard count once players on two networks heard
+  alike. On by default; "Teilen" on the page *Quellen* or `/skylyrics sharelearned off` switches it off.
 - **Privacy:** it hears everything that plays on the default speakers, voice chat included, while such a song plays.
-  Nothing of it leaves the PC or stays on disk, except briefly as a file for whisper.cpp that is deleted right after.
-- Switch it on on the page *Quellen* ("Hörgenau") or with `/skylyrics hoergenau on`.
+  The recording never leaves the PC and does not stay on disk, except briefly as a file for whisper.cpp that is
+  deleted right after. With sharing on, the learned lyrics (text and word times) go to the tracker.
+- Switch it on on the page *Quellen* ("Hörgenau"), with `/skylyrics hoergenau on`, or with the button the mod offers
+  in chat when a song has no word times. A note in the corner tells what it is doing; while it records the playing
+  song, the bar's icon is a red recording light.
 
 ## Privacy and fair use
 
@@ -247,7 +254,10 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   per correction only the song hash, the milliseconds and keyed hashes of your installation ID and network,
   no IP addresses and no access log.
 - Lyrics are fetched while playing; the ones found stay on your PC in `config/lyricsinthesky/lyrics`, which
-  you can delete at any time. This project does not ship or host any lyrics.
+  you can delete at any time. The mod ships no lyrics. The tracker keeps lyrics that players' Hörgenau learned and
+  shared (song key, names, length, lyrics with word times, keyed hashes of installation ID and network), so others
+  get them; nothing is shared with "Teilen" on the page *Quellen* off.
+- Streamer mode (`/skylyrics streamer on`) hides explicit words in lyrics, titles and artists as "F***".
 - Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 
 ## Known limitations

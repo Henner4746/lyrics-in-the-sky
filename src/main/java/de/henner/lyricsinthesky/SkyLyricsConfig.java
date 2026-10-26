@@ -92,6 +92,8 @@ public final class SkyLyricsConfig {
      * from there; on unless switched off.
      */
     public boolean shareLearned = true;
+    /** The one-time chat note on sharing learned songs has been shown. */
+    public boolean learnedNoticeShown = false;
     /** Up to 1.3.0-dev.3 the only word time service; only read to carry the choice over to {@link #wordSources}. */
     public boolean lyricsPlus = false;
     /**

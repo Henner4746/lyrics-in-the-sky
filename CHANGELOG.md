@@ -10,6 +10,29 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.9 – 2026-10-26
+
+- **Streamer mode** (settings "Streamer", `/skylyrics streamer on|off`): explicit words in lyrics, titles and artists
+  show as their first letter and stars ("F***"), in the sky, around you, in the bar and in chat. Hidden words keep
+  their length, so word times and the karaoke fill still fit. German and English; words that are harmless in the other
+  language ("dick" is "thick" in German) count only in songs sung in their language.
+- **A lively menu**, the new default: a slow aurora behind the panel and notes rising through it, the panel springing
+  open with light running around its rim, the title in drifting colors, rows sliding in one after the other, gliding
+  knobs and capsules, sparks when something is switched, buttons that glow, shine and give when pressed. The quiet
+  look stays one click away (page *Aussehen*, "Menü: Minimal", or `/skylyrics menu minimal`).
+- **What Hörgenau learns counts for everyone** (on by default, "Teilen" on the page *Quellen*,
+  `/skylyrics sharelearned on|off`): a learned song is shared through the tracker on henrik.click, and before a song
+  nobody has timed is only estimated, the mod asks whether another player learned it; then it runs word by word
+  right away, without listening. The tracker checks text placed on lrclib.net's lyrics against lrclib.net itself;
+  lyrics written down as heard count once players on two networks heard alike, so no single person can put words
+  under a song for all. Sent are the song (artist, title, album, length), the learned lyrics and the random install ID.
+- **Hörgenau, smoother:** a song without word times offers it once per session with an "[Einschalten]" button in chat;
+  what it does shows as a small note in the corner (downloading with percent, listening, learning, learned, or why it
+  stopped listening) instead of lines in chat; while it records the playing song the bar's icon is a pulsing red
+  recording light, while it learns an amber one.
+- **Faster:** glass shapes are drawn with a handful of fills instead of one per pixel row. Measured in the game, the
+  mod takes about 0.3 ms a frame in all (laying out, drawing, the bar).
+
 ### 1.3.0-dev.8 – 2026-10-26
 
 - **Hörgenau only learns a song that plays alone:** when another player sounds at the same time (a video in the

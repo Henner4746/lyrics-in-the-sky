@@ -60,7 +60,7 @@ subprojects {
             register("liveTest") {
                 client()
                 name = "Live Test"
-                vmArg "-Dlyricsinthesky.livetest=" + (project.findProperty("liveMinutes") ?: "20")
+                vmArg "-Dlyricsinthesky.livetest=" + (project.findProperty("liveMinutes") ?: "25")
                 programArgs "--quickPlaySingleplayer", "SkyTest"
             }
             // `gradlew :mc26.3:runShowcase`: the demo under a scripted camera flight, for recording the preview

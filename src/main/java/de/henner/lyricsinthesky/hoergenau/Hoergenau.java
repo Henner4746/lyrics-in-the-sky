@@ -43,8 +43,8 @@ public final class Hoergenau {
     private final LoopbackRecorder recorder;
     private final LyricsCache saved;
     private final SkyLyricsConfig config;
-    /** Tells the player something in chat (called from any thread; the receiver hops to the client thread). */
-    private final Consumer<String> chat;
+    /** Tells the player what Hoergenau does (called from any thread; the receiver hops to the client thread). */
+    private final Notifier notifier;
     /** Tells the lyrics lookup that a song's kept lyrics changed. */
     private final Consumer<String> learned;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(runnable -> {
@@ -76,13 +76,33 @@ public final class Hoergenau {
         }
     }
 
-    public Hoergenau(Path dir, SkyLyricsConfig config, LyricsCache saved, Consumer<String> chat, Consumer<String> learned) {
+    /** How Hoergenau tells the player what it does; called from any thread. */
+    public interface Notifier {
+        /** A short note in the corner, replacing the one before: what Hoergenau is doing right now. */
+        void toast(String title, String detail);
+
+        /** A line in chat, for what is worth reading later. */
+        void chat(String message);
+    }
+
+    public Hoergenau(Path dir, SkyLyricsConfig config, LyricsCache saved, Notifier notifier, Consumer<String> learned) {
         this.engine = new WhisperEngine(dir);
         this.recorder = new LoopbackRecorder(dir);
         this.saved = saved;
         this.config = config;
-        this.chat = chat;
+        this.notifier = notifier;
         this.learned = learned;
+    }
+
+    /** Whether this song is being recorded right now; the bar shows it. */
+    public boolean listeningTo(String key) {
+        Take now = take;
+        return now != null && now.broken == null && now.key.equals(key);
+    }
+
+    /** Whether a song is being learned in the background now; the bar shows it. */
+    public boolean learning() {
+        return working != null;
     }
 
     /** Whether kept lyrics were made by listening; LRCLIB's lines take their place once it has some. */
@@ -135,6 +155,7 @@ public final class Hoergenau {
                 take = new Take(key, now, shown == Shown.TEXT_ONLY ? List.copyOf(text) : List.of());
                 LOGGER.info("Hoergenau listens to '{}' by '{}' ({})", now.title(), now.artist(),
                         take.lines.isEmpty() ? "no text known" : take.lines.size() + " lines of text known");
+                notifier.toast("Hörgenau hört mit", shown(now.title()) + " – bis zum Ende laufen lassen");
             } catch (Exception e) {
                 LOGGER.warn("Hoergenau could not start listening: {}", e.toString());
             }
@@ -144,28 +165,32 @@ public final class Hoergenau {
             return;
         }
         if (recorder.failure() != null) {
-            take.broken = "audio: " + recorder.failure();
+            breakTake("audio: " + recorder.failure(), "die Aufnahme ging nicht");
         } else if (other != null) {
-            take.broken = "another player sounded at the same time (" + other + ")";
+            breakTake("another player sounded at the same time (" + other + ")", "es lief noch anderer Ton mit");
         } else if (!now.playing() && take.track.durationMs() > 0
                 && take.lastPositionMs >= take.track.durationMs() - END_MS) {
             // Played to the end and the player stopped there (or went back to its start): the song is complete.
             finish();
             return;
         } else if (!now.playing()) {
-            take.broken = "paused";
+            breakTake("paused", "der Song wurde pausiert");
         } else if (recorder.startNanos() != 0) {
             take.lastPositionMs = now.estimatePositionMs(System.currentTimeMillis());
             long anchor = take.lastPositionMs - System.nanoTime() / 1_000_000;
             if (!take.anchors.isEmpty() && Math.abs(anchor - median(take.anchors)) > SKIP_MS) {
-                take.broken = "skipped";
+                breakTake("skipped", "im Song wurde gespult");
+            } else {
+                take.anchors.add(anchor);
             }
-            take.anchors.add(anchor);
         }
-        if (take.broken != null) {
-            // Nothing more to hear for this song; the recording ends now, not when the song does.
-            recorder.stop();
-        }
+    }
+
+    /** Nothing more to hear for this song: the recording ends now, not when the song does, and the player is told why. */
+    private void breakTake(String why, String forPlayer) {
+        take.broken = why;
+        recorder.stop();
+        notifier.toast("Hörgenau hört nicht mehr mit", forPlayer + "; beim nächsten Mal von vorn");
     }
 
     private void drop(String why) {
@@ -189,6 +214,7 @@ public final class Hoergenau {
         if (done.track.durationMs() > 0 && heardS < MIN_HEARD * done.track.durationMs() / 1000.0) {
             LOGGER.info("Hoergenau dropped '{}': heard {} of {} s", done.track.title(), Math.round(heardS),
                     done.track.durationMs() / 1000);
+            notifier.toast("Hörgenau hört nicht mehr mit", "der Song lief nicht bis zum Ende; beim nächsten Mal von vorn");
             return;
         }
         if (done.anchors.isEmpty()) {
@@ -197,11 +223,13 @@ public final class Hoergenau {
         // Song position of the first sample: the media session's positions put on the recording's clock.
         long offsetMs = median(done.anchors) + recorder.startNanos() / 1_000_000;
         working = done.track.title();
+        notifier.toast("Hörgenau lernt", shown(done.track.title()) + " – etwa eine Minute im Hintergrund");
         worker.submit(() -> {
             try {
                 learn(done, audio, offsetMs);
             } catch (Exception e) {
                 LOGGER.warn("Hoergenau could not time '{}': {}", done.track.title(), e.toString());
+                notifier.toast("Hörgenau: nicht gelernt", String.valueOf(e.getMessage()));
             } finally {
                 working = null;
             }
@@ -221,6 +249,7 @@ public final class Hoergenau {
                     again(engine, audio, language));
             if (aligned.isEmpty()) {
                 LOGGER.info("Hoergenau: the known text of '{}' was not heard in the recording", done.track.title());
+                notifier.toast("Hörgenau: nicht gelernt", "der bekannte Songtext war in der Aufnahme nicht zu hören");
                 return;
             }
             lrc = aligned.get().lrc();
@@ -231,6 +260,7 @@ public final class Hoergenau {
             how = "kein Songtext bekannt, das Gehörte abgeschrieben";
         } else {
             LOGGER.info("Hoergenau heard no singing in '{}'", done.track.title());
+            notifier.toast("Hörgenau: nicht gelernt", "in „" + shown(done.track.title()) + "“ war kein Gesang zu hören");
             return;
         }
         if (saved.read(done.key).filter(kept -> !kept.startsWith(HeardLyrics.MARK)).isPresent()) {
@@ -245,8 +275,9 @@ public final class Hoergenau {
         if (shared) {
             sharer.share(done.key, done.track, lrc, !done.lines.isEmpty(), matched);
         }
-        chat.accept("Hörgenau hat „" + shown(done.track.title()) + "“ gelernt (" + how
-                + "). Ab dem nächsten Abspielen Wort für Wort" + (shared ? ", und geteilt für alle." : "."));
+        notifier.toast("Gelernt: " + shown(done.track.title()), "ab jetzt Wort für Wort" + (shared ? ", für alle geteilt" : ""));
+        notifier.chat("Hörgenau hat „" + shown(done.track.title()) + "“ gelernt (" + how
+                + "). Ab jetzt Wort für Wort" + (shared ? ", und geteilt für alle." : "."));
     }
 
     /** Where what is learned here is shared, so other players get it too. */
@@ -286,21 +317,20 @@ public final class Hoergenau {
             return;
         }
         installing = true;
-        chat.accept("Hörgenau lädt einmalig whisper.cpp und das Sprachmodell (etwa " + WhisperEngine.DOWNLOAD_MB
-                + " MB, von GitHub und Hugging Face, mit Prüfsumme).");
+        notifier.toast("Hörgenau lädt", "einmalig " + WhisperEngine.DOWNLOAD_MB + " MB · 0 %");
         worker.submit(() -> {
             try {
                 engine.install(now -> {
                     percent = now;
-                    if (now == 50) {
-                        chat.accept("Hörgenau: Download zur Hälfte fertig.");
-                    }
+                    notifier.toast("Hörgenau lädt", "einmalig " + WhisperEngine.DOWNLOAD_MB + " MB · " + now + " %");
                 });
-                chat.accept("Hörgenau ist bereit: Songs ohne Wortzeiten werden ab ihrem Anfang mitgehört.");
+                notifier.toast("Hörgenau ist bereit", "Songs ohne Wortzeiten hört es ab ihrem Anfang mit");
             } catch (Exception e) {
                 problem = e.getMessage();
                 LOGGER.warn("Hoergenau download failed: {}", e.toString());
-                chat.accept("Hörgenau konnte nicht laden: " + e.getMessage() + ". Zum erneuten Versuch aus- und einschalten.");
+                notifier.toast("Hörgenau konnte nicht laden", "aus- und einschalten für einen neuen Versuch");
+                notifier.chat("Hörgenau konnte nicht laden: " + e.getMessage()
+                        + ". Zum erneuten Versuch aus- und einschalten.");
             } finally {
                 installing = false;
             }

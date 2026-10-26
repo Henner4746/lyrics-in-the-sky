@@ -58,7 +58,9 @@ public final class LiveTest {
             config.setWordTimes(true);
             controller.refreshWordTimes();
         }
-        if (ticksInWorld == 60 && !spotify.isConnected()) {
+        // The login runs out after five minutes; while not connected, a new one starts, with a new address.
+        if (ticksInWorld >= 60 && ticksInWorld % 200 == 60 && !spotify.isConnected()
+                && spotify.state() != SpotifyAccount.State.WAITING_FOR_BROWSER) {
             spotify.connect(url -> {
                 LOGGER.info("LIVETEST spotify login: {}", url);
                 try {

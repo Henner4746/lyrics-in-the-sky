@@ -237,10 +237,16 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   verwirft die Aufnahme. Geräusche, die kein Player meldet, etwa Sprachchat, kann es nicht unterscheiden: Bei einem
   Song ohne bekannten Text landen sie im Songtext; mit bekanntem Text passt so eine Aufnahme nicht mehr und wird
   verworfen.
+- **Gelerntes gilt für alle:** Ein gelernter Song wird über den Tracker auf henrik.click geteilt, und Songs, die andere
+  gelernt haben, laufen hier sofort Wort für Wort, ohne Mithören. Text, der auf den Songtext von lrclib.net gelegt
+  wurde, prüft der Tracker selbst bei lrclib.net; Abgeschriebenes gilt, sobald Spieler aus zwei Netzen es ähnlich
+  gehört haben. Von Anfang an an; „Teilen“ auf der Seite *Quellen* oder `/skylyrics sharelearned off` schaltet es ab.
 - **Datenschutz:** Mitgehört wird alles, was über den Standardlautsprecher läuft, also auch Sprachchat, solange so ein
-  Song läuft. Nichts davon verlässt den PC oder landet auf der Platte, außer kurz als Datei für whisper.cpp, die
-  gleich danach gelöscht wird.
-- Einschalten auf der Seite *Quellen* („Hörgenau“) oder mit `/skylyrics hoergenau on`.
+  Song läuft. Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
+  die gleich danach gelöscht wird. Mit „Teilen“ geht der gelernte Songtext (Text und Wortzeiten) an den Tracker.
+- Einschalten auf der Seite *Quellen* („Hörgenau“), mit `/skylyrics hoergenau on` oder mit dem Knopf, den die Mod im
+  Chat anbietet, wenn ein Song keine Wortzeiten hat. Ein kleiner Hinweis in der Ecke sagt, was es gerade tut; während
+  es den laufenden Song aufnimmt, ist das Symbol der Leiste ein rotes Aufnahmelicht.
 
 ## Datenschutz und faire Nutzung
 
@@ -255,7 +261,11 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   speichert pro Korrektur nur die Song-Prüfsumme, die Millisekunden und gesalzene Prüfsummen deiner
   Installations-Kennung und deines Netzes, keine IP-Adressen und kein Zugriffsprotokoll.
 - Lyrics werden beim Abspielen geholt; gefundene bleiben auf deinem PC in `config/lyricsinthesky/lyrics`,
-  den Ordner kannst du jederzeit löschen. Das Projekt liefert oder hostet keine Songtexte.
+  den Ordner kannst du jederzeit löschen. Die Mod liefert keine Songtexte mit. Der Tracker speichert Songtexte, die
+  Hörgenau bei Spielern gelernt und geteilt hat (Song-Prüfsumme, Namen, Länge, Songtext mit Wortzeiten, gesalzene
+  Prüfsummen von Installations-Kennung und Netz), damit andere sie bekommen; mit „Teilen“ auf der Seite *Quellen* aus
+  wird nichts geteilt.
+- Der Streamer-Modus (`/skylyrics streamer on`) zeigt explizite Wörter in Songtexten, Titeln und Künstlern als „F***“.
 - Nicht verbunden mit Mojang, Microsoft, Spotify, Amazon oder LRCLIB.
 
 ## Bekannte Grenzen

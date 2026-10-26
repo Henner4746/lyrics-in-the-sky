@@ -11,6 +11,7 @@ import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.hoergenau.SharedLearned;
+import de.henner.lyricsinthesky.hoergenau.WhisperEngine;
 import de.henner.lyricsinthesky.lyrics.BetterLyricsClient;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
@@ -45,6 +46,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -68,6 +70,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     private static int openSettingsIn = -1;
     /** LyricsPlus was offered in chat this game session. */
     private static boolean lyricsPlusOffered;
+    /** Hoergenau was offered in chat this game session. */
+    private static boolean hoergenauOffered;
 
     /** {@code null} until the client is initialized. */
     public static LyricsController controller() {
@@ -106,7 +110,17 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         controller = new LyricsController(source, lrclib, wordTimes, lyricsPlus, store, config, timings, tracker);
         // Off unless switched on; listens only on Windows and only to songs nobody has word times for.
         Hoergenau hoergenau = new Hoergenau(configDir.resolve(MOD_ID).resolve("hoergenau"), config, store,
-                LyricsInTheSkyClient::tell, controller::forget);
+                new Hoergenau.Notifier() {
+                    @Override
+                    public void toast(String title, String detail) {
+                        LyricsInTheSkyClient.toast(title, detail);
+                    }
+
+                    @Override
+                    public void chat(String message) {
+                        tell(message);
+                    }
+                }, controller::forget);
         controller.listenWith(hoergenau);
         // What anyone's Hoergenau learned counts for all: shared through the tracker, unless switched off.
         SharedLearned shared = new SharedLearned(() -> config.shareLearned, config.installId, version);
@@ -121,10 +135,12 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             controller.tick();
             handleKeys(client);
             offerLyricsPlus(client);
+            offerHoergenau(client);
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             noteLrclib(client);
             noteTiming(client);
+            noteLearned(client);
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SkyLyricsRenderer.INSTANCE.reset());
         HudElementRegistry.attachElementBefore(VanillaHudElements.BOSS_BAR,
@@ -225,6 +241,24 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     }
 
     /**
+     * First world join with sharing learned songs on: say once that songs other players' Hoergenau learned come from
+     * the tracker, and what is sent for that, and offer to switch it off.
+     */
+    private static void noteLearned(Minecraft client) {
+        if (config.learnedNoticeShown || !config.shareLearned || SelfTest.isEnabled()) {
+            return;
+        }
+        MutableComponent message = prefix()
+                .append("Songs ohne Wortzeiten, die Hörgenau bei anderen Spielern gelernt hat, holt die Mod von "
+                        + "henrik.click; gefragt wird mit einer Prüfsumme des Songs. Was dein Hörgenau lernt, wird dort "
+                        + "auch geteilt. ")
+                .append(button("[Ausschalten]", "/skylyrics sharelearned off", ChatFormatting.GRAY));
+        client.gui.hud.getChat().addClientSystemMessage(message);
+        config.learnedNoticeShown = true;
+        config.save();
+    }
+
+    /**
      * First world join after install: lyrics lookups are on from the start, so say once what is sent to lrclib.net
      * and offer to switch them off.
      */
@@ -287,11 +321,48 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         Hoergenau listener = controller.hoergenau();
         if (on && listener != null) {
             listener.reset();
-            tell("Hörgenau hört bei Songs ohne Wortzeiten mit, was dein PC abspielt (ab Songanfang, nur im Speicher), "
-                    + "und lässt danach whisper.cpp die Wörter timen: einmal je Song etwa 1–2 Minuten bis zu vier "
-                    + "CPU-Kerne mit niedriger Priorität und bis 750 MB Arbeitsspeicher in einem eigenen Prozess. "
-                    + "Beim ersten Mal ca. 190 MB Download.");
+            tell("Hörgenau ist an. Bei Songs ohne Wortzeiten hört es ab Songanfang mit, was dein PC abspielt (nur im "
+                    + "Speicher), und lernt danach im Hintergrund die Wörter: etwa eine Minute je Song mit niedriger "
+                    + "Priorität. Lass den Song bis zum Ende laufen, dann läuft er ab dem nächsten Mal Wort für Wort."
+                    + (settings.shareLearned ? " Was es lernt, wird anonym für alle geteilt." : ""));
         }
+    }
+
+    /** Hoergenau's notes share one toast, so a new one replaces the last instead of piling up. */
+    private static final SystemToast.SystemToastId HOERGENAU_TOAST = new SystemToast.SystemToastId(6_000L);
+
+    /** A short note in the top corner, from any thread. */
+    private static void toast(String title, String detail) {
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> SystemToast.addOrUpdate(client.gui.toastManager(), HOERGENAU_TOAST,
+                Component.literal(title), Component.literal(detail)));
+    }
+
+    /**
+     * A song nobody has word times for, on Windows with Hoergenau off: offer it once per game session, with a button
+     * that switches it on. Nothing is downloaded or listened to until the player clicks.
+     */
+    private static void offerHoergenau(Minecraft client) {
+        if (hoergenauOffered || config.hoergenau || !WhisperEngine.supported() || client.player == null
+                || SelfTest.isEnabled() || !(lyricsPlusOffered || config.wordTimes())) {
+            return;
+        }
+        LyricsController.Timeline timeline = controller.timeline(System.currentTimeMillis());
+        if (timeline == null || timeline.trackKey().startsWith("demo")) {
+            return;
+        }
+        boolean missing = timeline.state() == LyricsController.LookupState.NOT_FOUND
+                || timeline.lyrics() != null && timeline.lyrics().isEstimated();
+        if (!missing) {
+            return;
+        }
+        hoergenauOffered = true;
+        MutableComponent message = prefix()
+                .append("„" + timeline.title() + "“ hat noch keine Wortzeiten. Hörgenau kann solche Songs beim Abspielen "
+                        + "mithören und Wort für Wort lernen: lokal auf deinem PC, einmalig ca. "
+                        + WhisperEngine.DOWNLOAD_MB + " MB. Was es lernt, bekommen alle anderen Spieler auch. ")
+                .append(button("[Einschalten]", "/skylyrics hoergenau on", ChatFormatting.GREEN));
+        client.gui.hud.getChat().addClientSystemMessage(message);
     }
 
     /** A message in chat from any thread, e.g. Hoergenau's background work. */
