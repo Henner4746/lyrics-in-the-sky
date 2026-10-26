@@ -265,9 +265,11 @@ public final class LyricsController {
                     LOGGER.info("Lyrics for '{}' by '{}': FOUND (word time service, LRCLIB has none)", now.title(), now.artist());
                     return;
                 }
-                // Another player may have learned the song by listening: it runs word by word here too, without
-                // listening again. Kept like lyrics learned here, so LRCLIB's lines still replace it once they exist.
-                Optional<Lyrics> learnedElsewhere = sharedLearned(key);
+                // Another player may have learned the song by listening: its word times, put on LRCLIB's text here, run
+                // it word by word without listening again. Kept like lyrics learned here, so LRCLIB's lines still
+                // replace it once they exist.
+                Optional<Lyrics> learnedElsewhere = lookup.plain()
+                        .flatMap(text -> sharedLearned(key, text, now.durationMs()));
                 if (learnedElsewhere.isPresent()) {
                     cache.put(key, new CacheEntry(learnedElsewhere, LookupState.FOUND, System.currentTimeMillis()));
                     LOGGER.info("Lyrics for '{}' by '{}': FOUND (learned by another player)", now.title(), now.artist());
@@ -313,12 +315,12 @@ public final class LyricsController {
         this.shared = shared;
     }
 
-    private Optional<Lyrics> sharedLearned(String key) {
+    private Optional<Lyrics> sharedLearned(String key, String text, long durationMs) {
         SharedLearned from = shared;
         if (from == null || !config.shareLearned) {
             return Optional.empty();
         }
-        Optional<String> lrc = from.fetch(key);
+        Optional<String> lrc = from.fetch(key, Lyrics.estimated(text, durationMs));
         lrc.ifPresent(found -> saved.write(key, found));
         return lrc.map(Lyrics::parseLrc);
     }

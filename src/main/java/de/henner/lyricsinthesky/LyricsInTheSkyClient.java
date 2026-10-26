@@ -505,7 +505,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(toggle("hoergenau", (c, value) -> setHoergenau(c, value),
                             "Hörgenau (Mithören für Songs ohne Wortzeiten, nur Windows)"))
                     .then(toggle("sharelearned", (c, value) -> c.shareLearned = value,
-                            "Gelerntes teilen (Hörgenau-Ergebnisse für alle)"))
+                            "Gelerntes teilen (nur Hörgenaus Wortzeiten, kein Songtext)"))
                     .then(toggle("lyricsplus", (c, value) -> {
                         c.setWordSource("lyricsplus", value);
                         controller.refreshWordTimes();

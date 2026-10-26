@@ -259,14 +259,15 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
 - **Quiet recordings, made-up lines:** the player's own sound comes without what Windows raises afterwards and was up
   to 17 dB quieter; Hörgenau makes it louder before Whisper hears it (*Genau* otherwise heard only a made-up line in it,
   and the whole song after). Lines Whisper makes up from subtitles ("Untertitel im Auftrag des ZDF") are dropped.
-- **What it learns counts for everyone:** a learned song is shared through the tracker on henrik.click, and songs
-  other players learned run word by word here at once, without listening. The tracker checks text placed on
-  lrclib.net's lyrics against lrclib.net itself; lyrics written down as heard count once players on two networks heard
-  alike. On by default; "Teilen" on the page *Quellen* or `/skylyrics sharelearned off` switches it off.
+- **What it learns counts for everyone, but only the times:** when Hörgenau placed a song on lrclib.net's text, only
+  the times of the words and a fingerprint of that text go to the tracker on henrik.click, never the lyrics. Other
+  players put the times on their own text from lrclib.net, and only when it is exactly the same; the tracker checks
+  that on lrclib.net itself first. Songs nobody has the text of are not shared. On by default; "Gelerntes teilen" on
+  the page *Hörgenau (KI)* or `/skylyrics sharelearned off` switches it off.
 - **Privacy:** it hears the sound of your music app, where that cannot be told apart everything that plays on the
   default speakers, voice chat included, while such a song plays (and for the 50 s of a sync check).
   The recording never leaves the PC and does not stay on disk, except briefly as a file for whisper.cpp that is
-  deleted right after. With sharing on, the learned lyrics (text and word times) go to the tracker.
+  deleted right after. With "Gelerntes teilen" on, only the word times go to the tracker, no text.
 - Switch it on on the page *Hörgenau (KI)* of the menu, which also explains step by step what the AI does, with
   `/skylyrics hoergenau on`, or with the button the mod offers in chat when a song has no word times. A note in the corner tells what it is doing; while it records the playing
   song, the bar's icon is a red recording light.
@@ -284,9 +285,9 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   per correction only the song hash, the milliseconds and keyed hashes of your installation ID and network,
   no IP addresses and no access log.
 - Lyrics are fetched while playing; the ones found stay on your PC in `config/lyricsinthesky/lyrics`, which
-  you can delete at any time. The mod ships no lyrics. The tracker keeps lyrics that players' Hörgenau learned and
-  shared (song key, names, length, lyrics with word times, keyed hashes of installation ID and network), so others
-  get them; nothing is shared with "Teilen" on the page *Quellen* off.
+  you can delete at any time. The mod ships no lyrics, and the tracker keeps none: of songs players' Hörgenau
+  learned it knows only the word times (song key, names, length, word times, fingerprint of the text, keyed hashes
+  of installation ID and network); with "Gelerntes teilen" off nothing is shared.
 - Streamer mode (`/skylyrics streamer on`) hides explicit words in lyrics, titles and artists as "F***".
 - Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 

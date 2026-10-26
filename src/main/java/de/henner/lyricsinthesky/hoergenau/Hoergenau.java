@@ -382,13 +382,13 @@ public final class Hoergenau {
         LOGGER.info("Hoergenau learned '{}' in {} s ({})", done.track.title(), (System.nanoTime() - started) / 1_000_000_000,
                 how);
         SharedLearned sharer = this.sharer;
-        boolean shared = sharer != null && config.shareLearned;
-        if (shared) {
-            sharer.share(done.key, done.track, lrc, !done.lines.isEmpty(), matched);
-        }
-        notifier.toast("Gelernt: " + shown(done.track.title()), "ab jetzt Wort für Wort" + (shared ? ", für alle geteilt" : ""));
+        // Only word times on lrclib.net's text go to the others, never words: a song written down as heard stays here.
+        boolean shared = sharer != null && config.shareLearned && !done.lines.isEmpty()
+                && sharer.share(done.key, done.track, lrc, matched);
+        notifier.toast("Gelernt: " + shown(done.track.title()),
+                "ab jetzt Wort für Wort" + (shared ? ", Zeiten für alle geteilt" : ""));
         notifier.chat("Hörgenau hat „" + shown(done.track.title()) + "“ gelernt (" + how
-                + "). Ab jetzt Wort für Wort" + (shared ? ", und geteilt für alle." : "."));
+                + "). Ab jetzt Wort für Wort" + (shared ? ", und die Wortzeiten sind für alle geteilt." : "."));
     }
 
     /** Sets a checked song's correction when its words were heard clearly enough off where the lyrics have them. */

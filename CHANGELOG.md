@@ -10,6 +10,18 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.15 – 2026-10-26
+
+- **Only word times are shared, never lyrics**: what Hörgenau learned on lrclib.net's text goes to the tracker on
+  henrik.click as the times of its words and a fingerprint of the text, without a single word. Other players put the
+  times on their own text from lrclib.net, and only when it is exactly the same – every line with as many words as it
+  has times. The tracker checks the fingerprint against lrclib.net before the times count, and keeps no lyrics: the
+  ones it kept before became times, the text was deleted and the database rewritten. Songs written down as heard,
+  whose text nobody has, are no longer shared at all. Older versions still sending lyrics only have their times taken.
+- **The project description tells everything**: what goes where – lrclib.net, the timing tracker, each optional
+  unofficial word-time service, Hörgenau's downloads and its shared word times, Spotify – and that the mod's code was
+  written with the help of AI.
+
 ### 1.3.0-dev.14 – 2026-10-26
 
 - **Hörgenau hears only the music player**: instead of everything the PC plays, it records only the sound of the app

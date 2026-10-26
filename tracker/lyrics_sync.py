@@ -5,24 +5,26 @@ player. Stored per vote: the song ID (a hash the mod makes of artist, title and 
 correction in milliseconds and two keyed hashes, of the random install ID and of the network the vote came from.
 No IP addresses, names or Minecraft accounts are kept.
 
-Songs that Hoergenau learned by listening (word times for songs nobody has timed) are shared here too, so every player
-gets them. Stored per learned song and player: the song key (a hash of artist, title and album), the song's names and
-length, the word-timed lyrics, whether they were placed on known text or written down as heard, and the same two keyed
-hashes. Lyrics placed on known text count once this server finds exactly that text on lrclib.net; lyrics written down
-as heard count once players on two networks heard alike, so no single person can put words under a song for all.
+Word times Hoergenau learned by listening, for songs whose text lrclib.net has without times, are shared here too, so
+every player gets them. No lyrics are kept or sent: only the times of the words and a fingerprint of the text they
+belong to; every player puts them on lrclib.net's text on their own PC. Stored per song and player: the song key (a
+hash of artist, title and album), the song's names and length, the word times, the fingerprint and the same two keyed
+hashes. They count once this server finds exactly that text on lrclib.net. Lyrics written down as heard, of songs
+nobody has the text of, are not shared at all.
 
 Endpoints (behind nginx at https://henrik.click/lyrics-sync/):
     GET  /health
     GET  /v1/corrections/<song>   -> {"players": n, "offsetMs": ms or null}
     POST /v1/corrections          <- {"song": ..., "offsetMs": ms or null, "install": ..., "version": ...}
-    GET  /v1/learned/<key>        -> {"lrc": ..., "kind": "aligned" or "heard", "players": n}, 404 when none counts
-    POST /v1/learned              <- {"song": key, "artist", "title", "album", "durationMs", "kind", "matched",
-                                      "lrc", "install", "version"}
+    GET  /v1/learned/<key>        -> {"times": [[ms, ...], ...], "text": fingerprint, "kind": "aligned", "players": n},
+                                     404 when none counts
+    POST /v1/learned              <- {"song": key, "artist", "title", "album", "durationMs", "kind": "aligned",
+                                      "matched", "times", "text", "install", "version"}
+                                     (older mods send "lrc" instead of "times" and "text": its text is dropped here)
 
 Python standard library only. Settings come from the environment, see ``Settings``.
 """
 
-import difflib
 import hashlib
 import hmac
 import ipaddress
@@ -44,18 +46,18 @@ SONG = re.compile(r"^[0-9a-f]{32}$")
 INSTALL = re.compile(r"^[0-9a-fA-F-]{16,64}$")
 MAX_OFFSET_MS = 5000
 MAX_BODY = 1024
-# Learned lyrics: what the mod writes, size limits, and how alike two players' lyrics must be.
+# Learned word times: what the mod writes, and size limits.
 LEARNED_MARK = "[re:Hoergenau]"
 MAX_LEARNED_BODY = 96 * 1024
 MAX_LRC = 64 * 1024
-MAX_LRC_LINES = 600
+MAX_LINES = 600
+MAX_WORDS = 20_000
 MAX_NAME = 300
 TIMED_LINE = re.compile(r"^\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]")
-ANY_TAG = re.compile(r"[\[<]\d{1,3}:\d{2}(?:[.:]\d{1,3})?[\]>]")
+WORD_TAG = re.compile(r"<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>([^<]*)")
 LABEL_LINE = re.compile(r"^[\[(].*[\])]$")
-KINDS = ("aligned", "heard")
-SAME_TEXT = 0.97
-HEARD_ALIKE = 0.5
+SPACES = re.compile(r"[ \t\n\x0b\f\r]+")
+FINGERPRINT = re.compile(r"^[0-9a-f]{32}$")
 RECHECK_S = 600
 LRCLIB = "https://lrclib.net/api"
 
@@ -97,40 +99,57 @@ def song_key(artist, title, album):
     return hashlib.sha256(f"{artist}\0{title}\0{album}".encode()).hexdigest()[:32]
 
 
-def words_of(text):
-    """The words of a text, lower case, without punctuation; "ß" as "ss" like the mod."""
-    return re.findall(r"[^\W_]+", text.lower().replace("ß", "ss"))
-
-
-def lrc_words(lrc):
-    """The sung words of an LRC, without its time tags and header lines."""
-    found = []
-    for line in lrc.splitlines():
-        if TIMED_LINE.match(line):
-            found += words_of(ANY_TAG.sub(" ", line))
-    return found
-
-
-def plain_words(plain):
-    """The words of plain lyrics as the mod uses them: section labels such as "[Chorus]" left out."""
-    found = []
+def text_lines(plain):
+    """The lines of plain lyrics as the mod times them: trimmed, spaces made single, empty lines and labels such as
+    "[Chorus]" left out."""
+    lines = []
     for line in plain.splitlines():
-        line = line.strip()
+        line = SPACES.sub(" ", line.strip())
         if line and not LABEL_LINE.match(line):
-            found += words_of(line)
-    return found
+            lines.append(line)
+    return lines
 
 
-def same_text(lrc, plain):
-    """Whether learned lyrics carry exactly the given plain lyrics (a few words may differ in spelling)."""
-    a, b = lrc_words(lrc), plain_words(plain)
-    return bool(a) and (a == b or difflib.SequenceMatcher(None, a, b, autojunk=False).ratio() >= SAME_TEXT)
+def fingerprint(lines):
+    """Which text word times belong to, without the text itself; the mod makes the same from its own lines."""
+    return hashlib.sha256("\n".join(lines).lower().encode()).hexdigest()[:32]
 
 
-def heard_alike(lrc_a, lrc_b):
-    """Whether two players heard the same song alike: half of their words in common at least."""
-    a, b = set(lrc_words(lrc_a)), set(lrc_words(lrc_b))
-    return bool(a) and bool(b) and len(a & b) / len(a | b) >= HEARD_ALIKE
+def fits(times, lines):
+    """Whether the word times have one time for every word of every line."""
+    return len(times) == len(lines) and all(len(words) == len(line.split(" ")) for words, line in zip(times, lines))
+
+
+def lines_and_times(lrc):
+    """The lines and word times of learned lyrics as older mods sent them; only the times and a fingerprint are kept."""
+    lines, times = [], []
+    for line in lrc.splitlines():
+        if not TIMED_LINE.match(line):
+            continue
+        words, starts = [], []
+        for minutes, seconds, fraction, word in WORD_TAG.findall(line):
+            fraction = (fraction or "0").ljust(3, "0")
+            starts.append(int(minutes) * 60_000 + int(seconds) * 1000 + int(fraction))
+            words.append(SPACES.sub(" ", word.strip()))
+        if words and all(words) and all(" " not in word for word in words):
+            lines.append(" ".join(words))
+            times.append(starts)
+    return lines, times
+
+
+def valid_times(times):
+    """Word times as sent: lines of song positions in ms, at least three words, within the size limits."""
+    if not isinstance(times, list) or not 1 <= len(times) <= MAX_LINES:
+        return False
+    count = 0
+    for line in times:
+        if not isinstance(line, list) or not line:
+            return False
+        for ms in line:
+            if isinstance(ms, bool) or not isinstance(ms, int) or not 0 <= ms <= 3_600_000:
+                return False
+        count += len(line)
+    return 3 <= count <= MAX_WORDS
 
 
 class LrclibUnreachable(Exception):
@@ -165,14 +184,15 @@ def fetch_plain(artist, title, album, duration_ms):
 
 
 def parse_learned(body):
-    """The learned song in a request body, or an error text."""
+    """The learned word times in a request body, or an error text."""
     try:
         data = json.loads(body)
     except (ValueError, UnicodeDecodeError):
         return None, "not JSON"
     if not isinstance(data, dict):
         return None, "not an object"
-    song, install, kind, lrc = data.get("song"), data.get("install"), data.get("kind"), data.get("lrc")
+    song, install, kind = data.get("song"), data.get("install"), data.get("kind")
+    times, text = data.get("times"), data.get("text")
     names = [data.get(field) for field in ("artist", "title", "album")]
     duration, matched = data.get("durationMs"), data.get("matched", 0)
     if not all(isinstance(name, str) and len(name) <= MAX_NAME for name in names) or not names[1]:
@@ -181,17 +201,27 @@ def parse_learned(body):
         return None, "bad song"
     if not isinstance(install, str) or not INSTALL.match(install):
         return None, "bad install"
-    if kind not in KINDS:
+    if kind == "heard":
+        return None, "lyrics written down as heard are not shared"
+    if kind != "aligned":
         return None, "bad kind"
     if isinstance(duration, bool) or not isinstance(duration, int) or not 10_000 <= duration <= 3_600_000:
         return None, "bad durationMs"
     if isinstance(matched, bool) or not isinstance(matched, (int, float)) or not 0 <= matched <= 1:
         return None, "bad matched"
-    if (not isinstance(lrc, str) or not lrc.startswith(LEARNED_MARK) or len(lrc) > MAX_LRC
-            or lrc.count("\n") > MAX_LRC_LINES or len(lrc_words(lrc)) < 3):
-        return None, "bad lrc"
+    lrc = data.get("lrc")
+    if times is None and isinstance(lrc, str):
+        # Older mods send the lyrics with their times: only the times and a fingerprint are taken, the text dropped.
+        if not lrc.startswith(LEARNED_MARK) or len(lrc) > MAX_LRC:
+            return None, "bad lrc"
+        lines, times = lines_and_times(lrc)
+        text = fingerprint(lines)
+    if not valid_times(times):
+        return None, "bad times"
+    if not isinstance(text, str) or not FINGERPRINT.match(text):
+        return None, "bad text"
     return {"song": song, "artist": names[0], "title": names[1], "album": names[2], "duration_ms": duration,
-            "kind": kind, "matched": float(matched), "lrc": lrc, "install": install.lower()}, None
+            "matched": float(matched), "times": times, "text": text, "install": install.lower()}, None
 
 
 def network_of(address):
@@ -240,15 +270,34 @@ class Tracker:
             self.db.execute(
                 "CREATE TABLE IF NOT EXISTS votes (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
                 "offset_ms INTEGER NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
-            # verified: 1 the text was found on lrclib.net, 0 not checked yet (lrclib busy) or written down as heard.
+            # verified: 1 the text was found on lrclib.net, 0 not checked yet (lrclib busy).
             self.db.execute(
-                "CREATE TABLE IF NOT EXISTS learned (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
-                "kind TEXT NOT NULL, verified INTEGER NOT NULL, checked INTEGER NOT NULL, matched REAL NOT NULL, "
-                "artist TEXT NOT NULL, title TEXT NOT NULL, album TEXT NOT NULL, duration_ms INTEGER NOT NULL, "
-                "lrc TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
+                "CREATE TABLE IF NOT EXISTS timings (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
+                "verified INTEGER NOT NULL, checked INTEGER NOT NULL, matched REAL NOT NULL, artist TEXT NOT NULL, "
+                "title TEXT NOT NULL, album TEXT NOT NULL, duration_ms INTEGER NOT NULL, text TEXT NOT NULL, "
+                "times TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
             self.db.commit()
+            self._forget_lyrics()
         self.reads = RateLimit(settings.reads_per_window, settings.window_s)
         self.writes = RateLimit(settings.writes_per_window, settings.window_s)
+
+    def _forget_lyrics(self):
+        """Lyrics kept by older versions of this server: their word times stay, the text and heard lyrics go."""
+        if not self.db.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'learned'").fetchone():
+            return
+        rows = self.db.execute("SELECT song, install, network, verified, checked, matched, artist, title, album, "
+                               "duration_ms, lrc, updated FROM learned WHERE kind = 'aligned'").fetchall()
+        for row in rows:
+            lines, times = lines_and_times(row[10])
+            if valid_times(times):
+                self.db.execute(
+                    "INSERT OR IGNORE INTO timings (song, install, network, verified, checked, matched, artist, title, "
+                    "album, duration_ms, text, times, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (*row[:10], fingerprint(lines), json.dumps(times), row[11]))
+        self.db.execute("DROP TABLE learned")
+        self.db.commit()
+        # Rewrites the file, so nothing of the text is left in its free pages.
+        self.db.execute("VACUUM")
 
     @staticmethod
     def _salt(path):
@@ -285,70 +334,67 @@ class Tracker:
             self.db.commit()
 
     def check_text(self, entry):
-        """1 when lrclib.net has exactly this text, 0 when it could not be asked; raises ValueError when it differs."""
+        """1 when lrclib.net has exactly the text the times belong to, 0 when it could not be asked; raises ValueError
+        when it has another text or none."""
         try:
             plain = self.plain_lyrics(entry["artist"], entry["title"], entry["album"], entry["duration_ms"])
         except LrclibUnreachable:
             return 0
-        if plain is None or not same_text(entry["lrc"], plain):
+        lines = text_lines(plain) if plain else []
+        if not lines or fingerprint(lines) != entry["text"] or not fits(entry["times"], lines):
             raise ValueError("text not on lrclib.net")
         return 1
 
     def learn(self, entry, network):
-        """Keeps a player's learned lyrics; known text is checked against lrclib.net first. Raises ValueError."""
-        verified = self.check_text(entry) if entry["kind"] == "aligned" else 0
+        """Keeps a player's word times, checked against lrclib.net's text first. Raises ValueError."""
+        verified = self.check_text(entry)
         now = int(time.time())
         with self.lock:
             self.db.execute(
-                "INSERT INTO learned (song, install, network, kind, verified, checked, matched, artist, title, album, "
-                "duration_ms, lrc, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT (song, install) DO UPDATE SET network = excluded.network, kind = excluded.kind, "
-                "verified = excluded.verified, checked = excluded.checked, matched = excluded.matched, "
-                "artist = excluded.artist, title = excluded.title, album = excluded.album, "
-                "duration_ms = excluded.duration_ms, lrc = excluded.lrc, updated = excluded.updated",
-                (entry["song"], self.hash("install", entry["install"]), self.hash("network", network), entry["kind"],
-                 verified, now, entry["matched"], entry["artist"], entry["title"], entry["album"], entry["duration_ms"],
-                 entry["lrc"], now))
+                "INSERT INTO timings (song, install, network, verified, checked, matched, artist, title, album, "
+                "duration_ms, text, times, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT (song, install) DO UPDATE SET network = excluded.network, verified = excluded.verified, "
+                "checked = excluded.checked, matched = excluded.matched, artist = excluded.artist, "
+                "title = excluded.title, album = excluded.album, duration_ms = excluded.duration_ms, "
+                "text = excluded.text, times = excluded.times, updated = excluded.updated",
+                (entry["song"], self.hash("install", entry["install"]), self.hash("network", network), verified, now,
+                 entry["matched"], entry["artist"], entry["title"], entry["album"], entry["duration_ms"],
+                 entry["text"], json.dumps(entry["times"]), now))
             self.db.commit()
         return verified == 1
 
     def learned_for(self, song):
-        """The learned lyrics that count for everyone, or None: checked known text first, then lyrics heard alike."""
+        """The word times that count for everyone, or None: those of the text lrclib.net has, heard best."""
         with self.lock:
             rows = self.db.execute(
-                "SELECT install, network, kind, verified, checked, matched, artist, title, album, duration_ms, lrc "
-                "FROM learned WHERE song = ?", (song,)).fetchall()
-        rows = [dict(zip(("install", "network", "kind", "verified", "checked", "matched", "artist", "title", "album",
-                          "duration_ms", "lrc"), row)) for row in rows]
+                "SELECT install, verified, checked, matched, artist, title, album, duration_ms, text, times "
+                "FROM timings WHERE song = ?", (song,)).fetchall()
+        rows = [dict(zip(("install", "verified", "checked", "matched", "artist", "title", "album", "duration_ms",
+                          "text", "times"), row)) for row in rows]
         now = int(time.time())
         for row in rows:
-            if row["kind"] == "aligned" and not row["verified"] and now - row["checked"] >= RECHECK_S:
+            row["times"] = json.loads(row["times"])
+            if not row["verified"] and now - row["checked"] >= RECHECK_S:
                 self.recheck(song, row, now)
-        aligned = [row for row in rows if row["kind"] == "aligned" and row["verified"] == 1]
-        if aligned:
-            best = max(aligned, key=lambda row: row["matched"])
-            return {"lrc": best["lrc"], "kind": "aligned", "players": len(aligned)}
-        heard = [row for row in rows if row["kind"] == "heard"]
-        confirmed = [row for row in heard if any(other["install"] != row["install"] and other["network"] != row["network"]
-                                                 and heard_alike(row["lrc"], other["lrc"]) for other in heard)]
-        if confirmed:
-            best = max(confirmed, key=lambda row: len(lrc_words(row["lrc"])))
-            return {"lrc": best["lrc"], "kind": "heard", "players": len(confirmed)}
-        return None
+        verified = [row for row in rows if row["verified"] == 1]
+        if not verified:
+            return None
+        best = max(verified, key=lambda row: row["matched"])
+        return {"times": best["times"], "text": best["text"], "kind": "aligned", "players": len(verified)}
 
     def recheck(self, song, row, now):
-        """Known text that could not be checked when it came: asked again, dropped when lrclib.net disagrees."""
+        """Times whose text could not be checked when they came: asked again, dropped when lrclib.net disagrees."""
         try:
             verified = self.check_text(row)
         except ValueError:
             with self.lock:
-                self.db.execute("DELETE FROM learned WHERE song = ? AND install = ?", (song, row["install"]))
+                self.db.execute("DELETE FROM timings WHERE song = ? AND install = ?", (song, row["install"]))
                 self.db.commit()
             row["verified"] = -1
             return
         row["verified"] = verified
         with self.lock:
-            self.db.execute("UPDATE learned SET verified = ?, checked = ? WHERE song = ? AND install = ?",
+            self.db.execute("UPDATE timings SET verified = ?, checked = ? WHERE song = ? AND install = ?",
                             (verified, now, song, row["install"]))
             self.db.commit()
 

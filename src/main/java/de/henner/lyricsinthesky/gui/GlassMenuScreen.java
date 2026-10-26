@@ -403,8 +403,8 @@ public final class GlassMenuScreen extends Screen {
                         Map.of("low", "Sparsam", "normal", "Normal", "high", "Schnell"), c -> c.hoergenauPower,
                         (c, v) -> c.hoergenauPower = v),
                 new Section("Teilen"),
-                new Toggle("Gelerntes teilen", "Gelernte Songs gelten für alle Spieler", c -> c.shareLearned,
-                        (c, on) -> c.shareLearned = on),
+                new Toggle("Gelerntes teilen", "Nur die Wortzeiten, nie den Songtext, für alle Spieler",
+                        c -> c.shareLearned, (c, on) -> c.shareLearned = on),
                 new Section("Genauer erklärt"),
                 new Explain("Songs lernen", "Hat niemand Wortzeiten für einen Song, hört die KI beim ersten Mal von "
                         + "Anfang bis Ende mit. Lass ihn dafür einmal ganz durchlaufen, ohne zu spulen. Danach läuft er "
@@ -415,6 +415,9 @@ public final class GlassMenuScreen extends Screen {
                 new Explain("Was sie hört", "Nur dein Musikprogramm, zum Beispiel Spotify. Discord, Videos und die "
                         + "Geräusche des Spiels hört sie nicht. Findet Windows das Programm nicht, hört sie alles, was "
                         + "dein PC abspielt; dann am besten nebenher nicht reden."),
+                new Explain("Was geteilt wird", "Mit „Gelerntes teilen“ gehen nur die Zeiten der Wörter an henrik.click, "
+                        + "nie der Songtext. Andere Spieler legen sie auf ihren eigenen Text von lrclib.net, und nur, "
+                        + "wenn er genau gleich ist. Songs, deren Text niemand hat, bleiben bei dir."),
                 new Explain("Schnell oder Genau?", "Schnell lädt 190 MB und braucht für 50 Sekunden Musik etwa 15 "
                         + "Sekunden. Genau lädt 574 MB, versteht mehr Wörter, gerade bei Rap und lauter Musik, und braucht "
                         + "etwa eine Minute. Beides rechnet im Hintergrund mit niedriger Priorität, das Spiel läuft weiter."),

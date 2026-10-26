@@ -1,4 +1,6 @@
 import json
+import sqlite3
+import os
 import tempfile
 import threading
 import unittest
@@ -121,19 +123,29 @@ class HttpTest(unittest.TestCase):
 
 
 PLAIN = "[Chorus]\nDie Tür fällt ins Schloss\nIch bin endlich allein\n\nDie Wohnung ist still"
+# What older mods sent: the lyrics with their word times.
 ALIGNED = ("[re:Hoergenau]\n[00:00.419]<00:00.419>Die <00:00.769>Tür <00:01.119>fällt <00:01.469>ins <00:01.819>Schloss\n"
            "[00:02.169]<00:02.169>Ich <00:02.519>bin <00:02.869>endlich <00:03.289>allein\n"
            "[00:04.369]<00:04.369>Die <00:04.629>Wohnung <00:05.129>ist <00:05.589>still\n")
+# What the mod sends now: only the times, and the fingerprint of lrclib.net's text they belong to.
+TIMES = [[419, 769, 1119, 1469, 1819], [2169, 2519, 2869, 3289], [4369, 4629, 5129, 5589]]
+# The mod's test computes the same fingerprint for the same text (SharedLearnedTest).
+TEXT = "08e0e4adfa0c37b0eb994e0c4d161e90"
 HEARD = ("[re:Hoergenau] heard\n[00:01.907]<00:01.907>Das <00:02.152>ist <00:02.772>die <00:03.272>Haarschlacht, "
          "<00:04.272>Lokomotive\n[00:14.252]<00:14.252>Himmel <00:14.872>in <00:15.072>den <00:15.232>Arsch\n")
-HEARD_TOO = ("[re:Hoergenau] heard\n[00:01.900]<00:01.900>Das <00:02.100>ist <00:02.700>die <00:03.300>Aarschlacht "
-             "<00:04.300>Lokomotive\n[00:14.200]<00:14.200>Himmel <00:14.900>in <00:15.000>den <00:15.200>Arsch\n")
 
 
-def learned(lrc=ALIGNED, kind="aligned", install="cccccccc-0000-0000-0000-000000000001",
+def learned(times=TIMES, text=TEXT, install="cccccccc-0000-0000-0000-000000000001",
             names=("Peter Petersen", "Staubsaugerliebe", "Staubsaugerliebe")):
     return {"song": ls.song_key(*names), "artist": names[0], "title": names[1], "album": names[2],
-            "durationMs": 210841, "kind": kind, "matched": 0.89, "lrc": lrc, "install": install, "version": "t"}
+            "durationMs": 210841, "kind": "aligned", "matched": 0.89, "times": times, "text": text,
+            "install": install, "version": "t"}
+
+
+def older(lrc=ALIGNED, kind="aligned", install="cccccccc-0000-0000-0000-000000000002"):
+    body = learned(install=install)
+    del body["times"], body["text"]
+    return {**body, "kind": kind, "lrc": lrc}
 
 
 class LearnedTest(unittest.TestCase):
@@ -141,17 +153,29 @@ class LearnedTest(unittest.TestCase):
         self.assertEqual("c491f2d8dfadbd4752970376365091a3",
                          ls.song_key("Peter Petersen", "Staubsaugerliebe", "Staubsaugerliebe"))
 
-    def test_known_text_must_be_lrclibs(self):
-        self.assertTrue(ls.same_text(ALIGNED, PLAIN))
-        self.assertFalse(ls.same_text(ALIGNED.replace("still", "kaputt").replace("Wohnung", "Hose"), PLAIN))
-        self.assertTrue(ls.heard_alike(HEARD, HEARD_TOO))
-        self.assertFalse(ls.heard_alike(HEARD, ALIGNED))
+    def test_the_fingerprint_is_the_mods(self):
+        lines = ls.text_lines(PLAIN)
+        self.assertEqual(["Die Tür fällt ins Schloss", "Ich bin endlich allein", "Die Wohnung ist still"], lines)
+        self.assertEqual(TEXT, ls.fingerprint(lines))
+        self.assertEqual(TEXT, ls.fingerprint(ls.text_lines(PLAIN.replace("Ich bin", "Ich  bin "))))
+        self.assertTrue(ls.fits(TIMES, lines))
+        self.assertFalse(ls.fits([[1, 2, 3]] + TIMES[1:], lines))
 
-    def test_learned_songs_are_checked(self):
+    def test_older_mods_lyrics_become_times(self):
+        lines, times = ls.lines_and_times(ALIGNED)
+        self.assertEqual(TIMES, times)
+        self.assertEqual(TEXT, ls.fingerprint(lines))
+
+    def test_learned_times_are_checked(self):
         self.assertIsNone(ls.parse_learned(json.dumps(learned()))[1])
-        for bad in ({**learned(), "song": "0" * 32}, {**learned(), "kind": "x"}, {**learned(), "lrc": "[00:01.00]x"},
+        entry, error = ls.parse_learned(json.dumps(older()))
+        self.assertIsNone(error)
+        self.assertEqual((TIMES, TEXT), (entry["times"], entry["text"]))
+        self.assertNotIn("lrc", entry)
+        for bad in ({**learned(), "song": "0" * 32}, {**learned(), "kind": "x"}, {**learned(), "times": [[1, 2]]},
+                    {**learned(), "times": [["a", 2, 3]]}, {**learned(), "text": "Die Tür"}, older("[00:01.00]x"),
                     {**learned(), "durationMs": 5}, {**learned(), "matched": 2}, {**learned(), "install": "a"},
-                    {**learned(), "title": "x" * 400}):
+                    {**learned(), "title": "x" * 400}, older(HEARD, "heard")):
             self.assertIsNotNone(ls.parse_learned(json.dumps(bad))[1], bad)
 
 
@@ -170,19 +194,28 @@ class LearnedHttpTest(HttpTest):
             raise ls.LrclibUnreachable("503")
         return self.plain
 
-    def test_known_text_counts_for_everyone_once_lrclib_has_it(self):
+    def test_word_times_count_for_everyone_once_lrclib_has_the_text(self):
         key = learned()["song"]
         self.assertEqual(404, self.request(f"/v1/learned/{key}")[0])
         self.assertEqual((200, {"ok": True, "verified": True}), self.request("/v1/learned", learned()))
         status, body = self.request(f"/v1/learned/{key}")
-        self.assertEqual((200, ALIGNED, "aligned"), (status, body["lrc"], body["kind"]))
+        self.assertEqual((200, TIMES, TEXT, "aligned"), (status, body["times"], body["text"], body["kind"]))
+        self.assertNotIn("lrc", body)
 
-    def test_other_words_under_a_song_are_refused(self):
-        spam = ALIGNED.replace("Wohnung", "Werbung").replace("still", "hier").replace("Schloss", "Link")
-        self.assertEqual(422, self.request("/v1/learned", learned(spam))[0])
+    def test_older_mods_are_heard_without_their_text(self):
+        self.assertEqual((200, {"ok": True, "verified": True}), self.request("/v1/learned", older()))
+        status, body = self.request(f"/v1/learned/{learned()['song']}")
+        self.assertEqual((200, TIMES), (status, body["times"]))
+        self.assertEqual(400, self.request("/v1/learned", older(HEARD, "heard"))[0])
+
+    def test_times_for_another_text_are_refused(self):
+        self.assertEqual(422, self.request("/v1/learned", learned(text="0" * 32))[0])
+        self.assertEqual(422, self.request("/v1/learned", learned(times=[[1, 2, 3, 4, 5], [6, 7, 8, 9]]))[0])
+        self.plain = None
+        self.assertEqual(422, self.request("/v1/learned", learned())[0])
         self.assertEqual(404, self.request(f"/v1/learned/{learned()['song']}")[0])
 
-    def test_known_text_waits_while_lrclib_is_busy(self):
+    def test_word_times_wait_while_lrclib_is_busy(self):
         self.unreachable = True
         self.assertEqual((200, {"ok": True, "verified": False}), self.request("/v1/learned", learned()))
         self.assertEqual(404, self.request(f"/v1/learned/{learned()['song']}")[0])
@@ -193,30 +226,45 @@ class LearnedHttpTest(HttpTest):
         finally:
             ls.RECHECK_S = before
 
-    def test_heard_lyrics_count_once_two_networks_heard_alike(self):
-        names = ("SUV WHATEVER", "Arschloch Lokomotive", "Arschloch Lokomotive")
-        key = ls.song_key(*names)
-        self.request("/v1/learned", learned(HEARD, "heard", "dddddddd-0000-0000-0000-000000000001", names), "198.51.100.1")
-        self.assertEqual(404, self.request(f"/v1/learned/{key}")[0])
-        # A second install on the same network does not count.
-        self.request("/v1/learned", learned(HEARD_TOO, "heard", "dddddddd-0000-0000-0000-000000000002", names),
-                     "198.51.100.1")
-        self.assertEqual(404, self.request(f"/v1/learned/{key}")[0])
-        self.request("/v1/learned", learned(HEARD_TOO, "heard", "dddddddd-0000-0000-0000-000000000003", names),
-                     "198.51.100.9")
-        status, body = self.request(f"/v1/learned/{key}")
-        self.assertEqual((200, "heard"), (status, body["kind"]))
-
-    def test_no_install_or_address_is_stored(self):
+    def test_no_install_address_or_lyrics_are_stored(self):
         self.request("/v1/learned", learned(install="eeeeeeee-0000-0000-0000-000000000001"), "198.51.100.77")
-        rows = repr(self.tracker.db.execute("SELECT * FROM learned").fetchall())
-        self.assertNotIn("eeeeeeee-0000-0000-0000-000000000001", rows)
-        self.assertNotIn("198.51.100.77", rows)
+        self.request("/v1/learned", older(install="eeeeeeee-0000-0000-0000-000000000002"), "198.51.100.78")
+        rows = repr(self.tracker.db.execute("SELECT * FROM timings").fetchall())
+        for kept in ("eeeeeeee-0000-0000-0000-000000000001", "198.51.100.77", "Wohnung", "Schloss"):
+            self.assertNotIn(kept, rows)
 
     # The corrections tests of the base class run here too, with this tracker's settings; they are covered there.
     test_votes_become_a_common_correction_and_can_be_taken_back = None
     test_nothing_identifying_is_stored = None
     test_bad_requests = None
+
+
+class ForgetLyricsTest(unittest.TestCase):
+    def test_lyrics_kept_by_the_older_server_are_dropped_and_their_times_kept(self):
+        with tempfile.TemporaryDirectory() as data:
+            db = sqlite3.connect(os.path.join(data, "tracker.db"))
+            db.execute(
+                "CREATE TABLE learned (song TEXT NOT NULL, install TEXT NOT NULL, network TEXT NOT NULL, "
+                "kind TEXT NOT NULL, verified INTEGER NOT NULL, checked INTEGER NOT NULL, matched REAL NOT NULL, "
+                "artist TEXT NOT NULL, title TEXT NOT NULL, album TEXT NOT NULL, duration_ms INTEGER NOT NULL, "
+                "lrc TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (song, install))")
+            key = learned()["song"]
+            db.execute("INSERT INTO learned VALUES (?, 'i1', 'n1', 'aligned', 1, 1, 0.9, 'Peter Petersen', "
+                       "'Staubsaugerliebe', 'Staubsaugerliebe', 210841, ?, 1)", (key, ALIGNED))
+            db.execute("INSERT INTO learned VALUES (?, 'i2', 'n2', 'heard', 0, 1, 0, 'SUV WHATEVER', "
+                       "'Arschloch Lokomotive', 'Arschloch Lokomotive', 180000, ?, 1)", ("1" * 32, HEARD))
+            db.commit()
+            db.close()
+            tracker = ls.Tracker(ls.Settings(data_dir=data), plain_lyrics=lambda *names: PLAIN)
+            self.assertIsNone(tracker.db.execute(
+                "SELECT name FROM sqlite_master WHERE name = 'learned'").fetchone())
+            self.assertEqual({"times": TIMES, "text": TEXT, "kind": "aligned", "players": 1}, tracker.learned_for(key))
+            self.assertIsNone(tracker.learned_for("1" * 32))
+            tracker.db.close()
+            with open(os.path.join(data, "tracker.db"), "rb") as f:
+                stored = f.read()
+            for word in ("Wohnung", "Schloss", "Haarschlacht", "Lokomotive"):
+                self.assertNotIn(word.encode(), stored)
 
 
 if __name__ == "__main__":

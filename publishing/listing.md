@@ -1,7 +1,8 @@
 # Store listing – Lyrics in the Sky
 
 Copy-ready texts for a mod page (CurseForge, Modrinth or GitHub Releases). English first, as the
-platforms require. The description below is exactly what the CurseForge page shows (Markdown).
+platforms require. The description below is exactly what the CurseForge page shows (Markdown). It describes
+version 1.3.0; it goes onto the page together with the 1.3.0 upload.
 
 ## Name
 
@@ -9,7 +10,7 @@ Lyrics in the Sky
 
 ## Summary (one sentence, no formatting)
 
-Synced lyrics of the song playing on your PC build up word by word in the Minecraft sky or float all around you.
+Synced lyrics of the song playing on your PC appear word by word in the Minecraft sky, all around you or on your screen.
 
 ## Categories
 
@@ -17,28 +18,28 @@ Cosmetic, Utility & QoL (client-side only; Fabric; Minecraft 26.2 and 26.3; requ
 
 ## Description
 
-Play music on your PC – Spotify, Amazon Music, YouTube Music or any other player – and its synced lyrics appear in the world while you play: built up word by word in the sky, or as single words floating all around you.
+Play music on your PC – Spotify, Amazon Music, YouTube Music or any other player – and its synced lyrics appear while you play: built up word by word in the sky, as single words floating all around you, or on your screen like subtitles, karaoke or a stage.
 
 **Client-side Fabric mod for Minecraft 26.2 and 26.3. Requires [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api).**
 
-## Two display modes
+## Three ways to show lyrics
 
-- **In the sky:** word groups of different sizes build up each line close above the horizon, on staggered, gently rising rows turned slightly away from you, so the line reads with depth. Every group fades in as it is sung, and the line fades out softly when the next one starts somewhere else. Like the sun, it stands behind everything: mountains, trees, houses and clouds are in front of it.
-- **Around you:** every sung word floats on its own at a fixed spot near you – big, slanted, slightly turned – and stays where it is while you walk or fight, until it fades out a couple of seconds later. A "now playing" card hangs in front of you when a song starts.
+- **In the sky:** word groups of different sizes build up each line close above the horizon, on staggered, gently rising rows, so the line reads with depth. Every group fades in as it is sung. Like the sun, it stands behind everything: mountains, trees, houses and clouds are in front of it.
+- **Around you:** every sung word floats on its own at a fixed spot near you – big, slanted, slightly turned – and stays where it is while you walk or fight, until it fades out a couple of seconds later.
+- **On the screen** (*Bildschirm*): *Untertitel* (subtitles: the line at the bottom, the word being sung in color), *Karaoke* (the line fills with color word by word, the next one below) or *Bühne* (stage: big lines on the left as in music apps, gliding up as the song goes on) – at the bottom, in the middle or at the top, in any size.
 
 ## Features
 
 - Lyrics synced word by word: exact word timing when the lyrics have it, otherwise at the pace the song is sung; skipping within a song shows up at once
-- Colors of your choice: gradient text in rose, lavender or six more palettes, or a different one per song
-- Four styles: *Elegant* (the two looks above, default), *Natürlich 1:1* (the same as if it really stood in the world: lines right above the hills, players and blocks in front of the words around you), *Stapel* (the current line in the middle, the next one faintly below, gliding up from line to line) and *Verspielt* (pop, zoom, swirl and sparkles)
-- Fonts: modern (Poppins), handwriting (Kalam) or the Minecraft font
-- A "now playing" pill at the top of the screen with the word being sung highlighted
-- Presets: Standard, Himmel 1:1, Um dich 1:1, Party and Ruhig set the whole look with one click
-- Optional: the lyrics turn along with your view instead of staying where they appeared
-- Optional wobble on the beat: every sung word gives the lyrics a little kick
-- In the sky behind mountains and clouds like the sun, or switched to always visible
-- Settings screen on **Right Shift**, minimal in black and white, with live preview: mode, style, colors, font, size, height, opacity, timing and more
-- Works without any login for music on your PC; an optional Spotify login also covers music on your phone, console or other Spotify Connect devices
+- A settings menu on **Right Shift** with every option on its own page and a live preview, in three looks: *Minimal* (the plain panel, default), *Glas* (a black glass window over the blurred world) or *Prachtvoll* (lively, with an aurora)
+- 14 presets that set the whole look with one click: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas, Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro and Schlicht
+- Make it yours: gradient palettes, a rainbow or your own colors with a color picker; outline, shadow, glow, capitals; Modern (Poppins), handwriting (Kalam) or the Minecraft font; size, height, opacity, animation speed, a kick on the beat, what happens on pause, lyrics further left or right
+- A "now playing" bar you can drag anywhere, in four looks (pill, karaoke, plain, title only), with an optional progress line, artist, equalizer and the sung word highlighted
+- Timing per song: a song that runs early or late is fixed with one slider, and corrections many players agreed on apply for everyone (optional, see below)
+- More songs word by word with *Wortgenau*: optional word-time services, off until you switch them on (see below)
+- *Hörgenau* (Windows, optional): a speech AI listens on your PC and times songs no service has timed, and checks that word-timed songs are in sync with what you hear (see below)
+- Streamer mode: explicit words in lyrics, titles and artists shown as "F***"
+- Works without any login for music on your PC; an optional Spotify login also covers your phone, console or other Spotify Connect devices
 - Lyrics found once are kept on your PC, so a song heard before shows them at once, even when LRCLIB is busy or you are offline
 - Works with shader packs (Iris)
 
@@ -49,11 +50,20 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 3. Lyrics come from lrclib.net, which is on from the start; the first time, a note in chat says what is sent and offers to switch it off.
 4. Press **Right Shift** for the settings, or run `/skylyrics demo` to see it without music.
 
-Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around`, `style elegant|natural|flow|classic`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `opacity`, `scale`, `height`, `follow`, `title`, `hud`, `behind on|off`, `beat on|off`, `along on|off`, `preset <name>`, `lrclib on|off`, `spotify connect|disconnect`.
+Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around|screen`, `preset <name>`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `songoffset <ms>`, `menu minimal|glass|fancy`, `source <name> on|off`, `hoergenau on|off`, `streamer on|off`, `share on|off`, `sharelearned on|off`, `lrclib on|off`, `spotify connect|disconnect`.
+
+## Hörgenau: the AI that listens (Windows, off until you switch it on)
+
+Some songs nobody has timed word by word. With *Hörgenau* on, the mod listens while such a song plays from its start and lets [whisper.cpp](https://github.com/ggml-org/whisper.cpp) – OpenAI's Whisper speech recognition, running on your own PC – find when each word is sung. From the next play on, the song runs word by word. For songs that already have word times, it listens once for 50 seconds and moves the lyrics when they come too early or too late.
+
+- **Only your music app is heard:** it records only the sound of the app playing the song (Windows' process loopback, Windows 10 2004 and newer) – not voice chat, videos in other apps or the game. Where Windows cannot tell the app apart, it records what the PC plays.
+- **Nothing leaves your PC:** the recording stays in memory and is never uploaded.
+- **Two models:** *Schnell* (fast: 190 MB, about 15 s for 50 s of music) and *Genau* (accurate: 574 MB, hears more words, about a minute), downloaded once when you switch it on; running in the background at low priority.
+- The page *Hörgenau (KI)* in the settings explains step by step what it does.
 
 ## Optional: Spotify login
 
-Music playing on your PC needs no login. To show lyrics for Spotify on your phone, console or another Spotify Connect device, connect your account in the settings. Spotify only lets small apps serve a handful of accounts, so you need a free Spotify developer app of your own (takes two minutes):
+Music playing on your PC needs no login. To show lyrics for Spotify on your phone, console or another Spotify Connect device, connect your account in the settings. Spotify lets an app in development mode serve only its owner and five added people, so you need a free Spotify developer app of your own (takes two minutes):
 
 1. Click "Spotify-App anlegen …" in the settings. It opens the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Create an app with the redirect URI `http://127.0.0.1:43217/callback` and tick "Web API".
@@ -64,34 +74,64 @@ No client secret is needed (the login uses PKCE).
 ## Requirements
 
 - Minecraft Java Edition 26.2 or 26.3, Fabric Loader 0.18.4+ (26.2) or 0.19.3+ (26.3), Fabric API
-- Windows 10/11, or Linux with `gdbus` (part of GLib). macOS is not supported yet.
-- In-game messages are in German for now.
+- Windows 10/11, or Linux with `gdbus` (part of GLib). macOS is not supported yet. Hörgenau is Windows only.
+- In-game messages and the settings are in German for now.
 
 ## Network access and privacy
 
-This mod connects to the internet. Everything it sends is listed here:
+This mod connects to the internet. Everything it sends, and to whom, is listed here.
 
-- **lrclib.net** (on from the start, with a note in chat the first time; switch it off in the settings or with `/skylyrics lrclib off`): the title, artist, album and length of the song that is playing, to look up its synced lyrics. Nothing else is sent. Lyrics that were found are kept on your PC in `config/lyricsinthesky/lyrics` (up to 1000 songs) so they also work when LRCLIB is busy; delete the folder at any time.
-- **Spotify Web API** (only if you connect your Spotify account): reads which song is playing (scopes `user-read-currently-playing` and `user-read-playback-state`). Login runs through Spotify's official consent page; the tokens stay in `config/lyricsinthesky/spotify.json` on your PC and you can disconnect at any time.
-- **Your PC's media session:** on Windows a small PowerShell script bundled in the mod (`lyricsinthesky/smtc-helper.ps1`, readable inside the jar) reads the system media session – the same information Windows shows in its volume overlay. On Linux the mod asks MPRIS via `gdbus`. This stays on your PC.
+**On from the start** (each with a note in chat the first time, and a switch to turn it off):
 
-No telemetry, no servers of our own, no cookies, no unofficial Spotify or Amazon interfaces. This mod does not ship or host any lyrics.
+- **lrclib.net:** the title, artist, album and length of the song that is playing, to look up its lyrics. Lyrics that were found are kept on your PC in `config/lyricsinthesky/lyrics` (up to 1000 songs); delete the folder at any time. Off: `/skylyrics lrclib off`.
+- **Timing tracker on henrik.click** (run by the mod's author): when you correct a song's timing, its song ID (a hash of artist, title and the first lines), your correction in milliseconds and a random installation ID; you get back the correction many players agreed on. The tracker keeps keyed hashes of the installation ID and network, no IP addresses and no access log. Off: "Teilen" in the settings or `/skylyrics share off`.
+
+**Only when you switch them on:**
+
+- **Wortgenau – word-time services. These are unofficial interfaces** of other apps and services, free to reach without account, cookie or key, but not meant for other apps; each is off until you switch it on, asked at most once a second, with the mod's name as user agent:
+  - Deezer (Musixmatch lyrics through Deezer's web player, with an anonymous session kept in memory): artist and title to `api.deezer.com`, then the Deezer song ID to `pipe.deezer.com`
+  - LyricsPlus (the server of the YouLy+ extension, which reads Apple Music and QQ Music): title, artist, album, length to `lyricsplus.prjktla.my.id`
+  - NetEase Cloud Music: artist and title to `music.163.com`
+  - Kugou: artist, title, length to `lyrics.kugou.com`
+  - SyncLRC: title, artist, album, length to `api.synclrc.dev`
+  - Better Lyrics: title, artist, album, length to `api.betterlyrics.org`
+- **Hörgenau:** downloads whisper.cpp once from GitHub and the model from Hugging Face, both checked against a fixed SHA-256. The recording never leaves your PC. With "Gelerntes teilen" (on with Hörgenau) it sends the **word times** of a song it learned on lrclib.net's text to the tracker on henrik.click – the song's names and length, the times of the words, a fingerprint of the text and the random installation ID, **never the lyrics** – and asks it for word times others learned, which the mod puts on lrclib.net's text on your own PC. Songs whose text nobody has are not shared. Off: `/skylyrics sharelearned off`.
+- **Spotify Web API** (only if you connect your account): reads which song is playing (scopes `user-read-currently-playing` and `user-read-playback-state`). The tokens stay in `config/lyricsinthesky/spotify.json` on your PC; disconnect at any time.
+
+**On your PC only:** on Windows a small PowerShell script bundled in the mod (`lyricsinthesky/smtc-helper.ps1`, readable inside the jar) reads the system media session – the same information Windows shows in its volume overlay. On Linux the mod asks MPRIS via `gdbus`. Hörgenau's recording helper (`lyricsinthesky/loopback-helper.ps1`) runs only while it listens.
+
+No telemetry, no ads, no cookies. The mod ships no lyrics, and the tracker keeps none.
 
 ## Known limitations
 
 - With a shader pack (Iris) the text is drawn on top of the pack's finished image: hills, trees and walls still hide it, the pack's own clouds do not. Tested with Complementary Reimagined.
 - Livestreams and videos without a known length get no lyrics.
 - Without login, Spotify reports its position only every few seconds; `/skylyrics offset` fixes small delays.
+- The unofficial word-time services can change or disappear any day; the mod then simply estimates the words again.
 
 ## Credits
 
 - Lyrics: [LRCLIB](https://lrclib.net), a free community database of synced lyrics
+- Speech recognition: [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT) with OpenAI's Whisper models (MIT)
 - Fonts: [Poppins](https://fonts.google.com/specimen/Poppins) by The Poppins Project Authors and [Kalam](https://fonts.google.com/specimen/Kalam) by Indian Type Foundry, both SIL Open Font License 1.1
 - This mod's code was written with the help of AI (Claude). All images on this page are in-game screenshots of the mod itself.
 
-Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
+Not affiliated with Mojang, Microsoft, Spotify, Amazon, Deezer, Apple, NetEase, Kugou, Tencent, OpenAI or LRCLIB.
 
-## Changelog 1.2.2 (for the file upload)
+## Changelog 1.3.0 (for the file upload)
+
+- Three ways to show lyrics: in the sky, around you, and new on the screen as subtitles, karaoke or a stage
+- New settings menu with every option on its own page and a live preview, in three looks (Minimal by default, Glas, Prachtvoll)
+- 14 presets and many new options: own colors and a color picker, rainbow, outline, shadow, capitals, animation speed, beat kick, pause behavior and more
+- The now-playing bar can be dragged anywhere and comes in four looks, with progress line, artist and equalizer
+- Timing per song with one slider; corrections many players agreed on apply for everyone (optional)
+- Wortgenau: optional word-time services for many more songs word by word (off until you switch them on)
+- Hörgenau (Windows, optional): a speech AI on your PC times songs nobody has timed and checks the sync of word-timed songs; it hears only your music app, and shares only word times, never lyrics
+- Streamer mode hides explicit words
+- More songs get lyrics: titles are also tried without version notes
+- Works with shader packs, lyrics kept on your PC, and many fixes
+
+## Changelog 1.2.2
 
 - Works with shader packs (Iris): the lyrics are drawn on top of the pack's image, still hidden by hills and walls (before, they were invisible)
 - Lyrics found once are kept on your PC, so a song heard before shows them at once even when LRCLIB is busy or offline
@@ -127,7 +167,8 @@ Not affiliated with Mojang, Microsoft, Spotify, Amazon or LRCLIB.
 | `gallery-3-around-you.png` | "Around you": every word floats on its own around the player |
 | `gallery-4-sky.png` | "In the sky": a line at dusk, behind the clouds like the sun, which sets behind a tree |
 
-All images are in-game screenshots of the mod itself; none are AI-generated images.
+All images are in-game screenshots of the mod itself; none are AI-generated images. Before the 1.3.0 upload, new
+screenshots of the menu, the screen looks and the Hörgenau page should replace `gallery-2-settings.png`.
 
 ## Icon
 
