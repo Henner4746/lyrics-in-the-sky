@@ -3,12 +3,14 @@ package de.henner.lyricsinthesky.dev;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.Perf;
 import de.henner.lyricsinthesky.spotify.SpotifyAccount;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -23,6 +25,8 @@ import org.slf4j.LoggerFactory;
  * to {@code spotify-login.txt}, since no browser opens here: whoever runs the test opens it on their own PC, with the
  * callback port tunnelled in. Then it switches every word time service on, goes through the looks one a minute, opens
  * the menu, switches streamer mode for a while, logs what plays every 10 s, saves a screenshot every 30 s and quits.
+ * Alongside it logs what is needed to measure the lyrics against a recording of the music: the wall clock with the
+ * song position twice a second, and each song's word times as shown.
  */
 public final class LiveTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky-livetest");
@@ -30,6 +34,7 @@ public final class LiveTest {
     private static final String[][] LOOKS = {{"sky", "elegant", "pill"}, {"around", "elegant", "karaoke"},
             {"sky", "flow", "plain"}, {"sky", "natural", "karaoke"}, {"around", "classic", "pill"}, {"sky", "classic", "title"}};
     private static int ticksInWorld;
+    private static Lyrics dumped;
 
     private LiveTest() {}
 
@@ -76,6 +81,9 @@ public final class LiveTest {
                 return true;
             });
         }
+        if (ticksInWorld % 10 == 0) {
+            logClock(minecraft, controller);
+        }
         if (ticksInWorld % 20 != 0) {
             return;
         }
@@ -118,6 +126,46 @@ public final class LiveTest {
         if (second >= minutes() * 60) {
             LOGGER.info("LIVETEST done after {} min", minutes());
             minecraft.stop();
+        }
+    }
+
+    /**
+     * For measuring the lyrics against the sung audio recorded beside the game: twice a second the wall clock and the
+     * song position the lyrics are shown at, and every set of lyrics the song gets (LRCLIB's first, word times later)
+     * with the time of each word as the game shows it, in {@code livetest-lyrics}.
+     */
+    private static void logClock(Minecraft minecraft, LyricsController controller) {
+        long wall = System.currentTimeMillis();
+        LyricsController.Timeline now = controller.timeline(wall);
+        if (now == null) {
+            return;
+        }
+        String song = Integer.toHexString(now.trackKey().hashCode());
+        if (now.playing()) {
+            LOGGER.info("LIVETEST clock {} {} {}", wall, now.positionMs(), song);
+        }
+        Lyrics lyrics = controller.currentLyrics();
+        if (lyrics == null || lyrics == dumped || lyrics.isEmpty()) {
+            return;
+        }
+        dumped = lyrics;
+        StringBuilder rows = new StringBuilder("# ").append(controller.status()).append('\n');
+        for (int i = 0; i < lyrics.lines().size(); i++) {
+            Lyrics.Line line = lyrics.lines().get(i);
+            String[] words = line.words();
+            long[] times = lyrics.wordTimes(i, now.durationMs());
+            for (int w = 0; w < words.length && w < times.length; w++) {
+                rows.append(i).append('\t').append(line.startMs()).append('\t').append(w).append('\t').append(times[w])
+                        .append('\t').append(words[w]).append('\n');
+            }
+        }
+        Path file = minecraft.gameDirectory.toPath().resolve("livetest-lyrics").resolve(wall + "-" + song + ".tsv");
+        try {
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, rows, StandardCharsets.UTF_8);
+            LOGGER.info("LIVETEST lyrics {} {} {}", wall, song, file.getFileName());
+        } catch (IOException e) {
+            LOGGER.warn("LIVETEST lyrics not written: {}", e.toString());
         }
     }
 
