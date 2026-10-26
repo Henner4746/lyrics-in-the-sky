@@ -61,7 +61,8 @@ public final class SkyLyricsConfig {
      * The word time services ("Grauzone"), in the order they are asked: all unofficial, free to reach without an
      * account, and liable to change or vanish any day. Each is off until the player switches it on.
      */
-    public static final List<String> WORD_SOURCES = List.of("deezer", "lyricsplus", "netease", "kugou", "synclrc");
+    public static final List<String> WORD_SOURCES = List.of("deezer", "lyricsplus", "netease", "kugou", "synclrc",
+            "betterlyrics");
 
     public boolean enabled = true;
     /** One of {@link #MODES}. */

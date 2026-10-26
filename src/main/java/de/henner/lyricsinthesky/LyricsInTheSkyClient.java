@@ -8,6 +8,7 @@ import com.mojang.brigadier.context.CommandContext;
 import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
+import de.henner.lyricsinthesky.lyrics.BetterLyricsClient;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.lyrics.DeezerClient;
@@ -95,9 +96,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         LyricsPlusClient lyricsPlus = new LyricsPlusClient(version);
         NeteaseClient netease = new NeteaseClient(version);
         // In the order measured best: Deezer fitted most songs, LyricsPlus (Apple, QQ) and NetEase add others, Kugou few;
-        // SyncLRC came last and only has songs someone timed before.
+        // SyncLRC and Better Lyrics came last and only have songs someone asked for before.
         WordTimeFinder wordTimes = new WordTimeFinder(List.of(new DeezerClient(version), lyricsPlus, netease,
-                new KugouClient(version), new SyncLrcClient(version)));
+                new KugouClient(version), new SyncLrcClient(version), new BetterLyricsClient(version)));
         controller = new LyricsController(source, lrclib, wordTimes, lyricsPlus,
                 new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics")), config, timings, tracker);
 

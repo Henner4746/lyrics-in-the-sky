@@ -11,6 +11,7 @@ public final class WordSourceInfo {
             case "netease" -> "NetEase";
             case "kugou" -> "Kugou";
             case "synclrc" -> "SyncLRC";
+            case "betterlyrics" -> "Better Lyrics";
             default -> name;
         };
     }
@@ -27,6 +28,8 @@ public final class WordSourceInfo {
                     + "Bekommt Künstler, Titel und Länge.";
             case "synclrc" -> "SyncLRC ist eine freie Lyrics-API mit Karaoke-Zeiten pro Wort, vor allem für bekannte Songs. "
                     + "Ohne Konto. Bekommt Künstler, Titel, Album und Länge.";
+            case "betterlyrics" -> "Better Lyrics (Server der gleichnamigen Erweiterung) hat Wortzeiten meist von Apple Music, "
+                    + "ohne Schlüssel nur für Songs, die es schon gespeichert hat. Bekommt Titel, Künstler, Album, Länge.";
             default -> "";
         };
     }

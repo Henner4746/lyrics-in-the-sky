@@ -14,6 +14,27 @@ import org.junit.jupiter.api.Test;
 /** The parsers of the word time services, with made-up lyrics. */
 class WordSourcesTest {
     @Test
+    void readsBetterLyricsTtmlWithSyllablesAndWithoutBackgroundVocals() {
+        String ttml = "<tt xmlns=\"http://www.w3.org/ns/ttml\" xmlns:ttm=\"http://www.w3.org/ns/ttml#metadata\"><body><div>"
+                + "<p begin=\"0:05.200\" end=\"0:07.000\"><span begin=\"0:05.200\" end=\"0:05.600\">Light</span> "
+                + "<span begin=\"0:05.650\" end=\"0:05.900\">the</span> <span begin=\"0:06.100\" end=\"0:06.300\">lan</span>"
+                + "<span begin=\"0:06.300\" end=\"0:06.700\">terns</span> <span ttm:role=\"x-bg\" begin=\"0:06.400\">"
+                + "<span begin=\"0:06.400\">(oh)</span></span></p>"
+                + "<p begin=\"9.000s\"><span begin=\"9.000s\">Paper</span> <span begin=\"9.400s\">boats</span></p>"
+                + "</div></body></tt>";
+        String body = "{\"ttml\":" + com.google.gson.JsonParser.parseString("\"\"").toString().replace("\"\"", "\""
+                + ttml.replace("\"", "\\\"") + "\"") + "}";
+        TimedWords words = BetterLyricsClient.parse(body).orElseThrow();
+        assertEquals(2, words.lines().size());
+        assertEquals("Light the lanterns", words.lines().get(0).text());
+        assertEquals(List.of(5200L, 5650L, 6100L),
+                words.lines().get(0).words().stream().map(TimedWords.Word::startMs).toList());
+        assertEquals(9400L, words.lines().get(1).words().get(1).startMs());
+        assertEquals(3_723_400L, BetterLyricsClient.time("1:02:03.4"));
+        assertEquals(-1L, BetterLyricsClient.time("soon"));
+    }
+
+    @Test
     void readsSyncLrcKaraokeAndIgnoresLinesOnly() {
         String karaoke = """
                 {"type":"karaoke","format":"lrc","lyrics":"[00:05.20]<00:05.20>Light {agent:v1}<00:05.65>the <00:06.10>lanterns\\n[00:09.00]<00:09.00>Paper <00:09.40>boats"}""";
