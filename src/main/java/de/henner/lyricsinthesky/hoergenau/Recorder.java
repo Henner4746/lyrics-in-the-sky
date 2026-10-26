@@ -16,6 +16,11 @@ interface Recorder {
     /** Why recording failed, or {@code null}. */
     String failure();
 
+    /** Whether only the player's own sound is recorded, so other players do not get into it; known once samples come. */
+    default boolean onlyPlayer() {
+        return false;
+    }
+
     /** Stops and hands over what was recorded. */
     short[] stop();
 }

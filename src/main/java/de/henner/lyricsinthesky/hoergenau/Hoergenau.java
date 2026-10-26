@@ -210,18 +210,18 @@ public final class Hoergenau {
         }
         if (take == null) {
             if (shown == Shown.TIMED) {
-                // A check waits while the song is paused, another player sounds along or the song before is still
-                // being worked on, and starts once the song plays alone.
-                if (key.equals(considered) || !now.playing() || other != null || working != null) {
+                // A check waits while the song is paused, another player would be heard along or the song before is
+                // still being worked on.
+                if (key.equals(considered) || !now.playing() || heardAlong(other) || working != null) {
                     return;
                 }
                 considered = key;
                 startCheck(now, key, timed);
                 return;
             }
-            // A song to learn is heard wherever it plays and was not heard yet, while it plays alone; what is heard is
-            // kept, and the rest comes the next time it plays.
-            if (!now.playing() || other != null) {
+            // A song to learn is heard wherever it plays and was not heard yet, while no other player is heard along;
+            // what is heard is kept, and the rest comes the next time it plays.
+            if (!now.playing() || heardAlong(other)) {
                 return;
             }
             if (shown == Shown.NOTHING && !song(now, key)) {
@@ -257,7 +257,8 @@ public final class Hoergenau {
         }
         if (recorder.failure() != null) {
             breakTake("audio: " + recorder.failure(), "die Aufnahme ging nicht");
-        } else if (other != null) {
+        } else if (other != null && recorder.startNanos() != 0 && !recorder.onlyPlayer()) {
+            // Recording everything the PC plays (the player's own sound could not be told apart): the other is in it.
             endPart("another player sounded at the same time (" + other + ")");
         } else if (!now.playing() && take.track.durationMs() > 0
                 && take.lastPositionMs >= take.track.durationMs() - END_MS) {
@@ -279,6 +280,15 @@ public final class Hoergenau {
                 finish();
             }
         }
+    }
+
+    /**
+     * Whether another player playing at the same time (a stream or video in the browser) would end up in the recording:
+     * only when the app playing the song is not known, so everything the PC plays is recorded. With the app known only
+     * its own sound is taken, and should Windows not manage that, the part ends once the other is heard.
+     */
+    private boolean heardAlong(String other) {
+        return other != null && player.get() == null;
     }
 
     /**

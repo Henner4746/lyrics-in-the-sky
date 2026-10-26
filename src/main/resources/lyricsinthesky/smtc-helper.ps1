@@ -23,14 +23,41 @@ $managerType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionM
 $propsType = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties]
 $manager = Await ($managerType::RequestAsync()) $managerType
 
+# Apps made for music; their sessions win over a browser or video player playing at the same time.
+$musicApps = 'Spotify|AppleMusic|AppleInc\.|iTunes|Amazon.*Music|Deezer|Tidal|Qobuz|ZuneMusic|YouTube.?Music|youtube-music|SoundCloud|foobar|MusicBee|AIMP|Winamp|Cider'
+
+function Has-Length($s) {
+    $timeline = $s.GetTimelineProperties()
+    return ($timeline.EndTime - $timeline.StartTime).TotalMilliseconds -gt 0
+}
+
+function Rank($s) {
+    # A playing music app first, then any other playing song; paused ones last. A livestream (a Twitch or YouTube live
+    # stream in the browser) has no length and is never taken: it has no lyrics, and what is said in it is no song.
+    if (-not (Has-Length $s)) { return -1 }
+    if ($s.GetPlaybackInfo().PlaybackStatus -ne 'Playing') { return 0 }
+    if ($s.SourceAppUserModelId -match $musicApps) { return 3 }
+    return 2
+}
+
 function Pick-Session {
-    # Prefer the session Windows calls current; fall back to any session that is playing.
+    # The session that ranks best; of equal ones the one Windows calls current. Only livestreams: none.
     $current = $manager.GetCurrentSession()
-    if ($current -ne $null -and $current.GetPlaybackInfo().PlaybackStatus -eq 'Playing') { return $current }
-    foreach ($s in $manager.GetSessions()) {
-        if ($s.GetPlaybackInfo().PlaybackStatus -eq 'Playing') { return $s }
+    $best = $null
+    $bestRank = -1
+    if ($current -ne $null) {
+        $best = $current
+        $bestRank = Rank $current
     }
-    return $current
+    foreach ($s in $manager.GetSessions()) {
+        $rank = Rank $s
+        if ($rank -gt $bestRank) {
+            $best = $s
+            $bestRank = $rank
+        }
+    }
+    if ($bestRank -lt 0) { return $null }
+    return $best
 }
 
 $lastParentCheck = [DateTime]::UtcNow

@@ -201,8 +201,10 @@ flowchart LR
 - **Timing pro Song:** Läuft der Text eines Songs zu früh oder zu spät, lässt er sich einzeln korrigieren. Diese
   Korrekturen werden anonym mit einem kleinen Tracker auf `henrik.click/lyrics-sync` geteilt (Quelltext in
   [`tracker/`](tracker/)): eine zufällige Kennung deiner Installation und der Song als Prüfsumme aus Künstler,
-  Titel und den ersten Zeilen mit Zeiten. Haben 10 Spieler einen Song korrigiert und die meisten sind sich
-  einig, gilt ihre Korrektur für alle.
+  Titel und den ersten Zeilen mit Zeiten. Was Hörgenau bei einem Spieler gemessen hat, gilt sofort für alle,
+  solange keine andere Messung widerspricht; von Hand gesetzte Korrekturen gelten, wenn 10 Spieler einen Song
+  korrigiert haben und die meisten sich einig sind. Die Mod fragt bei jedem Song mit Songtext nach, auch wenn du
+  selbst nichts teilst.
 - **Optionaler Spotify-Login** über Spotifys offizielle Web API mit Authorization Code + PKCE: kein
   Client-Secret, der Browser kehrt zu einer kleinen Seite zurück, die die Mod auf `127.0.0.1:43217` ausliefert,
   und die Tokens liegen in `config/lyricsinthesky/spotify.json` auf deinem PC.
@@ -257,7 +259,7 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   spät läuft, wird der Song darum verschoben – eine Quelle, die eine andere Fassung des Songs getimt hat. Live am
   gesungenen Ton gemessen kamen so zwei von zwölf Songs 0,8 und 1,1 s zu spät, die anderen lagen innerhalb einer
   Zehntelsekunde. Die Korrektur ist die eigene des Songs („Dieser Song“), ersetzt nie eine, die du gesetzt hast, und
-  wird geteilt wie eine von Hand gesetzte.
+  geht als Messung an den Tracker, auch wenn der Text passt; dort gilt sie sofort für alle Spieler.
 - **Genauigkeit:** Gemessen an drei echten deutschen Songs mit von Hand gesetzten Zeiten aus dem Benchmark
   [JamendoLyrics](https://github.com/f90/jamendolyrics) (Rock, Pop, Rap): Die Zeilenanfänge lagen im Median 43–89 ms
   daneben, 71–88 % weniger als 200 ms und 91–100 % weniger als eine Sekunde. Über die Lautsprecher abgespielt, während
@@ -281,7 +283,10 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   lrclib.net prüft. Hat niemand den Text eines Songs, wird das Abgeschriebene mit Text geteilt, damit andere den Song
   gleich Wort für Wort bekommen; es gilt erst, wenn Spieler aus zwei Netzen ihn ähnlich gehört haben, und nur, solange
   lrclib.net keinen Text dazu hat. Von Anfang an an; „Gelerntes teilen“ auf der Seite *Hörgenau (KI)* oder
-  `/skylyrics sharelearned off` schaltet es ab.
+  `/skylyrics sharelearned off` schaltet das Senden ab; was andere gelernt haben, holt die Mod trotzdem.
+- **Nur Songs:** Einen Song, dessen Text niemand hat, hört Hörgenau nur mit Song-Länge (30 s bis 20 min) und wenn der
+  Katalog von Deezer oder Apple einen Song dieses Künstlers mit diesem Titel kennt; Livestreams, Videos und Podcasts
+  schreibt es nie ab. Der Tracker prüft dasselbe, bevor er so einen Songtext annimmt.
 - **Datenschutz:** Mitgehört wird der Ton des Musikprogramms, wo das nicht geht alles, was über den
   Standardlautsprecher läuft, also auch Sprachchat, solange so ein Song läuft (und für die 50 s einer Sync-Prüfung). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
   die gleich danach gelöscht wird. Mit „Gelerntes teilen“ gehen die Wortzeiten an den Tracker, und Text nur bei
@@ -299,9 +304,10 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
 - Abfragen sind von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten in den Einstellungen oder
   mit `/skylyrics lrclib off`.
 - Das Teilen von Timing-Korrekturen ist von Anfang an an, beim ersten Mal mit Hinweis im Chat; abschalten mit
-  „Teilen“ in den Einstellungen oder `/skylyrics share off`, dann geht nichts an den Tracker. Der Tracker
-  speichert pro Korrektur nur die Song-Prüfsumme, die Millisekunden und gesalzene Prüfsummen deiner
-  Installations-Kennung und deines Netzes, keine IP-Adressen und kein Zugriffsprotokoll.
+  „Teilen“ in den Einstellungen oder `/skylyrics share off`, dann geht nichts von dir an den Tracker; gefragt
+  wird er trotzdem, mit den Prüfsummen der Songs. Der Tracker speichert pro Korrektur nur die Song-Prüfsumme, die
+  Millisekunden (bei einer Hörgenau-Messung auch, wie viele Wörter sie gepaart hat und wie eng), gesalzene
+  Prüfsummen deiner Installations-Kennung und deines Netzes, keine IP-Adressen und kein Zugriffsprotokoll.
 - Lyrics werden beim Abspielen geholt; gefundene bleiben auf deinem PC in `config/lyricsinthesky/lyrics`,
   den Ordner kannst du jederzeit löschen. Die Mod liefert keine Songtexte mit. Von Songs, die Hörgenau bei Spielern
   gelernt hat, speichert der Tracker die Wortzeiten (Song-Prüfsumme, Namen, Länge, Wortzeiten, Fingerabdruck des

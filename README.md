@@ -194,8 +194,10 @@ flowchart LR
 - **Wortgenau (optional, off by default):** real word times from unofficial services, see below.
 - **Timing per song:** a song whose lyrics run early or late can be corrected on its own. These corrections are
   shared anonymously with a small tracker at `henrik.click/lyrics-sync` (source in [`tracker/`](tracker/)): a
-  random ID of your installation and the song as a hash of artist, title and the first timed lines. Once 10
-  players corrected a song and most of them agree, their correction applies to everyone.
+  random ID of your installation and the song as a hash of artist, title and the first timed lines. What a
+  player's Hörgenau measured applies to everyone at once, unless other measurements contradict it; corrections set
+  by hand apply once 10 players corrected a song and most of them agree. The mod asks for every song with lyrics,
+  also with sharing switched off.
 - **Optional Spotify login** uses Spotify's official Web API with Authorization Code + PKCE: no client
   secret, the browser returns to a tiny page served by the mod on `127.0.0.1:43217`, and the tokens are kept in
   `config/lyricsinthesky/spotify.json` on your PC.
@@ -249,8 +251,8 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   words are compared with the shown ones, and when nearly all agree that the lyrics run early or late by the same
   amount, the song is moved by it – a source timed for another version of the song. Measured live against the sung
   audio, two of twelve songs came 0.8 and 1.1 s late this way while the others were within a tenth of a second. The
-  correction is the song's own timing ("Dieser Song"), never replaces one you set, and is shared like one set by
-  hand.
+  correction is the song's own timing ("Dieser Song"), never replaces one you set, and goes to the tracker as
+  measured, also when the lyrics fit, where it counts for every player at once.
 - **Accuracy:** measured on three real German songs with hand-made timings from the
   [JamendoLyrics](https://github.com/f90/jamendolyrics) benchmark (rock, pop, rap): line starts were 43–89 ms off in
   the median, 71–88 % of them less than 200 ms and 91–100 % less than a second. Played through the speakers while the
@@ -271,8 +273,11 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   on their own text from lrclib.net, and only when it is exactly the same, which the tracker checks on lrclib.net
   first. For a song nobody has the text of, what Hörgenau wrote down is shared with its text, so others get the song
   word by word at once; it counts once players on two networks heard it alike, and only while lrclib.net has no text
-  for it. On by default; "Gelerntes teilen" on the page *Hörgenau (KI)* or `/skylyrics sharelearned off` switches it
-  off.
+  for it. On by default; "Gelerntes teilen" on the page *Hörgenau (KI)* or `/skylyrics sharelearned off` switches
+  the sending off; what others learned is fetched either way.
+- **Only songs:** a song nobody has the text of is heard only with a song's length (30 s to 20 min) and when Deezer's
+  or Apple's catalog know a song of that artist with that title; a livestream, a video or a podcast is never written
+  down. The tracker checks the same before it takes such lyrics.
 - **Privacy:** it hears the sound of your music app, where that cannot be told apart everything that plays on the
   default speakers, voice chat included, while such a song plays (and for the 50 s of a sync check).
   The recording never leaves the PC and does not stay on disk, except briefly as a file for whisper.cpp that is
@@ -291,9 +296,10 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
 - Lookups are on from the start, with a note in chat the first time; switch them off in the settings or
   with `/skylyrics lrclib off`.
 - Sharing timing corrections is on from the start, with a note in chat the first time; switch it off with
-  "Teilen" in the settings or `/skylyrics share off`, then nothing is sent to the tracker. The tracker keeps
-  per correction only the song hash, the milliseconds and keyed hashes of your installation ID and network,
-  no IP addresses and no access log.
+  "Teilen" in the settings or `/skylyrics share off`, then nothing of yours is sent to the tracker; the mod still
+  asks it about songs, with their hashes. The tracker keeps per correction only the song hash, the milliseconds
+  (for one Hörgenau measured, also how many words it paired and how close), keyed hashes of your installation ID
+  and network, no IP addresses and no access log.
 - Lyrics are fetched while playing; the ones found stay on your PC in `config/lyricsinthesky/lyrics`, which
   you can delete at any time. The mod ships no lyrics. Of songs players' Hörgenau learned, the tracker keeps the
   word times (song key, names, length, word times, fingerprint of the text, keyed hashes of installation ID and

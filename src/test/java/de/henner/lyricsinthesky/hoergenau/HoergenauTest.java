@@ -258,16 +258,20 @@ class HoergenauTest {
     }
 
     @Test
-    void aSongFirstSeenPausedIsCheckedOnceItPlaysAlone(@TempDir Path dir) throws Exception {
+    void aSongFirstSeenPausedIsCheckedOnceItPlays(@TempDir Path dir) throws Exception {
         // As found in the game: Spotify paused mid-song when the world opened, then played on.
         CountingRecorder recorder = new CountingRecorder();
         Hoergenau hoergenau = checking(dir, recorder, new LyricsCache(dir.resolve("lyrics")));
         Lyrics timed = Lyrics.parseLrc("[00:12.00]Light the lanterns on the river\n[00:18.00]Paper boats are drifting slowly");
         hoergenau.observe(track(false), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
         assertEquals(0, recorder.starts);
-        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), "a video in the browser", timed);
+        // With the app playing the song unknown, everything the PC plays is recorded: a stream beside it would be in it.
+        hoergenau.recordFrom(() -> null);
+        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), "a stream in the browser", timed);
         assertEquals(0, recorder.starts, "another player sounds along");
-        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        // As found in the game: a Twitch stream played beside Spotify all evening. Only Spotify's own sound is taken.
+        hoergenau.recordFrom(() -> "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify");
+        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), "a stream in the browser", timed);
         assertEquals(1, recorder.starts);
         assertTrue(hoergenau.listeningTo("song"));
         // Only the player's own sound is asked for.

@@ -10,6 +10,22 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.18 – 2026-10-26
+
+- **Only songs are written down**: in a real game a Twitch stream in the browser has no length, and Hörgenau wrote down
+  20 s of what the streamer said as its "lyrics". Now a song nobody has the text of is heard only with a song's length
+  (30 s to 20 min) and when Deezer's or Apple's catalog know a song of that artist with that title; livestreams,
+  videos and podcasts are never written down. The tracker checks the same before it takes such lyrics.
+- **What Hörgenau measured counts for everyone at once**: a sync check goes to the tracker as a measurement, also when
+  the lyrics fit, and applies to every player right away, as long as other measurements do not contradict it.
+  Corrections set by hand still need 10 players who agree.
+- **Always asks the tracker**: corrections and songs other players learned are fetched also with sharing switched off;
+  the switches only decide what is sent.
+- **Music before streams**: with a Twitch stream in the browser and Spotify playing beside it, the mod followed the
+  stream, the session Windows called current, and Hörgenau never heard the music. Now a livestream is never taken as
+  the song playing, a music app goes before a browser or video player, and a stream beside the music no longer keeps
+  Hörgenau waiting while it records only the music app's own sound.
+
 ### 1.3.0-dev.17 – 2026-10-26
 
 - **Songs nobody has the text of are shared with their text again**: what Hörgenau wrote down for such a song goes to

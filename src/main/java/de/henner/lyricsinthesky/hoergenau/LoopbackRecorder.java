@@ -33,6 +33,7 @@ final class LoopbackRecorder implements Recorder {
     /** {@link System#nanoTime()} when the helper started sending; sample {@code i} is about {@code i / RATE} s later. */
     private volatile long startNanos;
     private volatile String failure;
+    private volatile boolean onlyPlayer;
 
     LoopbackRecorder(Path workDir) {
         this.helper = workDir.resolve("loopback-helper.ps1");
@@ -59,6 +60,7 @@ final class LoopbackRecorder implements Recorder {
         count = 0;
         startNanos = 0;
         failure = null;
+        onlyPlayer = false;
         reader = new Thread(this::read, "LyricsInTheSky-Hoergenau-Audio");
         reader.setDaemon(true);
         reader.start();
@@ -78,6 +80,7 @@ final class LoopbackRecorder implements Recorder {
                 throw new IOException("unexpected loopback header " + header);
             }
             // The helper may first hear for a moment which sound to take; the samples count from its first one.
+            onlyPlayer = told.what().startsWith("only ");
             startNanos = System.nanoTime() - told.sinceMs() * 1_000_000;
             LOGGER.info("Hoergenau records {}", told.what());
             byte[] buffer = new byte[8192];
@@ -142,6 +145,11 @@ final class LoopbackRecorder implements Recorder {
     @Override
     public int count() {
         return count;
+    }
+
+    @Override
+    public boolean onlyPlayer() {
+        return onlyPlayer;
     }
 
     @Override
