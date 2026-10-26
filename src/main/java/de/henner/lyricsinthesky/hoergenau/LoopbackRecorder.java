@@ -13,7 +13,7 @@ import java.util.Arrays;
  * What the PC's default speakers play, through a small PowerShell helper that reads the Windows audio loopback
  * (WASAPI) and passes it on as 16 kHz mono. Runs only while Hoergenau listens to a song; the audio stays in memory.
  */
-final class LoopbackRecorder {
+final class LoopbackRecorder implements Recorder {
     static final int RATE = 16_000;
     /** Longer songs are not listened to: ten minutes are about 19 MB. */
     private static final int MAX_SAMPLES = 10 * 60 * RATE;
@@ -32,7 +32,8 @@ final class LoopbackRecorder {
         this.helper = workDir.resolve("loopback-helper.ps1");
     }
 
-    void start() throws IOException {
+    @Override
+    public void start() throws IOException {
         Files.createDirectories(helper.getParent());
         try (InputStream in = LoopbackRecorder.class.getResourceAsStream(HELPER_RESOURCE)) {
             if (in == null) {
@@ -101,20 +102,24 @@ final class LoopbackRecorder {
         }
     }
 
-    long startNanos() {
+    @Override
+    public long startNanos() {
         return startNanos;
     }
 
-    int count() {
+    @Override
+    public int count() {
         return count;
     }
 
-    String failure() {
+    @Override
+    public String failure() {
         return failure;
     }
 
     /** Stops the helper and hands over what was recorded. */
-    short[] stop() {
+    @Override
+    public short[] stop() {
         if (process != null) {
             process.destroyForcibly();
         }

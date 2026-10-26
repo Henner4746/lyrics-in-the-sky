@@ -46,7 +46,9 @@ public final class Hoergenau {
     public enum Shown { NOTHING, TEXT_ONLY, TIMED }
 
     private final WhisperEngine engine;
-    private final LoopbackRecorder recorder;
+    private final Recorder recorder;
+    /** Whether this PC can listen: Windows, where the loopback recording and the whisper.cpp build are made for. */
+    private final java.util.function.BooleanSupplier platform;
     private final LyricsCache saved;
     private final SkyLyricsConfig config;
     /** Tells the player what Hoergenau does (called from any thread; the receiver hops to the client thread). */
@@ -107,8 +109,16 @@ public final class Hoergenau {
     }
 
     public Hoergenau(Path dir, SkyLyricsConfig config, LyricsCache saved, Notifier notifier, Consumer<String> learned) {
-        this.engine = new WhisperEngine(dir, () -> config.hoergenauModel, () -> config.hoergenauPower);
-        this.recorder = new LoopbackRecorder(dir);
+        this(config, saved, notifier, learned, new WhisperEngine(dir, () -> config.hoergenauModel, () -> config.hoergenauPower),
+                new LoopbackRecorder(dir), WhisperEngine::supported);
+    }
+
+    /** With another engine, recorder and platform check; for tests, which play a recording back. */
+    Hoergenau(SkyLyricsConfig config, LyricsCache saved, Notifier notifier, Consumer<String> learned, WhisperEngine engine,
+            Recorder recorder, java.util.function.BooleanSupplier platform) {
+        this.engine = engine;
+        this.recorder = recorder;
+        this.platform = platform;
         this.saved = saved;
         this.config = config;
         this.notifier = notifier;
@@ -142,7 +152,7 @@ public final class Hoergenau {
      */
     public synchronized void observe(NowPlaying now, String key, Shown shown, List<String> text, String other,
             Lyrics timed) {
-        if (!config.hoergenau || !WhisperEngine.supported()) {
+        if (!config.hoergenau || !platform.getAsBoolean()) {
             drop("switched off");
             return;
         }
@@ -160,12 +170,18 @@ public final class Hoergenau {
             if (key.equals(considered)) {
                 return;
             }
-            considered = key;
-            if (working != null) {
+            if (shown == Shown.TIMED) {
+                // A check waits while the song is paused, another player sounds along or the song before is still
+                // being worked on, and starts once the song plays alone.
+                if (!now.playing() || other != null || working != null) {
+                    return;
+                }
+                considered = key;
+                startCheck(now, key, timed);
                 return;
             }
-            if (shown == Shown.TIMED) {
-                startCheck(now, key, timed, other);
+            considered = key;
+            if (working != null) {
                 return;
             }
             long position = now.estimatePositionMs(System.currentTimeMillis());
@@ -221,9 +237,8 @@ public final class Hoergenau {
      * A song shown with word times: heard for a while to check that its words come when they are sung, once per song
      * and only while it plays alone, with enough of it left.
      */
-    private void startCheck(NowPlaying now, String key, Lyrics timed, String other) {
-        if (timed == null || !config.hoergenauSyncCheck || syncFix == null || other != null || !now.playing()
-                || !checkDue(key)) {
+    private void startCheck(NowPlaying now, String key, Lyrics timed) {
+        if (timed == null || !config.hoergenauSyncCheck || syncFix == null || !checkDue(key)) {
             return;
         }
         long position = now.estimatePositionMs(System.currentTimeMillis());
@@ -455,7 +470,7 @@ public final class Hoergenau {
         if (!config.hoergenau) {
             return "Hörgenau aus";
         }
-        if (!WhisperEngine.supported()) {
+        if (!platform.getAsBoolean()) {
             return "Hörgenau nur unter Windows";
         }
         if (installing) {

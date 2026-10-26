@@ -3,8 +3,11 @@ package de.henner.lyricsinthesky.hoergenau;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine.Heard;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
+import de.henner.lyricsinthesky.lyrics.LyricsCache;
+import de.henner.lyricsinthesky.nowplaying.NowPlaying;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -178,5 +181,85 @@ class HoergenauTest {
         HeardLyrics.fillGaps(times);
         assertEquals(new ArrayList<>(List.of(650L, 1_000L, 1_200L, 1_400L, 1_600L, 1_950L)),
                 new ArrayList<>(java.util.Arrays.stream(times).boxed().toList()));
+    }
+
+    @Test
+    void aSongFirstSeenPausedIsCheckedOnceItPlaysAlone(@TempDir Path dir) throws Exception {
+        // As found in the game: Spotify paused mid-song when the world opened, then played on.
+        CountingRecorder recorder = new CountingRecorder();
+        Hoergenau hoergenau = checking(dir, recorder, new LyricsCache(dir.resolve("lyrics")));
+        Lyrics timed = Lyrics.parseLrc("[00:12.00]Light the lanterns on the river\n[00:18.00]Paper boats are drifting slowly");
+        hoergenau.observe(track(false), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        assertEquals(0, recorder.starts);
+        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), "a video in the browser", timed);
+        assertEquals(0, recorder.starts, "another player sounds along");
+        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        assertEquals(1, recorder.starts);
+        assertTrue(hoergenau.listeningTo("song"));
+    }
+
+    @Test
+    void aSongCheckedBeforeIsNotHeardAgain(@TempDir Path dir) throws Exception {
+        LyricsCache saved = new LyricsCache(dir.resolve("lyrics"));
+        saved.write("song\u0000synccheck", "fits 40");
+        CountingRecorder recorder = new CountingRecorder();
+        Hoergenau hoergenau = checking(dir, recorder, saved);
+        Lyrics timed = Lyrics.parseLrc("[00:12.00]Light the lanterns on the river");
+        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        hoergenau.observe(track(true), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        assertEquals(0, recorder.starts);
+    }
+
+    /** Hoergenau switched on, with whisper.cpp and the model in place (as empty files: nothing gets transcribed). */
+    private static Hoergenau checking(Path dir, Recorder recorder, LyricsCache saved) throws Exception {
+        Path engineDir = dir.resolve("hoergenau");
+        Files.createDirectories(engineDir.resolve("bin"));
+        Files.createFile(engineDir.resolve("bin").resolve("whisper-cli.exe"));
+        Files.createFile(engineDir.resolve(WhisperEngine.Model.SMALL.file()));
+        SkyLyricsConfig config = new SkyLyricsConfig();
+        config.hoergenau = true;
+        Hoergenau hoergenau = new Hoergenau(config, saved, new Hoergenau.Notifier() {
+            @Override
+            public void toast(String title, String detail) {}
+
+            @Override
+            public void chat(String message) {}
+        }, key -> {}, new WhisperEngine(engineDir, () -> "small", () -> "normal"), recorder, () -> true);
+        hoergenau.fixSyncWith((track, lyrics, offsetMs) -> {});
+        return hoergenau;
+    }
+
+    private static NowPlaying track(boolean playing) {
+        return new NowPlaying("test", "Lanterns", "The Made Up Band", "", playing, 82_000, 209_000,
+                System.currentTimeMillis());
+    }
+
+    private static final class CountingRecorder implements Recorder {
+        int starts;
+
+        @Override
+        public void start() {
+            starts++;
+        }
+
+        @Override
+        public long startNanos() {
+            return 0;
+        }
+
+        @Override
+        public int count() {
+            return 0;
+        }
+
+        @Override
+        public String failure() {
+            return null;
+        }
+
+        @Override
+        public short[] stop() {
+            return new short[0];
+        }
     }
 }
