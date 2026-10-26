@@ -31,9 +31,11 @@ import org.slf4j.LoggerFactory;
  */
 public final class LiveTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky-livetest");
-    /** Mode, style and bar, one look a minute. */
-    private static final String[][] LOOKS = {{"sky", "elegant", "pill"}, {"around", "elegant", "karaoke"},
-            {"sky", "flow", "plain"}, {"sky", "natural", "karaoke"}, {"around", "classic", "pill"}, {"sky", "classic", "title"}};
+    /** Mode, style, bar and the extra options switched on, one look a minute. */
+    private static final String[][] LOOKS = {{"sky", "elegant", "pill", ""}, {"around", "elegant", "karaoke", ""},
+            {"sky", "flow", "plain", ""}, {"sky", "natural", "karaoke", "outline uppercase custom progress"},
+            {"around", "classic", "pill", ""}, {"sky", "classic", "title", ""},
+            {"sky", "elegant", "pill", "rainbow underline progress"}};
     /** Pages of the glass menu shown in turn; {@code null} is its start with the song playing. */
     private static final String[] MENU_PAGES = {null, "look", "bar", "hoergenau", "display", "motion"};
     private static int ticksInWorld;
@@ -102,8 +104,10 @@ public final class LiveTest {
             config.style = look[1];
             config.hudStyle = look[2];
             config.showHud = true;
+            extras(config, look[3]);
             minecraft.player.connection.sendCommand((second / 60) % 2 == 0 ? "time set noon" : "time set midnight");
-            LOGGER.info("LIVETEST look: {} {} with bar {}; perf {}", look[0], look[1], look[2], Perf.report());
+            LOGGER.info("LIVETEST look: {} {} with bar {}{}; perf {}", look[0], look[1], look[2],
+                    look[3].isEmpty() ? "" : " and " + look[3], Perf.report());
         }
         // Streamer mode for half a minute every four minutes, switched on before the picture at 150 so it shows.
         if (second % 240 == 148) {
@@ -173,6 +177,21 @@ public final class LiveTest {
         } catch (IOException e) {
             LOGGER.warn("LIVETEST lyrics not written: {}", e.toString());
         }
+    }
+
+    /** The new looks: outline, capitals, own colors or the rainbow, the bar's progress line and underline. */
+    private static void extras(SkyLyricsConfig config, String extras) {
+        SkyLyricsConfig defaults = new SkyLyricsConfig();
+        config.outline = extras.contains("outline");
+        config.outlineColor = 0x1A0B2E;
+        config.uppercase = extras.contains("uppercase");
+        config.palette = extras.contains("custom") ? "custom" : extras.contains("rainbow") ? "rainbow" : defaults.palette;
+        config.customTop = 0xFFFFFF;
+        config.customBottom = 0xFFB8E8;
+        config.customAccent = 0x38BDF8;
+        config.customGlow = 0xA855F7;
+        config.hudProgress = extras.contains("progress");
+        config.hudHighlight = extras.contains("underline") ? "underline" : defaults.hudHighlight;
     }
 
     private static void shoot(Minecraft minecraft, String name) {

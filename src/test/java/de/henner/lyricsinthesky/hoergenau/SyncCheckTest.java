@@ -68,6 +68,41 @@ class SyncCheckTest {
         assertEquals(0, SyncCheck.measure(SyncCheck.shown(lyrics, 240_000), List.of()).pairs());
     }
 
+    /**
+     * Real data from a live run: the first 50 s of three songs played through Spotify and heard by whisper.cpp (small,
+     * as Hoergenau hears them), and the word times the game showed. Words are kept as short hashes of their spelling,
+     * so no lyrics are in the repository; pairing by spelling works on them all the same. Measured against the sung
+     * audio, song A (NetEase) showed its words 1.08 s late, song B (Deezer) 0.84 s late, song C (Deezer) on time.
+     */
+    @Test
+    void songsTimedForAnotherVersionAreFoundInARealRecording() throws Exception {
+        SyncCheck.Result a = real("song-a");
+        SyncCheck.Result b = real("song-b");
+        SyncCheck.Result c = real("song-c");
+        assertTrue(a.trusted(), a.toString());
+        assertEquals(1_080, a.correctionMs(), 120, a.toString());
+        assertTrue(b.trusted(), b.toString());
+        assertEquals(840, b.correctionMs(), 120, b.toString());
+        assertEquals(0, c.correctionMs(), c.toString());
+    }
+
+    private static SyncCheck.Result real(String song) throws Exception {
+        return SyncCheck.measure(read(song + "-shown.tsv"), read(song + "-heard.tsv"));
+    }
+
+    private static List<SyncCheck.Timed> read(String name) throws Exception {
+        try (var in = SyncCheckTest.class.getResourceAsStream("/synccheck/" + name)) {
+            List<SyncCheck.Timed> words = new ArrayList<>();
+            for (String line : new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\n")) {
+                if (!line.isBlank()) {
+                    String[] parts = line.split("\t");
+                    words.add(new SyncCheck.Timed(Long.parseLong(parts[0]), parts[1]));
+                }
+            }
+            return words;
+        }
+    }
+
     @Test
     void wordsArePairedBySpellingIgnoringCaseAndPunctuation() {
         assertEquals("dont", SyncCheck.token("Don't,"));

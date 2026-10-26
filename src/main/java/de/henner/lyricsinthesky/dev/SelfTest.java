@@ -94,8 +94,13 @@ public final class SelfTest {
     private static final double GLASS_MENU_FROM = 79.0;
     private static final String[] GLASS_MENU_SHOTS = {"start", "display", "look", "look-end", "motion", "bar", "timing",
             "sources", "hoergenau", "spotify", "streamer", "menu", "picker"};
+    /**
+     * Then the demo once more with the new looks: outline, capitals and own colors, then the rainbow with the bar's
+     * underline and progress line; each photographed while a line is sung.
+     */
+    private static final double OPTIONS_FROM = GLASS_MENU_FROM + GLASS_MENU_SHOTS.length + 1.0;
     /** The end of the fixed steps; the songs of {@link #SONG_LIST}, if any, come after it, then the game quits. */
-    private static final double QUIT_AT = GLASS_MENU_FROM + GLASS_MENU_SHOTS.length + 1.0;
+    private static final double QUIT_AT = OPTIONS_FROM + 8.0;
     private static final String SONG_LIST = "selftest-songs.tsv";
     private static final double SONG_SECONDS = 6.0;
     private static final double SONG_CHECK_AFTER = 5.0;
@@ -210,6 +215,7 @@ public final class SelfTest {
             glassSteps(minecraft, controller);
             menuSteps(minecraft, controller);
             glassMenuSteps(minecraft, controller);
+            optionSteps(minecraft, controller);
             wordTimeSteps(controller);
             songSteps(minecraft, controller);
         }
@@ -570,6 +576,44 @@ public final class SelfTest {
                 menu.onClose();
             }
             config.menuStyle = menuStyleBefore != null ? menuStyleBefore : config.menuStyle;
+        }
+    }
+
+    /** The new looks in the sky and the bar, with the demo singing. */
+    private static void optionSteps(Minecraft minecraft, LyricsController controller) {
+        SkyLyricsConfig config = controller.config();
+        if (atSecond(OPTIONS_FROM)) {
+            clearScreen(minecraft);
+            minecraft.player.connection.sendCommand("time set noon");
+            config.outline = true;
+            config.outlineColor = 0x1A0B2E;
+            config.uppercase = true;
+            config.palette = "custom";
+            config.customTop = 0xFFFFFF;
+            config.customBottom = 0xFFB8E8;
+            config.customAccent = 0x38BDF8;
+            config.customGlow = 0xA855F7;
+            config.showHud = true;
+            config.hudStyle = "pill";
+            controller.startDemo();
+        }
+        if (atSecond(OPTIONS_FROM + 3.2)) {
+            shoot(minecraft, "options outline uppercase custom");
+            config.outline = false;
+            config.uppercase = false;
+            config.palette = "rainbow";
+            config.hudHighlight = "underline";
+            config.hudProgress = true;
+            config.hudStyle = "pill";
+        }
+        if (atSecond(OPTIONS_FROM + 6.4)) {
+            shoot(minecraft, "options rainbow underline progress");
+        }
+        if (atSecond(OPTIONS_FROM + 7.0)) {
+            SkyLyricsConfig defaults = new SkyLyricsConfig();
+            config.palette = defaults.palette;
+            config.hudHighlight = defaults.hudHighlight;
+            config.hudProgress = defaults.hudProgress;
         }
     }
 

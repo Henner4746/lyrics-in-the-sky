@@ -24,6 +24,7 @@ subprojects {
         }
         test {
             java.srcDirs = [rootProject.file("src/test/java")]
+            resources.srcDirs = [rootProject.file("src/test/resources")]
         }
     }
 
