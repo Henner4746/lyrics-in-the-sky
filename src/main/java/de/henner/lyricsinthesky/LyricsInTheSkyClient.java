@@ -9,7 +9,6 @@ import de.henner.lyricsinthesky.dev.LiveTest;
 import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
-import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.hoergenau.SharedLearned;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine;
@@ -185,8 +184,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     /** Opens the settings screen on top of whatever is shown now. */
     public static void openSettings(Minecraft client) {
         Screen parent = client.gui.screen();
-        client.gui.setScreen("fancy".equals(config.menuStyle) ? new SettingsScreen(parent, controller, spotify)
-                : new GlassMenuScreen(parent, controller, spotify));
+        // One menu with the same pages and options in every look; the look is drawn by the menu itself.
+        client.gui.setScreen(new GlassMenuScreen(parent, controller, spotify));
     }
 
     private static void handleKeys(Minecraft client) {

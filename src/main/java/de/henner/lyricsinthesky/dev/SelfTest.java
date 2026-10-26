@@ -5,7 +5,6 @@ import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
-import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.Perf;
 import de.henner.lyricsinthesky.lyrics.Explicit;
@@ -76,14 +75,6 @@ public final class SelfTest {
     private static final String[][] GLASS_BARS = {{"pill", "noon"}, {"karaoke", "noon"}, {"plain", "noon"},
             {"title", "noon"}, {"pill", "midnight"}, {"karaoke", "midnight"}, {"plain", "midnight"},
             {"title", "midnight"}};
-    /**
-     * Then every page of the settings in the fancy look, in glass by day; the look page also in the classic theme and
-     * the minimal look, and the first page at night.
-     */
-    private static final double MENU_FROM = 61.0;
-    private static final String[][] MENU_SHOTS = {{"general", "glass", "noon", "fancy"}, {"look", "glass", "noon", "fancy"},
-            {"sources", "glass", "noon", "fancy"}, {"look", "classic", "noon", "minimal"},
-            {"general", "glass", "midnight", "fancy"}};
     /** Then "Wortgenau" with all services on: the song gets word times from one of them. */
     private static final double WORD_TIMES_ON = 67.0;
     private static final double WORD_TIMES_CHECK = 77.0;
@@ -96,7 +87,8 @@ public final class SelfTest {
             {"minimal", "display-end"}, {"minimal", "look"}, {"minimal", "look-end"}, {"minimal", "motion"},
             {"minimal", "bar"}, {"minimal", "timing"}, {"minimal", "sources"}, {"minimal", "hoergenau"},
             {"minimal", "hoergenau-end"}, {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"},
-            {"minimal", "picker"}, {"glass", "start"}, {"glass", "look"}, {"glass", "hoergenau-end"}};
+            {"minimal", "picker"}, {"glass", "start"}, {"glass", "look"}, {"glass", "hoergenau-end"},
+            {"fancy", "start"}, {"fancy", "menu"}};
     /**
      * Then the demo once more with the new looks: outline, capitals and own colors, the rainbow with the bar's underline
      * and progress line, the three looks on the screen and three of the new presets; each photographed while a line is
@@ -218,7 +210,6 @@ public final class SelfTest {
             songTimingSteps(minecraft, controller);
             introSteps(minecraft, controller);
             glassSteps(minecraft, controller);
-            menuSteps(minecraft, controller);
             glassMenuSteps(minecraft, controller);
             optionSteps(minecraft, controller);
             wordTimeSteps(controller);
@@ -486,49 +477,6 @@ public final class SelfTest {
             config.hudOffsetX = Integer.parseInt(barBefore[2]);
             config.hudOffsetY = Integer.parseInt(barBefore[3]);
             config.showHud = Boolean.parseBoolean(barBefore[4]);
-        }
-    }
-
-    /** Every page of the settings; each has to fit the 240 GUI pixels of a 720p screen. */
-    private static void menuSteps(Minecraft minecraft, LyricsController controller) {
-        SkyLyricsConfig config = controller.config();
-        for (int i = 0; i < MENU_SHOTS.length; i++) {
-            double at = MENU_FROM + i;
-            String[] shot = MENU_SHOTS[i];
-            if (atSecond(at)) {
-                clearScreen(minecraft);
-                config.theme = shot[1];
-                config.menuStyle = shot[3];
-                minecraft.player.connection.sendCommand("time set " + shot[2]);
-                if (!(minecraft.gui.screen() instanceof SettingsScreen)) {
-                    LyricsInTheSkyClient.openSettings(minecraft);
-                }
-                if (minecraft.gui.screen() instanceof SettingsScreen settings) {
-                    settings.show(shot[0]);
-                }
-            }
-            if (atSecond(at + 0.8)) {
-                clearScreen(minecraft);
-            }
-            // In the fancy look the rows slide in for almost a second; the picture waits until they are all there.
-            if (atSecond(at + 0.95)) {
-                if (minecraft.gui.screen() instanceof SettingsScreen settings) {
-                    int height = settings.height;
-                    LOGGER.info("SELFTEST settings {} ({}): {} (panel bottom {} of {})", shot[0], shot[1],
-                            settings.panelBottom() <= height ? "fits" : "TOO TALL", settings.panelBottom(), height);
-                } else {
-                    LOGGER.info("SELFTEST settings {}: NOT open", shot[0]);
-                }
-                shoot(minecraft, "settings " + shot[0] + " " + shot[1] + " " + shot[2] + " " + shot[3]);
-            }
-        }
-        if (atSecond(MENU_FROM + MENU_SHOTS.length)) {
-            if (minecraft.gui.screen() instanceof SettingsScreen settings) {
-                settings.show("general");
-                settings.onClose();
-            }
-            config.theme = themeBefore != null ? themeBefore : config.theme;
-            minecraft.player.connection.sendCommand("time set noon");
         }
     }
 

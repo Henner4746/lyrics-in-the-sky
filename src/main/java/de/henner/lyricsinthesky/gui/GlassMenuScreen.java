@@ -113,6 +113,10 @@ public final class GlassMenuScreen extends Screen {
     private final Style small = Style.EMPTY.withFont(UI);
     private final List<Category> categories = new ArrayList<>();
     private final List<Row> rows = new ArrayList<>();
+    /** All rows of the page, also those that do not apply now. */
+    private final List<Row> pageRows = new ArrayList<>();
+    /** What moves in the "Prachtvoll" look: the aurora, the notes and the light on the rim. */
+    private final Fancy.Scene scene = new Fancy.Scene();
 
     private Category category;
     private int x0;
@@ -182,30 +186,30 @@ public final class GlassMenuScreen extends Screen {
                 new Choice("Anzeige", "Am Himmel, um dich herum oder auf dem Bildschirm", SkyLyricsConfig.MODES,
                         SkyLyricsConfig.MODE_NAMES, c -> c.mode, (c, v) -> c.mode = v),
                 new Choice("Stil", "Wie die Zeilen erscheinen und gehen", SkyLyricsConfig.STYLES, Map.of("elegant", "Elegant",
-                        "natural", "Natürlich 1:1", "flow", "Stapel", "classic", "Verspielt"), c -> c.style, (c, v) -> c.style = v),
-                new Section("Bildschirm"),
+                        "natural", "Natürlich 1:1", "flow", "Stapel", "classic", "Verspielt"), c -> c.style, (c, v) -> c.style = v).when(c -> !"screen".equals(c.mode)),
+                new Section("Bildschirm").when(c -> "screen".equals(c.mode)),
                 new Choice("Bildschirm-Stil", "Untertitel, Karaoke oder große Zeilen wie auf einer Bühne",
                         SkyLyricsConfig.SCREEN_STYLES, SkyLyricsConfig.SCREEN_STYLE_NAMES, c -> c.screenStyle, (c, v) -> {
                             c.screenStyle = v;
                             c.mode = "screen";
-                        }),
+                        }).when(c -> "screen".equals(c.mode)),
                 new Choice("Platz", "Wo die Texte auf dem Bildschirm stehen", SkyLyricsConfig.SCREEN_POSITIONS,
                         Map.of("bottom", "Unten", "center", "Mitte", "top", "Oben"), c -> c.screenPosition,
-                        (c, v) -> c.screenPosition = v),
+                        (c, v) -> c.screenPosition = v).when(c -> "screen".equals(c.mode)),
                 new Slider("Bildschirmgröße", "Wie groß die Texte auf dem Bildschirm sind", 0.6, 2, 0.05,
-                        c -> c.screenScale, (c, v) -> c.screenScale = (float) v, GlassMenuScreen::percent),
+                        c -> c.screenScale, (c, v) -> c.screenScale = (float) v, GlassMenuScreen::percent).when(c -> "screen".equals(c.mode)),
                 new Toggle("Hintergrund", "Ein dunkles Band hinter den Texten wie bei Untertiteln", c -> c.screenBackground,
-                        (c, on) -> c.screenBackground = on),
-                new Section("Position"),
+                        (c, on) -> c.screenBackground = on).when(c -> "screen".equals(c.mode)),
+                new Section("Position").when(c -> !"screen".equals(c.mode)),
                 new Slider("Höhe", "Wie hoch die Zeilen am Himmel stehen", 10, 70, 1, c -> c.elevationDeg,
-                        (c, v) -> c.elevationDeg = (float) v, v -> Math.round(v) + "°"),
+                        (c, v) -> c.elevationDeg = (float) v, v -> Math.round(v) + "°").when(c -> "sky".equals(c.mode)),
                 new Slider("Seitlich", "Links oder rechts von deinem Blick", -60, 60, 1, c -> c.sideOffsetDeg,
-                        (c, v) -> c.sideOffsetDeg = (float) v, v -> (v > 0 ? "+" : "") + Math.round(v) + "°"),
+                        (c, v) -> c.sideOffsetDeg = (float) v, v -> (v > 0 ? "+" : "") + Math.round(v) + "°").when(c -> !"screen".equals(c.mode)),
                 new Toggle("Hinter Bergen", "Berge, Bäume und Wolken stehen davor", c -> c.skyBehindTerrain,
-                        (c, on) -> c.skyBehindTerrain = on),
+                        (c, on) -> c.skyBehindTerrain = on).when(c -> "sky".equals(c.mode)),
                 new Toggle("Vor dem Blick", "Neue Zeilen erscheinen, wo du hinschaust", c -> c.followView,
-                        (c, on) -> c.followView = on),
-                new Toggle("Mitdrehen", "Die Texte drehen sich mit deinem Blick", c -> c.followAlong, (c, on) -> c.followAlong = on),
+                        (c, on) -> c.followView = on).when(c -> !"screen".equals(c.mode)),
+                new Toggle("Mitdrehen", "Die Texte drehen sich mit deinem Blick", c -> c.followAlong, (c, on) -> c.followAlong = on).when(c -> !"screen".equals(c.mode)),
                 new Section("Song"),
                 new Toggle("Songtitel", "Titel und Künstler, wenn ein Song beginnt", c -> c.showTitleCard,
                         (c, on) -> c.showTitleCard = on));
@@ -229,19 +233,19 @@ public final class GlassMenuScreen extends Screen {
                 new ColorRow("Eigene Farbe oben", "Oberer Teil der Buchstaben", c -> c.customTop, (c, v) -> {
                     c.customTop = v;
                     c.palette = "custom";
-                }),
+                }).when(c -> "custom".equals(c.palette)),
                 new ColorRow("Eigene Farbe unten", "Unterer Teil der Buchstaben", c -> c.customBottom, (c, v) -> {
                     c.customBottom = v;
                     c.palette = "custom";
-                }),
+                }).when(c -> "custom".equals(c.palette)),
                 new ColorRow("Gesungenes Wort", "Farbe des Wortes, das gerade läuft", c -> c.customAccent, (c, v) -> {
                     c.customAccent = v;
                     c.palette = "custom";
-                }),
+                }).when(c -> "custom".equals(c.palette)),
                 new ColorRow("Leuchtfarbe", "Farbe des Leuchtens bei Nacht", c -> c.customGlow, (c, v) -> {
                     c.customGlow = v;
                     c.palette = "custom";
-                }),
+                }).when(c -> "custom".equals(c.palette)),
                 new Section("Effekte"),
                 new Slider("Leuchten", "Leuchten um die Schrift bei Nacht", 0, 2, 0.05, c -> c.glow, (c, v) -> c.glow = (float) v,
                         GlassMenuScreen::percent),
@@ -251,9 +255,9 @@ public final class GlassMenuScreen extends Screen {
                 new ColorRow("Konturfarbe", "Farbe des Randes", c -> c.outlineColor, (c, v) -> {
                     c.outlineColor = v;
                     c.outline = true;
-                }),
+                }).when(c -> c.outline),
                 new Slider("Konturstärke", "Wie breit der Rand ist", 0.5, 2, 0.05, c -> c.outlineWidth,
-                        (c, v) -> c.outlineWidth = (float) v, GlassMenuScreen::percent));
+                        (c, v) -> c.outlineWidth = (float) v, GlassMenuScreen::percent).when(c -> c.outline));
     }
 
     private List<Row> motionRows() {
@@ -268,7 +272,7 @@ public final class GlassMenuScreen extends Screen {
                         (c, v) -> {
                             c.beatStrength = (float) v;
                             c.beatBounce = true;
-                        }, GlassMenuScreen::percent),
+                        }, GlassMenuScreen::percent).when(c -> c.beatBounce),
                 new Section("Pause"),
                 new Choice("Bei Pause", "Was die Texte tun, wenn die Musik pausiert", SkyLyricsConfig.PAUSE_MODES,
                         Map.of("dim", "Abdunkeln", "hide", "Ausblenden", "keep", "Weiter zeigen"), c -> c.pauseMode,
@@ -290,38 +294,38 @@ public final class GlassMenuScreen extends Screen {
                         Map.of("top", "Oben", "bottom", "Unten"), c -> c.hudAnchor, (c, v) -> {
                             c.hudAnchor = v;
                             c.hudOffsetY = 0;
-                        }),
+                        }).when(c -> c.showHud),
                 new Action("Verschieben", "Leiste mit der Maus an ihren Platz ziehen", () -> "Verschieben", () -> {
                     config.save();
                     minecraft.gui.setScreen(new HudEditScreen(this, config));
                 }, () -> true, c -> {
                     c.hudOffsetX = 0;
                     c.hudOffsetY = 0;
-                }),
+                }).when(c -> c.showHud),
                 new Slider("Größe", "Wie groß die Leiste ist", 0.75, 1.5, 0.05, c -> c.hudScale, (c, v) -> c.hudScale = (float) v,
-                        GlassMenuScreen::percent),
+                        GlassMenuScreen::percent).when(c -> c.showHud),
                 new Slider("Hintergrund", "Wie dicht der Hintergrund ist", 0, 1, 0.05, c -> c.hudOpacity,
-                        (c, v) -> c.hudOpacity = (float) v, GlassMenuScreen::percent),
+                        (c, v) -> c.hudOpacity = (float) v, GlassMenuScreen::percent).when(c -> c.showHud),
                 new Slider("Rundung", "Von eckig bis zur Kapsel", 0, 1, 0.05, c -> c.hudRoundness,
-                        (c, v) -> c.hudRoundness = (float) v, GlassMenuScreen::percent),
-                new Section("Inhalt"),
-                new Toggle("Künstler", "Der Künstler neben dem Songtitel", c -> c.hudArtist, (c, on) -> c.hudArtist = on),
+                        (c, v) -> c.hudRoundness = (float) v, GlassMenuScreen::percent).when(c -> c.showHud),
+                new Section("Inhalt").when(c -> c.showHud),
+                new Toggle("Künstler", "Der Künstler neben dem Songtitel", c -> c.hudArtist, (c, on) -> c.hudArtist = on).when(c -> c.showHud),
                 new Toggle("Fortschritt", "Eine feine Linie, wie weit der Song ist", c -> c.hudProgress,
-                        (c, on) -> c.hudProgress = on),
-                new Toggle("Equalizer", "Die tanzenden Balken am Ende", c -> c.hudEqualizer, (c, on) -> c.hudEqualizer = on),
+                        (c, on) -> c.hudProgress = on).when(c -> c.showHud),
+                new Toggle("Equalizer", "Die tanzenden Balken am Ende", c -> c.hudEqualizer, (c, on) -> c.hudEqualizer = on).when(c -> c.showHud),
                 new Choice("Hervorhebung", "Wie das gesungene Wort markiert ist", SkyLyricsConfig.HUD_HIGHLIGHTS,
                         Map.of("box", "Hinterlegt", "color", "Farbe", "underline", "Linie"), c -> c.hudHighlight,
-                        (c, v) -> c.hudHighlight = v),
+                        (c, v) -> c.hudHighlight = v).when(c -> c.showHud),
                 new Choice("Schrift", "Schrift der Leiste", SkyLyricsConfig.HUD_FONTS,
                         Map.of("auto", "Wie Text", "sans", "Modern", "minecraft", "Minecraft"), c -> c.hudFont,
-                        (c, v) -> c.hudFont = v),
-                new Section("Farbe"),
+                        (c, v) -> c.hudFont = v).when(c -> c.showHud),
+                new Section("Farbe").when(c -> c.showHud),
                 new Toggle("Eigene Akzentfarbe", "Das gesungene Wort in deiner Farbe", c -> c.hudOwnAccent,
-                        (c, on) -> c.hudOwnAccent = on),
+                        (c, on) -> c.hudOwnAccent = on).when(c -> c.showHud),
                 new ColorRow("Akzentfarbe", "Farbe des gesungenen Wortes in der Leiste", c -> c.hudAccentColor, (c, v) -> {
                     c.hudAccentColor = v;
                     c.hudOwnAccent = true;
-                }),
+                }).when(c -> c.showHud && c.hudOwnAccent),
                 new Choice("Theme", "Leiste aus Glas oder schlicht dunkel", SkyLyricsConfig.THEMES,
                         Map.of("classic", "Klassisch", "glass", "Liquid Glass"), c -> c.theme, (c, v) -> c.theme = v));
     }
@@ -470,23 +474,20 @@ public final class GlassMenuScreen extends Screen {
     private List<Row> menuRows() {
         return List.of(
                 new Section("Menü"),
-                new Choice("Menüstil", "Minimal wie früher, Glas oder prachtvoll", SkyLyricsConfig.MENU_STYLES,
-                        Map.of("minimal", "Minimal", "glass", "Glas", "fancy", "Prachtvoll"), c -> c.menuStyle, (c, v) -> {
+                new Choice("Menüstil", "Minimal, Glas oder Prachtvoll, überall dieselben Optionen",
+                        SkyLyricsConfig.MENU_STYLES, Map.of("minimal", "Minimal", "glass", "Glas", "fancy", "Prachtvoll"),
+                        c -> c.menuStyle, (c, v) -> {
                             c.menuStyle = v;
                             c.save();
-                            if ("fancy".equals(v)) {
-                                minecraft.gui.setScreen(new SettingsScreen(parent, controller, spotify));
-                            } else {
-                                // The other look has other row heights: laid out anew, on the same page.
-                                rebuildWidgets();
-                            }
+                            // The other look has other row heights: laid out anew, on the same page.
+                            rebuildWidgets();
                         }),
                 new Choice("Theme", "Minimal: schlicht oder aus Glas; auch die Leiste", SkyLyricsConfig.THEMES,
                         Map.of("classic", "Klassisch", "glass", "Liquid Glass"), c -> c.theme, (c, v) -> c.theme = v),
-                new Section("Nur Glas"),
-                new ColorRow("Akzentfarbe", "Schalter, Regler und Hervorhebungen", c -> c.menuAccent, (c, v) -> c.menuAccent = v),
-                new Toggle("Unschärfe", "Die Welt hinter dem Menü weichzeichnen", c -> c.menuBlur, (c, on) -> c.menuBlur = on),
-                new Toggle("Animationen", "Öffnen, Gleiten und Leuchten", c -> c.menuAnimations, (c, on) -> c.menuAnimations = on));
+                new Section("Glas und Prachtvoll").when(c -> !"minimal".equals(c.menuStyle)),
+                new ColorRow("Akzentfarbe", "Schalter, Regler und Hervorhebungen", c -> c.menuAccent, (c, v) -> c.menuAccent = v).when(c -> !"minimal".equals(c.menuStyle)),
+                new Toggle("Unschärfe", "Die Welt hinter dem Menü weichzeichnen", c -> c.menuBlur, (c, on) -> c.menuBlur = on).when(c -> !"minimal".equals(c.menuStyle)),
+                new Toggle("Animationen", "Öffnen, Gleiten und Leuchten", c -> c.menuAnimations, (c, on) -> c.menuAnimations = on).when(c -> !"minimal".equals(c.menuStyle)));
     }
 
     private static String percent(double value) {
@@ -510,15 +511,27 @@ public final class GlassMenuScreen extends Screen {
 
     /** Makes the rows of the page shown, or the cards of the start, and lays them out. */
     private void layout() {
-        rows.clear();
+        pageRows.clear();
         if (category == null) {
-            rows.add(new NowPlaying());
-            rows.add(new Section("Einstellungen"));
-            rows.add(new Cards());
+            pageRows.add(new NowPlaying());
+            pageRows.add(new Section("Einstellungen"));
+            pageRows.add(new Cards());
         } else {
-            rows.addAll(category.rows().get());
+            pageRows.addAll(category.rows().get());
         }
+        rows.clear();
+        showWhatApplies();
         positions();
+    }
+
+    /** Shows the rows of the page that apply to the settings now; laid out anew when that changed. */
+    private void showWhatApplies() {
+        List<Row> applying = pageRows.stream().filter(row -> row.applies.test(config)).toList();
+        if (!applying.equals(rows)) {
+            rows.clear();
+            rows.addAll(applying);
+            positions();
+        }
     }
 
     /** Places the rows one below the other; again whenever a row's height may have changed. */
@@ -580,7 +593,12 @@ public final class GlassMenuScreen extends Screen {
 
     /** The old look ("Minimal"): plain panel, lines and text, no animations. */
     private boolean plain() {
-        return !"glass".equals(config.menuStyle);
+        return !"glass".equals(config.menuStyle) && !fancy();
+    }
+
+    /** "Prachtvoll": the glass window with an aurora behind it, rising notes and light running around its rim. */
+    private boolean fancy() {
+        return "fancy".equals(config.menuStyle);
     }
 
     /** In the plain look: the Liquid Glass theme draws the panel and the controls as glass, as the old menu did. */
@@ -651,6 +669,11 @@ public final class GlassMenuScreen extends Screen {
             graphics.blurBeforeThisStratum();
         }
         graphics.fill(0, 0, width, height, ARGB.color(0.55f * open, 0x000000));
+        if (fancy()) {
+            scene.frame();
+            scene.backdrop(graphics, width, height);
+            scene.notes(graphics, font, small, width, height);
+        }
     }
 
     @Override
@@ -662,6 +685,7 @@ public final class GlassMenuScreen extends Screen {
             drawPeekHint(graphics, mouseX, mouseY, now);
             return;
         }
+        showWhatApplies();
         scroll = config.menuAnimations && !plain() ? approach(scroll, scrollTarget, dt, 0.07f) : scrollTarget;
         if (plain()) {
             drawPlainHeader(graphics, mouseX, mouseY);
@@ -681,6 +705,9 @@ public final class GlassMenuScreen extends Screen {
         graphics.pose().scale(grow, grow);
         graphics.pose().translate(-cx, -cy);
         drawWindow(graphics, open);
+        if (fancy()) {
+            scene.rim(graphics, x0, y0, x1, y1, RADIUS);
+        }
         drawHeader(graphics, mouseX, mouseY, open, dt);
         drawContent(graphics, mouseX, mouseY, open, dt, now);
         drawFooter(graphics, mouseX, mouseY, open, dt);
@@ -1166,6 +1193,13 @@ public final class GlassMenuScreen extends Screen {
     private abstract class Row {
         int top;
         float hover;
+        /** When the row applies; it is not shown otherwise (the screen options only with the screen display). */
+        java.util.function.Predicate<SkyLyricsConfig> applies = c -> true;
+
+        Row when(java.util.function.Predicate<SkyLyricsConfig> applies) {
+            this.applies = applies;
+            return this;
+        }
 
         abstract int height();
 

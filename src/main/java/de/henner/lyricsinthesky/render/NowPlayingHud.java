@@ -5,7 +5,6 @@ import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
-import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
@@ -111,8 +110,7 @@ public final class NowPlayingHud implements HudElement {
         Minecraft minecraft = Minecraft.getInstance();
         LyricsController controller = LyricsInTheSkyClient.controller();
         Screen screen = minecraft.gui.screen();
-        if (controller == null || screen instanceof SettingsScreen
-                || screen instanceof GlassMenuScreen menu && !menu.peeking()) {
+        if (controller == null || screen instanceof GlassMenuScreen menu && !menu.peeking()) {
             // The settings panel covers the top of the screen; the bar would shine through it.
             lastBounds = null;
             return;

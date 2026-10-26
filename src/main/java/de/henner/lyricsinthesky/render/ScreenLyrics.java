@@ -4,7 +4,6 @@ import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
-import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import java.util.ArrayList;
 import java.util.List;
@@ -129,7 +128,7 @@ public final class ScreenLyrics implements HudElement {
 
     /** The menus cover the middle of the screen; the lyrics wait until they are closed, or the live view runs. */
     private static boolean covered(Screen screen) {
-        return screen instanceof SettingsScreen || screen instanceof GlassMenuScreen menu && !menu.peeking();
+        return screen instanceof GlassMenuScreen menu && !menu.peeking();
     }
 
     /** What every line of a frame is drawn with. */
