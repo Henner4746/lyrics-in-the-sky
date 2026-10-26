@@ -10,6 +10,20 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.13 – 2026-10-26
+
+Fixes found in a real game on Windows, with Spotify, real loopback listening and the "Genau" model:
+
+- **Hörgenau checks a song that was paused when it came up**: a song with word times seen paused, sounding along
+  with another player or while the song before was still being worked on was never checked. Now the check waits until
+  the song plays alone.
+- **The sync check measures what is shown**: word times usually arrive a few seconds after LRCLIB's lines, while the
+  check already listens. It compared with LRCLIB's lines and put its correction on them; now it checks, and corrects,
+  the word-timed lyrics on screen. (A song whose LRCLIB lines were another version got "unsure" for it.)
+- **Deezer no longer fails every few minutes**: its anonymous session lives six minutes, but was kept for ten, so
+  between minute six and ten every Deezer request failed and Deezer then rested for five minutes. The session is now
+  renewed shortly before its own lifetime ends.
+
 ### 1.3.0-dev.12 – 2026-10-26
 
 - **The menu as it always looked, with every option** (new default, "Minimal"): all pages and options of the new menu
