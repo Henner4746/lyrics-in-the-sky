@@ -460,6 +460,15 @@ public final class SkyLyricsRenderer {
         }
     }
 
+    /** The mod's own fonts {@code font} draws with, regular and bold; none for the game's font. */
+    static List<FontDescription> fontsOf(String font) {
+        return switch (font) {
+            case "script" -> List.of(SCRIPT, SCRIPT_BOLD);
+            case "sans" -> List.of(SANS, SANS_ITALIC);
+            default -> List.of();
+        };
+    }
+
     public static Style regularStyle(String font) {
         return switch (font) {
             case "script" -> Style.EMPTY.withFont(SCRIPT);

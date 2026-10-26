@@ -23,6 +23,7 @@ import de.henner.lyricsinthesky.lyrics.SyncLrcClient;
 import de.henner.lyricsinthesky.lyrics.WordTimeFinder;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
 import de.henner.lyricsinthesky.nowplaying.PreferredNowPlayingSource;
+import de.henner.lyricsinthesky.render.GlyphWarmup;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
 import de.henner.lyricsinthesky.spotify.SpotifyAccount;
@@ -136,8 +137,13 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             handleKeys(client);
             offerLyricsPlus(client);
             offerHoergenau(client);
+            if (client.player != null) {
+                GlyphWarmup.lyrics(controller.currentLyrics(), controller.config().font);
+                GlyphWarmup.tick(client);
+            }
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            GlyphWarmup.usualLetters(controller.config().font);
             noteLrclib(client);
             noteTiming(client);
             noteLearned(client);

@@ -8,6 +8,7 @@ import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.lyrics.LyricsPlusClient;
 import de.henner.lyricsinthesky.lyrics.SongId;
+import de.henner.lyricsinthesky.lyrics.Spelling;
 import de.henner.lyricsinthesky.lyrics.WordTimeFinder;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
 import de.henner.lyricsinthesky.nowplaying.NowPlayingSource;
@@ -400,7 +401,8 @@ public final class LyricsController {
         if (from.isPresent() && enabled.contains(from.get())) {
             Lyrics lyrics = Lyrics.parseLrc(known.get());
             if (lyrics.hasWordTiming()) {
-                return Optional.of(lyrics);
+                // Kept before mangled spelling was mended (up to 1.3.0-dev.9): mended on the way in.
+                return Optional.of(Spelling.mend(lyrics, found));
             }
         }
         WordTimeFinder.Outcome outcome = wordTimeFinder.find(now, found, enabled);
@@ -412,9 +414,12 @@ public final class LyricsController {
             return Optional.empty();
         }
         WordTimeFinder.Taken taken = outcome.taken().get();
-        saved.write(savedKey, taken.lyrics().lrc());
-        LOGGER.info("Word times for '{}' by '{}' from {} ({})", now.title(), now.artist(), taken.source(), taken.how());
-        return Optional.of(taken.lyrics());
+        // The service's words are shown; where it mangled them (QQ Music loses umlauts), LRCLIB's spelling is put back.
+        Lyrics lyrics = Spelling.mend(taken.lyrics(), found);
+        saved.write(savedKey, lyrics.lrc());
+        LOGGER.info("Word times for '{}' by '{}' from {} ({}{})", now.title(), now.artist(), taken.source(), taken.how(),
+                lyrics == taken.lyrics() ? "" : ", spelling mended from LRCLIB");
+        return Optional.of(lyrics);
     }
 
     private Set<String> enabledSources() {
@@ -469,6 +474,13 @@ public final class LyricsController {
         }
         return new Timeline(key, now.title(), now.artist(), lyrics, state, position + config.offsetMs + songOffset,
                 now.durationMs(), now.playing());
+    }
+
+    /** The lyrics found for the song playing now, as they are kept (not hidden for streamer mode); else {@code null}. */
+    public Lyrics currentLyrics() {
+        NowPlaying now = track;
+        CacheEntry entry = now == null || !Boolean.TRUE.equals(config.lrclibAllowed) ? null : cache.get(key(now));
+        return entry == null ? null : entry.lyrics().orElse(null);
     }
 
     private record Censored(Lyrics source, Explicit filter, Lyrics lyrics) {}

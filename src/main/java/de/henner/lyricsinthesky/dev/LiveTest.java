@@ -13,6 +13,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.tutorial.TutorialSteps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,9 @@ public final class LiveTest {
             minecraft.player.connection.sendCommand("gamemode spectator");
             minecraft.player.connection.sendCommand("tp @s ~ 130 ~ 0 -24");
             minecraft.player.connection.sendCommand("weather clear");
+            // Nobody moves here, so the game's "Move with W, A, S and D" would cover the bar in every picture.
+            minecraft.getTutorial().setStep(TutorialSteps.NONE);
+            minecraft.gui.toastManager().clear();
             config.lrclibAllowed = true;
             config.setWordTimes(true);
             controller.refreshWordTimes();
@@ -90,8 +94,8 @@ public final class LiveTest {
             minecraft.player.connection.sendCommand((second / 60) % 2 == 0 ? "time set noon" : "time set midnight");
             LOGGER.info("LIVETEST look: {} {} with bar {}; perf {}", look[0], look[1], look[2], Perf.report());
         }
-        // Streamer mode for half a minute every four minutes.
-        if (second % 240 == 150) {
+        // Streamer mode for half a minute every four minutes, switched on before the picture at 150 so it shows.
+        if (second % 240 == 148) {
             LyricsInTheSkyClient.setStreamerMode(config, true);
         }
         if (second % 240 == 180) {

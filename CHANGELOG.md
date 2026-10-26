@@ -10,6 +10,21 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.10 – 2026-10-26
+
+- **Umlauts back in word-timed lyrics:** QQ Music (read through LyricsPlus) loses every umlaut together with the letter
+  after it and writes German nouns small, so Rammstein's "Sonne" counted "vier ff sechs" and sang "Fchtet euch". Where
+  a service's text has lost such letters, its words now take LRCLIB's spelling of the same song ("fünf", "Fürchtet",
+  "zählt", "Händen", "heiß", "das Licht"), keeping the service's word times. Lyrics already kept on disk are mended
+  when they are loaded.
+- **No stall when the first line appears:** the mod's fonts are drawn large for sharp text, and the game draws each
+  letter into the font texture the first time it shows; on a slow PC the first line of a song stalled its frame by up
+  to 55 ms. The letters of a song's lyrics are now drawn ahead, two per tick, as soon as the lyrics are found, and the
+  usual letters after joining a world.
+- Tested live on the mini-PC with a real Spotify account playing eight songs: all found word by word (Hörgenau,
+  Deezer, LyricsPlus with Apple and QQ Music), the lines following Spotify's position, streamer mode hiding words and
+  titles.
+
 ### 1.3.0-dev.9 – 2026-10-26
 
 - **Streamer mode** (settings "Streamer", `/skylyrics streamer on|off`): explicit words in lyrics, titles and artists
