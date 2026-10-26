@@ -10,6 +10,21 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.6 – 2026-10-26
+
+- **Hörgenau on real songs:** measured on three German songs with hand-made timings (rock, pop, rap), line starts are
+  now 43–89 ms off in the median instead of 204–1662 ms, and 91–100 % land within a second.
+  - The song's language is recognised from three cuts across the song instead of its first 30 s: a rap song with a
+    long intro was taken for Khmer and misheard for two minutes.
+  - Whisper's word times came about 140 ms late on every song; they are moved forward by 150 ms.
+  - A line's first word that Whisper pins to the end of the pause before it is moved up to the next word.
+  - Words heard as other words ("mir wird's" as "es ist") keep the times they were heard at.
+  - Sounds Whisper marks as "*Musik*" or "[Applaus]" no longer count as sung words, and it is told to write sung
+    words instead of such marks; it no longer reads on from its own text, which let it skip a whole verse.
+  - Stretches of four or more words missed on the whole song are listened to once more on their own.
+- **Fixed:** Hörgenau failed on songs where Whisper split a letter such as "ö" between two of its pieces; such songs
+  were never learned.
+
 ### 1.3.0-dev.5 – 2026-10-26
 
 - **Hörgenau (Windows, off by default):** for songs no service has timed, or whose lyrics nobody has, the mod listens

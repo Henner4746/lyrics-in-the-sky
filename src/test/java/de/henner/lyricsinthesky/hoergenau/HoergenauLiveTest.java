@@ -40,18 +40,35 @@ class HoergenauLiveTest {
                 .getAsJsonObject();
         List<String> lines = new ArrayList<>();
         truth.getAsJsonArray("lines").forEach(line -> lines.add(line.getAsString()));
+        // What was heard is kept beside the song; delete heard.tsv to listen again, keep it to tune only the alignment.
+        Path said = dir.resolve("heard.tsv");
+        List<Heard> heard = new ArrayList<>();
         started = System.nanoTime();
-        List<List<Heard>> segments = engine.transcribe(samples, samples.length);
+        String language = engine.language(samples, samples.length);
+        if (Files.exists(said)) {
+            for (String line : Files.readAllLines(said, StandardCharsets.UTF_8)) {
+                String[] fields = line.split("\t", 2);
+                heard.add(new Heard(fields[1], Long.parseLong(fields[0])));
+            }
+        } else {
+            engine.transcribe(samples, 0, samples.length, language).forEach(heard::addAll);
+            StringBuilder out = new StringBuilder();
+            heard.forEach(word -> out.append(word.startMs()).append('\t').append(word.text()).append('\n'));
+            Files.writeString(said, out, StandardCharsets.UTF_8);
+        }
+        // As in the game: stretches the whole song missed are heard again on their own.
+        HeardLyrics.Aligned aligned = HeardLyrics.align(lines, heard, 0, Hoergenau.again(engine, samples, language))
+                .orElseThrow();
         long took = (System.nanoTime() - started) / 1_000_000;
-        List<Heard> heard = segments.stream().flatMap(List::stream).toList();
-        HeardLyrics.Aligned aligned = HeardLyrics.align(lines, heard, 0).orElseThrow();
         Lyrics lyrics = Lyrics.parseLrc(aligned.lrc());
+        Files.writeString(dir.resolve("aligned.lrc"), aligned.lrc(), StandardCharsets.UTF_8);
         List<Long> errors = new ArrayList<>();
         for (int i = 0; i < lyrics.lines().size(); i++) {
-            errors.add(Math.abs(lyrics.lines().get(i).startMs() - truth.getAsJsonArray("truth").get(i).getAsLong()));
+            errors.add(lyrics.lines().get(i).startMs() - truth.getAsJsonArray("truth").get(i).getAsLong());
         }
-        System.out.printf("%d Woerter gehoert in %d ms (%.0f s Audio), %.0f %% des Texts, Zeilenanfaenge daneben (ms): %s%n",
+        System.out.printf("%d Woerter gehoert in %d ms (%.0f s Audio), %.0f %% des Texts, Zeilenanfaenge daneben (ms, + = zu spaet): %s%n",
                 heard.size(), took, samples.length / 16000.0, aligned.matched() * 100, errors);
-        assertTrue(lyrics.lines().size() == lines.size() && errors.stream().allMatch(error -> error < 400), errors.toString());
+        assertTrue(lyrics.lines().size() == lines.size() && errors.stream().allMatch(error -> Math.abs(error) < 400),
+                errors.toString());
     }
 }

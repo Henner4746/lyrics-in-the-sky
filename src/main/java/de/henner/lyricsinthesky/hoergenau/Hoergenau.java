@@ -5,6 +5,7 @@ import de.henner.lyricsinthesky.hoergenau.WhisperEngine.Heard;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -192,12 +193,14 @@ public final class Hoergenau {
 
     private void learn(Take done, short[] audio, long offsetMs) throws Exception {
         long started = System.nanoTime();
-        List<List<Heard>> segments = engine.transcribe(audio, audio.length);
+        String language = engine.language(audio, audio.length);
+        List<List<Heard>> segments = engine.transcribe(audio, 0, audio.length, language);
         List<Heard> heard = segments.stream().flatMap(List::stream).toList();
         String lrc;
         String how;
         if (!done.lines.isEmpty()) {
-            Optional<HeardLyrics.Aligned> aligned = HeardLyrics.align(done.lines, heard, offsetMs);
+            Optional<HeardLyrics.Aligned> aligned = HeardLyrics.align(done.lines, heard, offsetMs,
+                    again(engine, audio, language));
             if (aligned.isEmpty()) {
                 LOGGER.info("Hoergenau: the known text of '{}' was not heard in the recording", done.track.title());
                 return;
@@ -220,6 +223,26 @@ public final class Hoergenau {
         LOGGER.info("Hoergenau learned '{}' in {} s ({})", done.track.title(), (System.nanoTime() - started) / 1_000_000_000,
                 how);
         chat.accept("Hörgenau hat „" + done.track.title() + "“ gelernt (" + how + "). Ab dem nächsten Abspielen Wort für Wort.");
+    }
+
+    /** Hears a stretch of the recording once more on its own, in the language found before; nothing when that fails. */
+    static HeardLyrics.Listener again(WhisperEngine engine, short[] audio, String language) {
+        return (fromMs, toMs) -> {
+            int from = (int) Math.max(0, Math.min(audio.length, fromMs * LoopbackRecorder.RATE / 1000));
+            int to = (int) Math.max(from, Math.min(audio.length, toMs * LoopbackRecorder.RATE / 1000));
+            if (to - from < LoopbackRecorder.RATE) {
+                return List.of();
+            }
+            try {
+                return engine.transcribe(audio, from, to - from, language).stream().flatMap(List::stream).toList();
+            } catch (IOException e) {
+                LOGGER.warn("Hoergenau could not listen again from {} ms: {}", fromMs, e.toString());
+                return List.of();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return List.of();
+            }
+        };
     }
 
     private void install() {

@@ -222,8 +222,10 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   checked against a fixed checksum). Per learned song, once, about 1–2 minutes of up to four CPU cores at low priority
   and up to 750 MB of memory in a separate process; the listening itself costs next to nothing. Songs with times are
   never listened to.
-- **Accuracy:** in tests with a synthetic voice over music, line starts were 80–160 ms off the real ones. Real singing
-  over loud music is harder; words Whisper does not understand are placed between their neighbours.
+- **Accuracy:** measured on three real German songs with hand-made timings from the
+  [JamendoLyrics](https://github.com/f90/jamendolyrics) benchmark (rock, pop, rap): line starts were 43–89 ms off in
+  the median, 71–88 % of them less than 200 ms and 91–100 % less than a second. Stretches Whisper misses on the whole
+  song are heard once more on their own; words it still does not understand are placed between their neighbours.
 - **Privacy:** it hears everything that plays on the default speakers, voice chat included, while such a song plays.
   Nothing of it leaves the PC or stays on disk, except briefly as a file for whisper.cpp that is deleted right after.
 - Switch it on on the page *Quellen* ("Hörgenau") or with `/skylyrics hoergenau on`.

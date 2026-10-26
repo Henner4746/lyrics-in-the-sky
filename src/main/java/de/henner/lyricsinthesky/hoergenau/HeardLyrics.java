@@ -3,6 +3,7 @@ package de.henner.lyricsinthesky.hoergenau;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine.Heard;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -16,19 +17,39 @@ final class HeardLyrics {
     static final String MARK = "[re:Hoergenau]";
     /** Below this share of the known lyrics found in the audio, the recording does not carry them. */
     static final double MIN_MATCHED = 0.35;
+    /** Up to this many words in a row heard as other words keep the times of those. */
+    static final int MAX_MISHEARD = 4;
+    /** This many words in a row or more not heard at all are listened to once more on their own. */
+    static final int AGAIN_FROM_WORDS = 4;
+    /** At most so many stretches are heard again, each at most this long at the start or end of the song. */
+    static final int AGAIN_MAX_STRETCHES = 6;
+    static final long AGAIN_EDGE_MS = 90_000;
+    static final long AGAIN_MAX_MS = 150_000;
 
     record Aligned(String lrc, double matched) {}
 
+    /** Hears a stretch of the recording again: the words between two times (ms of the recording), times the same. */
+    interface Listener {
+        List<Heard> hear(long fromMs, long toMs);
+    }
+
     private HeardLyrics() {}
+
+    static Optional<Aligned> align(List<String> lines, List<Heard> heard, long offsetMs) {
+        return align(lines, heard, offsetMs, null);
+    }
 
     /**
      * Places every word of {@code lines} on the heard words: Needleman-Wunsch over both word lists, where words count
-     * as the same when spelled alike (Whisper writes sung words a little differently). Words without a partner get
-     * times spread between their neighbours. Empty when too little of the lyrics was heard.
+     * as the same when spelled alike (Whisper writes sung words a little differently). Where Whisper missed several
+     * words in a row (an intro line, a verse it took for music), {@code again} hears that stretch once more on its own.
+     * A few words heard as other words take those words' times; words without a partner get times spread between
+     * their neighbours. Empty when too little of the lyrics was heard.
      *
      * @param offsetMs song position of the first heard sample
+     * @param again    listens to a stretch once more, or null
      */
-    static Optional<Aligned> align(List<String> lines, List<Heard> heard, long offsetMs) {
+    static Optional<Aligned> align(List<String> lines, List<Heard> heard, long offsetMs, Listener again) {
         List<int[]> place = new ArrayList<>();   // line, word in line
         List<String> lyric = new ArrayList<>();
         for (int i = 0; i < lines.size(); i++) {
@@ -41,56 +62,33 @@ final class HeardLyrics {
                 }
             }
         }
-        List<Heard> said = heard.stream().filter(word -> !token(word.text()).isEmpty()).toList();
         int n = lyric.size();
-        int m = said.size();
-        if (n == 0 || m == 0) {
+        if (n == 0) {
             return Optional.empty();
-        }
-        String[] spoken = said.stream().map(word -> token(word.text())).toArray(String[]::new);
-        float gap = -1f;
-        float[][] score = new float[n + 1][m + 1];
-        byte[][] move = new byte[n + 1][m + 1];
-        for (int a = 1; a <= n; a++) {
-            score[a][0] = gap * a;
-            move[a][0] = 2;
-        }
-        for (int b = 1; b <= m; b++) {
-            score[0][b] = gap * b;
-            move[0][b] = 3;
-        }
-        for (int a = 1; a <= n; a++) {
-            for (int b = 1; b <= m; b++) {
-                float diagonal = score[a - 1][b - 1] + (similar(lyric.get(a - 1), spoken[b - 1]) ? 2f : -1f);
-                float up = score[a - 1][b] + gap;
-                float left = score[a][b - 1] + gap;
-                float best = Math.max(diagonal, Math.max(up, left));
-                score[a][b] = best;
-                move[a][b] = (byte) (best == diagonal ? 1 : best == up ? 2 : 3);
-            }
         }
         long[] times = new long[n];
-        java.util.Arrays.fill(times, -1);
-        for (int a = n, b = m; a > 0 && b > 0; ) {
-            if (move[a][b] == 1) {
-                if (similar(lyric.get(a - 1), spoken[b - 1])) {
-                    times[a - 1] = said.get(b - 1).startMs();
-                }
-                a--;
-                b--;
-            } else if (move[a][b] == 2) {
-                a--;
-            } else {
-                b--;
-            }
-        }
-        int known = 0;
-        for (long time : times) {
-            known += time >= 0 ? 1 : 0;
-        }
-        double matched = known / (double) n;
-        if (matched < MIN_MATCHED) {
+        long[] misheard = new long[n];   // time of a different word heard in the same place
+        Arrays.fill(times, -1);
+        Arrays.fill(misheard, -1);
+        match(lyric, 0, n, heard, times, misheard);
+        if (heardShare(times) < MIN_MATCHED) {
             return Optional.empty();
+        }
+        if (again != null) {
+            listenAgain(lyric, times, misheard, again);
+        }
+        double matched = heardShare(times);
+        // A few words heard differently ("mir wird's" as "es ist") were still sung where they were heard; a long run
+        // of different words is more likely paired up wrong and is spread between its neighbours instead.
+        for (int k = 0; k < n; ) {
+            int end = k;
+            while (end < n && times[end] < 0 && misheard[end] >= 0) {
+                end++;
+            }
+            if (end > k && end - k <= MAX_MISHEARD) {
+                System.arraycopy(misheard, k, times, k, end - k);
+            }
+            k = Math.max(end, k + 1);
         }
         fillGaps(times);
         StringBuilder lrc = new StringBuilder(MARK).append('\n');
@@ -118,6 +116,98 @@ final class HeardLyrics {
             }
         }
         return Optional.of(new Aligned(lrc.toString(), matched));
+    }
+
+    /**
+     * Needleman-Wunsch of the lyric words {@code from} to {@code to} on the heard words: the times of words heard alike
+     * go to {@code times}, those of different words heard in the same place to {@code misheard}.
+     */
+    private static void match(List<String> lyric, int from, int to, List<Heard> heard, long[] times, long[] misheard) {
+        List<Heard> said = heard.stream().filter(word -> !token(word.text()).isEmpty()).toList();
+        int n = to - from;
+        int m = said.size();
+        if (n <= 0 || m == 0) {
+            return;
+        }
+        String[] spoken = said.stream().map(word -> token(word.text())).toArray(String[]::new);
+        float gap = -1f;
+        float[][] score = new float[n + 1][m + 1];
+        byte[][] move = new byte[n + 1][m + 1];
+        for (int a = 1; a <= n; a++) {
+            score[a][0] = gap * a;
+            move[a][0] = 2;
+        }
+        for (int b = 1; b <= m; b++) {
+            score[0][b] = gap * b;
+            move[0][b] = 3;
+        }
+        for (int a = 1; a <= n; a++) {
+            for (int b = 1; b <= m; b++) {
+                float diagonal = score[a - 1][b - 1] + (similar(lyric.get(from + a - 1), spoken[b - 1]) ? 2f : -1f);
+                float up = score[a - 1][b] + gap;
+                float left = score[a][b - 1] + gap;
+                float best = Math.max(diagonal, Math.max(up, left));
+                score[a][b] = best;
+                move[a][b] = (byte) (best == diagonal ? 1 : best == up ? 2 : 3);
+            }
+        }
+        for (int a = n, b = m; a > 0 && b > 0; ) {
+            if (move[a][b] == 1) {
+                if (similar(lyric.get(from + a - 1), spoken[b - 1])) {
+                    times[from + a - 1] = said.get(b - 1).startMs();
+                } else {
+                    misheard[from + a - 1] = said.get(b - 1).startMs();
+                }
+                a--;
+                b--;
+            } else if (move[a][b] == 2) {
+                a--;
+            } else {
+                b--;
+            }
+        }
+    }
+
+    /**
+     * Stretches of words the first listening missed are heard once more on their own, between the words heard around
+     * them: Whisper on the whole song sometimes skips an intro line or takes a verse for music, and hears it on a short
+     * cut. What it hears there has to lie between those neighbours.
+     */
+    private static void listenAgain(List<String> lyric, long[] times, long[] misheard, Listener again) {
+        int n = times.length;
+        int stretches = 0;
+        for (int k = 0; k < n && stretches < AGAIN_MAX_STRETCHES; ) {
+            if (times[k] >= 0) {
+                k++;
+                continue;
+            }
+            int end = k;
+            while (end < n && times[end] < 0) {
+                end++;
+            }
+            long before = k > 0 ? times[k - 1] : -1;
+            long after = end < n ? times[end] : -1;
+            long fromMs = before >= 0 ? before : Math.max(0, after - AGAIN_EDGE_MS);
+            long toMs = after >= 0 ? after + 1_000 : before + AGAIN_EDGE_MS;
+            if (end - k >= AGAIN_FROM_WORDS && (before >= 0 || after >= 0) && toMs - fromMs <= AGAIN_MAX_MS) {
+                stretches++;
+                Arrays.fill(misheard, k, end, -1);
+                match(lyric, k, end, again.hear(fromMs, toMs), times, misheard);
+                for (int i = k; i < end; i++) {
+                    if (times[i] < fromMs || after >= 0 && times[i] > after) {
+                        times[i] = -1;
+                    }
+                    if (misheard[i] < fromMs || after >= 0 && misheard[i] > after) {
+                        misheard[i] = -1;
+                    }
+                }
+            }
+            k = end;
+        }
+    }
+
+    private static double heardShare(long[] times) {
+        return Arrays.stream(times).filter(time -> time >= 0).count() / (double) times.length;
     }
 
     /** Unheard words between heard ones are spread evenly; at the very start or end 350 ms apart. Never backwards. */

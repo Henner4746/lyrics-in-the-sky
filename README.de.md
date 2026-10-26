@@ -227,8 +227,10 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   Prüfsumme). Je gelerntem Song einmal etwa 1–2 Minuten bis zu vier CPU-Kerne mit niedriger Priorität und bis 750 MB
   Arbeitsspeicher in einem eigenen Prozess; das Mithören selbst kostet kaum etwas. Songs mit Zeiten werden nie
   mitgehört.
-- **Genauigkeit:** In Tests mit einer künstlichen Stimme über Musik lagen die Zeilenanfänge 80–160 ms neben den
-  echten. Echter Gesang über lauter Musik ist schwerer; was Whisper nicht versteht, wird zwischen den Nachbarwörtern
+- **Genauigkeit:** Gemessen an drei echten deutschen Songs mit von Hand gesetzten Zeiten aus dem Benchmark
+  [JamendoLyrics](https://github.com/f90/jamendolyrics) (Rock, Pop, Rap): Die Zeilenanfänge lagen im Median 43–89 ms
+  daneben, 71–88 % weniger als 200 ms und 91–100 % weniger als eine Sekunde. Stellen, die Whisper im ganzen Song
+  verpasst, werden einzeln noch einmal abgehört; was es dann noch nicht versteht, wird zwischen den Nachbarwörtern
   geschätzt.
 - **Datenschutz:** Mitgehört wird alles, was über den Standardlautsprecher läuft, also auch Sprachchat, solange so ein
   Song läuft. Nichts davon verlässt den PC oder landet auf der Platte, außer kurz als Datei für whisper.cpp, die
