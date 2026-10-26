@@ -11,12 +11,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Asks the word time services the player switched on, one after the other in the order that fitted most songs in
- * measurements, until one has word times for the song that can be trusted:
+ * Asks the word time services the player switched on, all at once, and weighs their answers in the order that fitted
+ * most songs in measurements, until one has word times for the song that can be trusted:
  *
  * <ul>
  *   <li>they line up with LRCLIB's lines ({@link WordTimeTransfer}), closely or, where LRCLIB's hand-made lines
@@ -66,6 +70,11 @@ public final class WordTimeFinder {
 
     private final List<WordTimeSource> sources;
     private final Map<String, Long> restingUntil = new ConcurrentHashMap<>();
+    private final ExecutorService askers = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "LyricsInTheSky-WordTimeService");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     /** @param sources in the order they are asked */
     public WordTimeFinder(List<WordTimeSource> sources) {
@@ -82,8 +91,10 @@ public final class WordTimeFinder {
      * @param base LRCLIB's lyrics, or {@code null} when it has none
      */
     public Outcome find(NowPlaying track, Lyrics base, Set<String> enabled) throws InterruptedException {
-        List<TimedWords> found = new ArrayList<>();
-        Taken roughly = null;
+        // All services switched on are asked at once. Their answers are still weighed in the measured order, so the
+        // first that fits decides as before, only without waiting for the ones before it one by one.
+        List<WordTimeSource> asked = new ArrayList<>();
+        List<Future<Optional<TimedWords>>> answers = new ArrayList<>();
         boolean complete = true;
         for (WordTimeSource source : sources) {
             if (!enabled.contains(key(source.name()))) {
@@ -94,33 +105,50 @@ public final class WordTimeFinder {
                 complete = false;
                 continue;
             }
-            Optional<TimedWords> words;
-            try {
-                words = source.find(track);
-            } catch (InterruptedException e) {
-                throw e;
-            } catch (Exception e) {
-                // Down, changed or too slow: the next service is asked, this one rests.
-                restingUntil.put(source.name(), System.currentTimeMillis() + REST_MS);
-                LOGGER.info("Word times from {} for '{}' failed, resting it for 5 minutes: {}", source.name(),
-                        track.title(), e.toString());
-                complete = false;
-                continue;
+            asked.add(source);
+            answers.add(askers.submit(() -> source.find(track)));
+        }
+        List<TimedWords> found = new ArrayList<>();
+        Taken roughly = null;
+        try {
+            for (int i = 0; i < asked.size(); i++) {
+                WordTimeSource source = asked.get(i);
+                Optional<TimedWords> words;
+                try {
+                    words = answers.get(i).get();
+                } catch (ExecutionException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof WordTimeSource.Later) {
+                        LOGGER.info("Word times from {} for '{}': not yet ({})", source.name(), track.title(),
+                                cause.getMessage());
+                    } else {
+                        // Down, changed or too slow: the others still count, this one rests.
+                        restingUntil.put(source.name(), System.currentTimeMillis() + REST_MS);
+                        LOGGER.info("Word times from {} for '{}' failed, resting it for 5 minutes: {}", source.name(),
+                                track.title(), String.valueOf(cause));
+                    }
+                    complete = false;
+                    continue;
+                }
+                if (words.isEmpty()) {
+                    continue;
+                }
+                // Named after the service asked, which is what the player switches; LyricsPlus adds where it read them.
+                String label = words.get().source().equals(source.name()) ? source.name()
+                        : source.name() + " (" + words.get().source() + ")";
+                found.add(new TimedWords(label, words.get().withoutTitleLine(track.title()).lines(),
+                        words.get().otherCut()));
+                Optional<Taken> taken = decide(base, found);
+                if (taken.isPresent() && !taken.get().provisional()) {
+                    return new Outcome(taken, true);
+                }
+                if (roughly == null && taken.isPresent()) {
+                    roughly = taken.get();
+                }
             }
-            if (words.isEmpty()) {
-                continue;
-            }
-            // Named after the service asked, which is what the player switches; LyricsPlus adds where it read them.
-            String label = words.get().source().equals(source.name()) ? source.name()
-                    : source.name() + " (" + words.get().source() + ")";
-            found.add(new TimedWords(label, words.get().withoutTitleLine(track.title()).lines(), words.get().otherCut()));
-            Optional<Taken> taken = decide(base, found);
-            if (taken.isPresent() && !taken.get().provisional()) {
-                return new Outcome(taken, true);
-            }
-            if (roughly == null && taken.isPresent()) {
-                roughly = taken.get();
-            }
+        } finally {
+            // Answers nobody needs any more are not waited for.
+            answers.forEach(answer -> answer.cancel(true));
         }
         // Nothing fitted closely: what fitted roughly is still better than words estimated from LRCLIB's lines.
         return roughly != null ? new Outcome(Optional.of(roughly), true) : new Outcome(Optional.empty(), complete);

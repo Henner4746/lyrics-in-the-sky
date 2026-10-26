@@ -24,6 +24,30 @@ public record TimedWords(String source, List<Line> lines, boolean otherCut) {
         this(source, lines, false);
     }
 
+    /**
+     * Word-timed lyrics from enhanced LRC ({@code [mm:ss.xx]<mm:ss.xx>word <mm:ss.xx>word}); lines without word times are
+     * left out. Voice marks like {@code {agent:v1}} or {@code {bg}} some services add are dropped.
+     */
+    static TimedWords fromLrc(String source, String lrc) {
+        Lyrics parsed = Lyrics.parseLrc(lrc.replaceAll("\\{[^}]*}", ""));
+        List<Line> lines = new ArrayList<>();
+        for (Lyrics.Line line : parsed.lines()) {
+            long[] starts = line.wordStartsMs();
+            if (starts == null || line.text().isBlank()) {
+                continue;
+            }
+            String[] texts = line.text().split(" ");
+            List<Word> words = new ArrayList<>(texts.length);
+            long last = line.startMs();
+            for (int i = 0; i < texts.length; i++) {
+                last = i < starts.length && starts[i] >= 0 ? starts[i] : last;
+                words.add(new Word(last, texts[i]));
+            }
+            lines.add(new Line(words.get(0).startMs(), words));
+        }
+        return new TimedWords(source, lines);
+    }
+
     /** The same words, marked as timed for another cut of the song. */
     TimedWords asOtherCut() {
         return new TimedWords(source, lines, true);

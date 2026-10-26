@@ -14,6 +14,23 @@ import org.junit.jupiter.api.Test;
 /** The parsers of the word time services, with made-up lyrics. */
 class WordSourcesTest {
     @Test
+    void readsSyncLrcKaraokeAndIgnoresLinesOnly() {
+        String karaoke = """
+                {"type":"karaoke","format":"lrc","lyrics":"[00:05.20]<00:05.20>Light {agent:v1}<00:05.65>the <00:06.10>lanterns\\n[00:09.00]<00:09.00>Paper <00:09.40>boats"}""";
+        TimedWords words = SyncLrcClient.parse(karaoke).orElseThrow();
+        assertEquals("SyncLRC", words.source());
+        assertEquals(2, words.lines().size());
+        assertEquals("Light the lanterns", words.lines().get(0).text());
+        assertEquals(List.of(5200L, 5650L, 6100L),
+                words.lines().get(0).words().stream().map(TimedWords.Word::startMs).toList());
+        // Without karaoke lyrics SyncLRC hands out lines or plain text; those have no word times.
+        assertTrue(SyncLrcClient.parse("""
+                {"type":"synced","format":"lrc","lyrics":"[00:05.20]Light the lanterns"}""").isEmpty());
+        assertTrue(SyncLrcClient.parse("""
+                {"type":"karaoke","format":"lrc","lyrics":null}""").isEmpty());
+    }
+
+    @Test
     void readsNeteaseYrcAndSkipsCredits() {
         String yrc = """
                 {"t":0,"c":[{"tx":"作词: "},{"tx":"Somebody"}]}

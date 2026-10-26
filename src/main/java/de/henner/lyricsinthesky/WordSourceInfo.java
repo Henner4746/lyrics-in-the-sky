@@ -10,6 +10,7 @@ public final class WordSourceInfo {
             case "lyricsplus" -> "LyricsPlus";
             case "netease" -> "NetEase";
             case "kugou" -> "Kugou";
+            case "synclrc" -> "SyncLRC";
             default -> name;
         };
     }
@@ -24,6 +25,8 @@ public final class WordSourceInfo {
                     + "ohne Konto. Bekommt Künstler und Titel.";
             case "kugou" -> "Kugou Music (China) hat Wortzeiten, oft dieselben wie QQ Music. Inoffiziell, ohne Konto. "
                     + "Bekommt Künstler, Titel und Länge.";
+            case "synclrc" -> "SyncLRC ist eine freie Lyrics-API mit Karaoke-Zeiten pro Wort, vor allem für bekannte Songs. "
+                    + "Ohne Konto. Bekommt Künstler, Titel, Album und Länge.";
             default -> "";
         };
     }

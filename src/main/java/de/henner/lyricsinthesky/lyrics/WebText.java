@@ -57,9 +57,19 @@ final class WebText {
             return Optional.empty();
         }
         if (response.statusCode() != 200) {
-            throw new IOException(URI.create(url).getHost() + " answered HTTP " + response.statusCode());
+            throw new StatusException(URI.create(url).getHost(), response.statusCode());
         }
         return Optional.of(response.body());
+    }
+
+    /** An answer other than 200 or 404, with its code, for services that use some codes for "not yet". */
+    static final class StatusException extends IOException {
+        final int status;
+
+        StatusException(String host, int status) {
+            super(host + " answered HTTP " + status);
+            this.status = status;
+        }
     }
 
     static String query(Map<String, String> params) {

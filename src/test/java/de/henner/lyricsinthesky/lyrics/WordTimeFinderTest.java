@@ -111,6 +111,42 @@ class WordTimeFinderTest {
     }
 
     @Test
+    void aServiceThatHasNothingYetIsNotRested() throws Exception {
+        int[] calls = {0};
+        WordTimeSource later = new WordTimeSource() {
+            @Override
+            public String name() {
+                return "Later";
+            }
+
+            @Override
+            public Optional<TimedWords> find(NowPlaying track) throws IOException {
+                calls[0]++;
+                throw new WordTimeSource.Later("not timed yet");
+            }
+        };
+        WordTimeFinder finder = new WordTimeFinder(List.of(later));
+        Lyrics base = Lyrics.parseLrc(lrc(0, 0));
+        // Not kept as "nothing", and asked again for the next song right away.
+        assertFalse(finder.find(TRACK, base, Set.of("later")).complete());
+        finder.find(TRACK, base, Set.of("later"));
+        assertEquals(2, calls[0]);
+    }
+
+    @Test
+    void servicesAreAskedAtOnceButWeighedInTheirOrder() throws Exception {
+        Lyrics base = Lyrics.parseLrc(lrc(0, 0));
+        // The first service answers last, but it fits and comes first, so its times are shown.
+        WordTimeFinder finder = new WordTimeFinder(List.of(slow("First", timed("First", 0), 500),
+                slow("Second", timed("Second", 0), 500), slow("Third", timed("Third", 0), 500)));
+        long start = System.nanoTime();
+        WordTimeFinder.Outcome outcome = finder.find(TRACK, base, Set.of("first", "second", "third"));
+        long tookMs = (System.nanoTime() - start) / 1_000_000;
+        assertEquals("First", outcome.taken().orElseThrow().source());
+        assertTrue(tookMs < 1_000, "asked one after the other: " + tookMs + " ms");
+    }
+
+    @Test
     void nothingFoundHoldsOnlyForTheServicesAsked() {
         LocalDate day = LocalDate.of(2026, 10, 25);
         String none = WordTimeFinder.noneMarker(day, Set.of("deezer", "netease"));
@@ -216,6 +252,21 @@ class WordTimeFinderTest {
             timed.add(new TimedWords.Word(start + w * 400L, words[w]));
         }
         return new TimedWords.Line(start, timed);
+    }
+
+    private static WordTimeSource slow(String name, TimedWords words, long delayMs) {
+        return new WordTimeSource() {
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public Optional<TimedWords> find(NowPlaying track) throws InterruptedException {
+                Thread.sleep(delayMs);
+                return Optional.ofNullable(words);
+            }
+        };
     }
 
     private static WordTimeSource fixed(String name, TimedWords words) {
