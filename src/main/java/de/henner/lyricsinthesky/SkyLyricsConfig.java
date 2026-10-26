@@ -50,6 +50,11 @@ public final class SkyLyricsConfig {
      */
     public static final List<String> THEMES = List.of("classic", "glass");
     /**
+     * Looks of the menu itself: "fancy" lively, with a moving backdrop, sparkles and everything sliding and glowing,
+     * "minimal" the quiet panel with plain lines.
+     */
+    public static final List<String> MENU_STYLES = List.of("minimal", "fancy");
+    /**
      * Looks of the now-playing bar: "pill" the rounded bar with the line and the word being sung, "karaoke" two lines
      * in a box with every word filling up as it is sung, "plain" just the words with a shadow, "title" only the song.
      */
@@ -82,6 +87,11 @@ public final class SkyLyricsConfig {
      * unless switched on, which downloads whisper.cpp and its model once.
      */
     public boolean hoergenau = false;
+    /**
+     * Songs Hoergenau learned are shared with the tracker on henrik.click, and songs other players learned are taken
+     * from there; on unless switched off.
+     */
+    public boolean shareLearned = true;
     /** Up to 1.3.0-dev.3 the only word time service; only read to carry the choice over to {@link #wordSources}. */
     public boolean lyricsPlus = false;
     /**
@@ -115,6 +125,10 @@ public final class SkyLyricsConfig {
     public String hudAnchor = "top";
     /** One of {@link #THEMES}. */
     public String theme = "glass";
+    /** One of {@link #MENU_STYLES}. */
+    public String menuStyle = "fancy";
+    /** Streamer mode: explicit words in lyrics, titles and artists show as their first letter and stars. */
+    public boolean streamerMode = false;
     /** Size of the bar, 0.75 to 1.5. */
     public float hudScale = 1f;
     /** How solid the bar's background is, 0 (only the text) to 1. */

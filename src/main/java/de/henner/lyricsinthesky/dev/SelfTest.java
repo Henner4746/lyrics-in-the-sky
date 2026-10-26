@@ -6,6 +6,8 @@ import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
+import de.henner.lyricsinthesky.render.Perf;
+import de.henner.lyricsinthesky.lyrics.Explicit;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
@@ -73,10 +75,14 @@ public final class SelfTest {
     private static final String[][] GLASS_BARS = {{"pill", "noon"}, {"karaoke", "noon"}, {"plain", "noon"},
             {"title", "noon"}, {"pill", "midnight"}, {"karaoke", "midnight"}, {"plain", "midnight"},
             {"title", "midnight"}};
-    /** Then every page of the settings, in glass by day, the look page also in the classic theme and at night. */
+    /**
+     * Then every page of the settings in the fancy look, in glass by day; the look page also in the classic theme and
+     * the minimal look, and the first page at night.
+     */
     private static final double MENU_FROM = 61.0;
-    private static final String[][] MENU_SHOTS = {{"general", "glass", "noon"}, {"look", "glass", "noon"},
-            {"sources", "glass", "noon"}, {"look", "classic", "noon"}, {"general", "glass", "midnight"}};
+    private static final String[][] MENU_SHOTS = {{"general", "glass", "noon", "fancy"}, {"look", "glass", "noon", "fancy"},
+            {"sources", "glass", "noon", "fancy"}, {"look", "classic", "noon", "minimal"},
+            {"general", "glass", "midnight", "fancy"}};
     /** Then "Wortgenau" with all services on: the song gets word times from one of them. */
     private static final double WORD_TIMES_ON = 67.0;
     private static final double WORD_TIMES_CHECK = 77.0;
@@ -141,6 +147,7 @@ public final class SelfTest {
         if (atSecond(NIGHT_FROM)) {
             minecraft.player.connection.sendCommand("time set midnight");
         }
+        perfSteps();
         if (!Boolean.getBoolean("lyricsinthesky.selftest.record")) {
             if (atSecond(SETTINGS_OPEN)) {
                 LyricsInTheSkyClient.openSettings(minecraft);
@@ -251,6 +258,19 @@ public final class SelfTest {
                         now == null ? -1 : now.positionMs(), ok ? "ok" : "WRONG (expected '" + expected + "')", bar,
                         wordNow(now), controller.status());
                 shoot(minecraft, "song " + song[1]);
+                LyricsInTheSkyClient.setStreamerMode(controller.config(), true);
+            }
+            // Streamer mode: the same line, explicit words now as first letter and stars, in the bar and the title.
+            if (atSecond(at + SONG_CHECK_AFTER + 0.6)) {
+                LyricsController.Timeline now = controller.timeline(System.currentTimeMillis());
+                NowPlayingHud.Shown shown = NowPlayingHud.lastShown();
+                String bar = shown == null ? "" : shown.text().trim().replaceAll("\\s+", " ");
+                String expected = Explicit.ANY.hide(song[5].trim().replaceAll("\\s+", " "));
+                boolean ok = bar.equals(expected) && now != null && now.title().equals(Explicit.ANY.hide(song[1]));
+                LOGGER.info("SELFTEST streamer {}: {} – bar '{}', title '{}'", song[1], ok ? "ok"
+                        : "WRONG (expected '" + expected + "')", bar, now == null ? "-" : now.title());
+                shoot(minecraft, "streamer " + song[1]);
+                LyricsInTheSkyClient.setStreamerMode(controller.config(), false);
             }
         }
     }
@@ -295,6 +315,23 @@ public final class SelfTest {
             LOGGER.info("SELFTEST songs: {} from {}", songs.size(), list.getFileName());
         }
         return songs;
+    }
+
+    /**
+     * How long the mod takes per frame in each part of the demo: in the sky (elegant), around the player, the sky
+     * again by night, and while a song plays with the bar in its looks.
+     */
+    private static void perfSteps() {
+        String[][] parts = {{"1.0", "start"}, {"11.9", "sky"}, {"20.4", "around"}, {"35.9", "sky at night"},
+                {"48.9", "song and bars"}};
+        for (String[] part : parts) {
+            if (atSecond(Double.parseDouble(part[0]))) {
+                String report = Perf.report();
+                if (!"start".equals(part[1])) {
+                    LOGGER.info("SELFTEST perf {}: {}", part[1], report);
+                }
+            }
+        }
     }
 
     /** The bar in its looks and places, then its editor; the player's own bar settings are put back afterwards. */
@@ -440,6 +477,7 @@ public final class SelfTest {
             if (atSecond(at)) {
                 clearScreen(minecraft);
                 config.theme = shot[1];
+                config.menuStyle = shot[3];
                 minecraft.player.connection.sendCommand("time set " + shot[2]);
                 if (!(minecraft.gui.screen() instanceof SettingsScreen)) {
                     LyricsInTheSkyClient.openSettings(minecraft);
@@ -448,10 +486,11 @@ public final class SelfTest {
                     settings.show(shot[0]);
                 }
             }
-            if (atSecond(at + 0.4)) {
+            if (atSecond(at + 0.8)) {
                 clearScreen(minecraft);
             }
-            if (atSecond(at + 0.6)) {
+            // In the fancy look the rows slide in for almost a second; the picture waits until they are all there.
+            if (atSecond(at + 0.95)) {
                 if (minecraft.gui.screen() instanceof SettingsScreen settings) {
                     int height = settings.height;
                     LOGGER.info("SELFTEST settings {} ({}): {} (panel bottom {} of {})", shot[0], shot[1],
@@ -459,7 +498,7 @@ public final class SelfTest {
                 } else {
                     LOGGER.info("SELFTEST settings {}: NOT open", shot[0]);
                 }
-                shoot(minecraft, "settings " + shot[0] + " " + shot[1] + " " + shot[2]);
+                shoot(minecraft, "settings " + shot[0] + " " + shot[1] + " " + shot[2] + " " + shot[3]);
             }
         }
         if (atSecond(MENU_FROM + MENU_SHOTS.length)) {

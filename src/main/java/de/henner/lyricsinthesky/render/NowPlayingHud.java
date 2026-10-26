@@ -91,6 +91,12 @@ public final class NowPlayingHud implements HudElement {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+        long started = Perf.start();
+        extractBar(graphics);
+        Perf.stop(Perf.BAR, started);
+    }
+
+    private void extractBar(GuiGraphicsExtractor graphics) {
         Minecraft minecraft = Minecraft.getInstance();
         LyricsController controller = LyricsInTheSkyClient.controller();
         Screen screen = minecraft.gui.screen();
@@ -282,7 +288,8 @@ public final class NowPlayingHud implements HudElement {
             int index = lyrics.indexAt(timeline.positionMs());
             if (index >= 0 && !lyrics.lines().get(index).text().isBlank()
                     && timeline.positionMs() < lyrics.endOf(index, timeline.durationMs())) {
-                key = timeline.trackKey() + "#" + index;
+                // The lyrics' identity too: word times arriving, or streamer mode switched, change the words at once.
+                key = timeline.trackKey() + "#" + index + "#" + System.identityHashCode(lyrics);
                 if (!key.equals(contentKey)) {
                     words = lyrics.lines().get(index).words();
                     nextWords = index + 1 < lyrics.lines().size() ? lyrics.lines().get(index + 1).words() : new String[0];

@@ -5,10 +5,12 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import de.henner.lyricsinthesky.dev.LiveTest;
 import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.SettingsScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
+import de.henner.lyricsinthesky.hoergenau.SharedLearned;
 import de.henner.lyricsinthesky.lyrics.BetterLyricsClient;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
@@ -103,8 +105,13 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         LyricsCache store = new LyricsCache(configDir.resolve(MOD_ID).resolve("lyrics"));
         controller = new LyricsController(source, lrclib, wordTimes, lyricsPlus, store, config, timings, tracker);
         // Off unless switched on; listens only on Windows and only to songs nobody has word times for.
-        controller.listenWith(new Hoergenau(configDir.resolve(MOD_ID).resolve("hoergenau"), config, store,
-                LyricsInTheSkyClient::tell, controller::forget));
+        Hoergenau hoergenau = new Hoergenau(configDir.resolve(MOD_ID).resolve("hoergenau"), config, store,
+                LyricsInTheSkyClient::tell, controller::forget);
+        controller.listenWith(hoergenau);
+        // What anyone's Hoergenau learned counts for all: shared through the tracker, unless switched off.
+        SharedLearned shared = new SharedLearned(() -> config.shareLearned, config.installId, version);
+        hoergenau.shareWith(shared);
+        controller.shareLearnedWith(shared);
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the
         // helper process out of the busy resource-loading phase.
@@ -126,6 +133,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         registerCommands();
         if (SelfTest.isEnabled()) {
             SelfTest.register(controller, lrclib);
+        }
+        if (LiveTest.isEnabled()) {
+            LiveTest.register(controller, spotify);
         }
         if (Showcase.isEnabled()) {
             Showcase.register(controller);
@@ -263,6 +273,12 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal(command))));
     }
 
+    /** Switches streamer mode; the lines in the sky are laid out anew, so the one showing changes at once too. */
+    public static void setStreamerMode(SkyLyricsConfig settings, boolean on) {
+        settings.streamerMode = on;
+        SkyLyricsRenderer.INSTANCE.reset();
+    }
+
     /**
      * Switches Hoergenau; switching it on says once what it does and costs. A failed download is tried again.
      */
@@ -370,6 +386,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(toggle("along", (c, value) -> c.followAlong = value, "Mitdrehen"))
                     .then(choice("preset", SkyLyricsConfig.PRESETS, SkyLyricsConfig::applyPreset, "Vorlage "))
                     .then(choice("theme", SkyLyricsConfig.THEMES, (c, value) -> c.theme = value, "Theme "))
+                    .then(choice("menu", SkyLyricsConfig.MENU_STYLES, (c, value) -> c.menuStyle = value, "Menü "))
+                    .then(toggle("streamer", LyricsInTheSkyClient::setStreamerMode,
+                            "Streamer-Modus (explizite Wörter versteckt)"))
                     .then(number("barsize", 0.75f, 1.5f, (c, value) -> c.hudScale = value, "Leistengröße"))
                     .then(number("barbg", 0f, 1f, (c, value) -> c.hudOpacity = value, "Hintergrund der Leiste"))
                     .then(number("barround", 0f, 1f, (c, value) -> c.hudRoundness = value, "Rundung der Leiste"))
@@ -397,6 +416,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     }, "Grauzone (alle inoffiziellen Dienste)"))
                     .then(toggle("hoergenau", (c, value) -> setHoergenau(c, value),
                             "Hörgenau (Mithören für Songs ohne Wortzeiten, nur Windows)"))
+                    .then(toggle("sharelearned", (c, value) -> c.shareLearned = value,
+                            "Gelerntes teilen (Hörgenau-Ergebnisse für alle)"))
                     .then(toggle("lyricsplus", (c, value) -> {
                         c.setWordSource("lyricsplus", value);
                         controller.refreshWordTimes();

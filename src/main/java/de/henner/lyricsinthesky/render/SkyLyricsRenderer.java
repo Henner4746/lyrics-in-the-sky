@@ -106,6 +106,7 @@ public final class SkyLyricsRenderer {
             // The shader pack would paint over it; everything is drawn in renderAfterLevel instead.
             return;
         }
+        long started = Perf.start();
         List<SkyGlyph> glyphs = collect(skyLuminance);
         skyPassRan = true;
         boolean behind = behindTerrain();
@@ -121,8 +122,11 @@ public final class SkyLyricsRenderer {
             }
         }
         inFront = front;
+        Perf.stop(Perf.LAYOUT, started);
         if (!sky.isEmpty()) {
+            started = Perf.start();
             GlyphDrawer.draw(target, sky, GlyphDrawer.SKY_SLOT);
+            Perf.stop(Perf.DRAW, started);
         }
     }
 
@@ -142,14 +146,20 @@ public final class SkyLyricsRenderer {
             inFront = List.of();
             return;
         }
+        long started = Perf.start();
         List<SkyGlyph> glyphs = skyPassRan ? inFront : collect(skyLuminance);
         if (!skyPassRan && !behindTerrain()) {
             glyphs = glyphs.stream().map(glyph -> glyph.overlay() ? glyph : onTop(glyph)).toList();
         }
+        if (!skyPassRan) {
+            Perf.stop(Perf.LAYOUT, started);
+        }
         skyPassRan = false;
         inFront = List.of();
         if (!glyphs.isEmpty()) {
+            started = Perf.start();
             GlyphDrawer.draw(target, glyphs, GlyphDrawer.FRONT_SLOT);
+            Perf.stop(Perf.DRAW, started);
         }
     }
 

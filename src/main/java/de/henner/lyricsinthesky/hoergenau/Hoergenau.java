@@ -2,6 +2,7 @@ package de.henner.lyricsinthesky.hoergenau;
 
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine.Heard;
+import de.henner.lyricsinthesky.lyrics.Explicit;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
 import de.henner.lyricsinthesky.nowplaying.NowPlaying;
@@ -214,6 +215,7 @@ public final class Hoergenau {
         List<Heard> heard = segments.stream().flatMap(List::stream).toList();
         String lrc;
         String how;
+        double matched = 0;
         if (!done.lines.isEmpty()) {
             Optional<HeardLyrics.Aligned> aligned = HeardLyrics.align(done.lines, heard, offsetMs,
                     again(engine, audio, language));
@@ -222,8 +224,8 @@ public final class Hoergenau {
                 return;
             }
             lrc = aligned.get().lrc();
-            how = String.format("Songtext auf die Aufnahme gelegt, %d %% der Wörter gehört",
-                    Math.round(aligned.get().matched() * 100));
+            matched = aligned.get().matched();
+            how = String.format("Songtext auf die Aufnahme gelegt, %d %% der Wörter gehört", Math.round(matched * 100));
         } else if (!heard.isEmpty()) {
             lrc = HeardLyrics.transcript(segments, offsetMs);
             how = "kein Songtext bekannt, das Gehörte abgeschrieben";
@@ -238,7 +240,25 @@ public final class Hoergenau {
         learned.accept(done.key);
         LOGGER.info("Hoergenau learned '{}' in {} s ({})", done.track.title(), (System.nanoTime() - started) / 1_000_000_000,
                 how);
-        chat.accept("Hörgenau hat „" + done.track.title() + "“ gelernt (" + how + "). Ab dem nächsten Abspielen Wort für Wort.");
+        SharedLearned sharer = this.sharer;
+        boolean shared = sharer != null && config.shareLearned;
+        if (shared) {
+            sharer.share(done.key, done.track, lrc, !done.lines.isEmpty(), matched);
+        }
+        chat.accept("Hörgenau hat „" + shown(done.track.title()) + "“ gelernt (" + how
+                + "). Ab dem nächsten Abspielen Wort für Wort" + (shared ? ", und geteilt für alle." : "."));
+    }
+
+    /** Where what is learned here is shared, so other players get it too. */
+    private volatile SharedLearned sharer;
+
+    public void shareWith(SharedLearned sharer) {
+        this.sharer = sharer;
+    }
+
+    /** A title as it may be shown on screen: in streamer mode with explicit words hidden. */
+    private String shown(String title) {
+        return config.streamerMode ? Explicit.ANY.hide(title) : title;
     }
 
     /** Hears a stretch of the recording once more on its own, in the language found before; nothing when that fails. */
@@ -307,9 +327,9 @@ public final class Hoergenau {
         }
         Take now = take;
         if (now != null) {
-            return "Hörgenau hört mit: " + now.track.title() + (now.broken != null ? " (abgebrochen)" : "");
+            return "Hörgenau hört mit: " + shown(now.track.title()) + (now.broken != null ? " (abgebrochen)" : "");
         }
-        return working != null ? "Hörgenau lernt: " + working : "Hörgenau bereit";
+        return working != null ? "Hörgenau lernt: " + shown(working) : "Hörgenau bereit";
     }
 
     private static long median(List<Long> values) {

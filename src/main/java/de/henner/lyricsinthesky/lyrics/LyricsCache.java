@@ -116,9 +116,14 @@ public final class LyricsCache {
 
     /** A hash of the song, so titles with any characters make valid file names. */
     static String fileName(String key) {
+        return idOf(key) + ".lrc";
+    }
+
+    /** The song's ID: SHA-256 of its key, the first 16 bytes in hex; the file name here and the key on the tracker. */
+    public static String idOf(String key) {
         try {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(key.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash, 0, 16) + ".lrc";
+            return HexFormat.of().formatHex(hash, 0, 16);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

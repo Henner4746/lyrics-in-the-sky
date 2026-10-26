@@ -1,6 +1,8 @@
 package de.henner.lyricsinthesky;
 
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
+import de.henner.lyricsinthesky.hoergenau.SharedLearned;
+import de.henner.lyricsinthesky.lyrics.Explicit;
 import de.henner.lyricsinthesky.lyrics.LrclibClient;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.lyrics.LyricsCache;
@@ -259,6 +261,14 @@ public final class LyricsController {
                     LOGGER.info("Lyrics for '{}' by '{}': FOUND (word time service, LRCLIB has none)", now.title(), now.artist());
                     return;
                 }
+                // Another player may have learned the song by listening: it runs word by word here too, without
+                // listening again. Kept like lyrics learned here, so LRCLIB's lines still replace it once they exist.
+                Optional<Lyrics> learnedElsewhere = sharedLearned(key);
+                if (learnedElsewhere.isPresent()) {
+                    cache.put(key, new CacheEntry(learnedElsewhere, LookupState.FOUND, System.currentTimeMillis()));
+                    LOGGER.info("Lyrics for '{}' by '{}': FOUND (learned by another player)", now.title(), now.artist());
+                    return;
+                }
                 // Last: the text without times, spread over the song. Not kept on disk, so timed lyrics that turn up
                 // later on LRCLIB are found next time.
                 Optional<Lyrics> rough = lookup.plain().map(text -> Lyrics.estimated(text, now.durationMs()))
@@ -290,6 +300,23 @@ public final class LyricsController {
             LOGGER.warn("Lyrics lookup for '{}' failed ({}. time, next try in {} s): {}", now.title(), failures,
                     retryDelayMs(failures) / 1000, e.toString());
         }
+    }
+
+    /** Songs other players learned by listening, from the tracker; null until set. */
+    private volatile SharedLearned shared;
+
+    public void shareLearnedWith(SharedLearned shared) {
+        this.shared = shared;
+    }
+
+    private Optional<Lyrics> sharedLearned(String key) {
+        SharedLearned from = shared;
+        if (from == null || !config.shareLearned) {
+            return Optional.empty();
+        }
+        Optional<String> lrc = from.fetch(key);
+        lrc.ifPresent(found -> saved.write(key, found));
+        return lrc.map(Lyrics::parseLrc);
     }
 
     /**
@@ -434,8 +461,29 @@ public final class LyricsController {
         Lyrics lyrics = entry == null ? null : entry.lyrics().filter(found -> !found.isInstrumental()).orElse(null);
         long position = clock.at(key, nowMs, now.estimatePositionMs(nowMs), now.playing());
         int songOffset = lyrics == null ? 0 : timings.offsetFor(songId(now, lyrics));
+        if (config.streamerMode) {
+            Explicit filter = lyrics == null ? Explicit.ANY : censored(lyrics).filter();
+            return new Timeline(key, filter.hide(now.title()), filter.hide(now.artist()),
+                    lyrics == null ? null : censored(lyrics).lyrics(), state, position + config.offsetMs + songOffset,
+                    now.durationMs(), now.playing());
+        }
         return new Timeline(key, now.title(), now.artist(), lyrics, state, position + config.offsetMs + songOffset,
                 now.durationMs(), now.playing());
+    }
+
+    private record Censored(Lyrics source, Explicit filter, Lyrics lyrics) {}
+
+    /** The last lyrics shown in streamer mode, with explicit words hidden; made once per song, not per frame. */
+    private volatile Censored censored;
+
+    private Censored censored(Lyrics lyrics) {
+        Censored last = censored;
+        if (last == null || last.source() != lyrics) {
+            Explicit filter = Explicit.forLyrics(lyrics);
+            last = new Censored(lyrics, filter, lyrics.mapText(filter::hide));
+            censored = last;
+        }
+        return last;
     }
 
     /** The song playing now if it has lyrics, else {@code null}; never the demo. */
@@ -446,7 +494,12 @@ public final class LyricsController {
         }
         CacheEntry entry = cache.get(key(now));
         Lyrics lyrics = entry == null ? null : entry.lyrics().filter(found -> !found.isInstrumental()).orElse(null);
-        return lyrics == null ? null : new Song(songId(now, lyrics), now.title(), shareable(lyrics));
+        return lyrics == null ? null : new Song(songId(now, lyrics), shown(now.title()), shareable(lyrics));
+    }
+
+    /** A title or artist as it may be shown: in streamer mode with explicit words hidden. */
+    public String shown(String name) {
+        return config.streamerMode ? Explicit.ANY.hide(name) : name;
     }
 
     /**
@@ -499,7 +552,7 @@ public final class LyricsController {
         }
         Hoergenau listener = hoergenau;
         return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms%s%s",
-                now.artist(), now.title(), now.app(), now.playing() ? "spielt" : "pausiert",
+                shown(now.artist()), shown(now.title()), now.app(), now.playing() ? "spielt" : "pausiert",
                 now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs, songTimingText(),
                 listener != null && config.hoergenau ? ", " + listener.statusText() : "");
     }

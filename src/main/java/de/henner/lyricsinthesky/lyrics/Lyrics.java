@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -79,6 +80,18 @@ public final class Lyrics {
 
     public boolean isEstimated() {
         return estimated;
+    }
+
+    /**
+     * The same lyrics with each line's text passed through {@code text}, which must keep the words where they are
+     * (streamer mode hides words as stars of the same length); times, pace and the LRC they came from stay.
+     */
+    public Lyrics mapText(UnaryOperator<String> text) {
+        List<Line> mapped = new ArrayList<>(lines.size());
+        for (Line line : lines) {
+            mapped.add(new Line(line.startMs(), text.apply(line.text()), line.wordStartsMs()));
+        }
+        return new Lyrics(mapped, instrumental, lrc);
     }
 
     /**

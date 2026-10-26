@@ -55,6 +55,14 @@ subprojects {
                 vmArg "-Dlyricsinthesky.selftest.record=true"
                 programArgs "--quickPlaySingleplayer", "SkyTest", "--width", "1280", "--height", "720"
             }
+            // `gradlew :mc26.3:runLiveTest -PliveMinutes=20`: real music through a Spotify account for that long,
+            // going through every look; for a machine without a screen of its own (see dev/LiveTest).
+            register("liveTest") {
+                client()
+                name = "Live Test"
+                vmArg "-Dlyricsinthesky.livetest=" + (project.findProperty("liveMinutes") ?: "20")
+                programArgs "--quickPlaySingleplayer", "SkyTest"
+            }
             // `gradlew :mc26.3:runShowcase`: the demo under a scripted camera flight, for recording the preview
             // video with a screen recorder. Window size with -PshowcaseWidth/-PshowcaseHeight (default 1280x720),
             // style with -PshowcaseStyle (default elegant).
