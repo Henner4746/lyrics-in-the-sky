@@ -128,6 +128,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         // What anyone's Hoergenau learned counts for all: shared through the tracker, unless switched off.
         SharedLearned shared = new SharedLearned(() -> config.shareLearned, config.installId, version);
         hoergenau.shareWith(shared);
+        hoergenau.fixSyncWith((track, lyrics, offsetMs) -> controller.applyHeardOffset(track, lyrics, offsetMs));
         controller.shareLearnedWith(shared);
 
         // Started on the first world join rather than at launch: nothing to show in menus, and it keeps the
@@ -370,7 +371,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         MutableComponent message = prefix()
                 .append("„" + timeline.title() + "“ hat noch keine Wortzeiten. Hörgenau kann solche Songs beim Abspielen "
                         + "mithören und Wort für Wort lernen: lokal auf deinem PC, einmalig ca. "
-                        + WhisperEngine.DOWNLOAD_MB + " MB. Was es lernt, bekommen alle anderen Spieler auch. ")
+                        + WhisperEngine.Model.of(config.hoergenauModel).megabytes()
+                        + " MB. Was es lernt, bekommen alle anderen Spieler auch. ")
                 .append(button("[Einschalten]", "/skylyrics hoergenau on", ChatFormatting.GREEN));
         client.gui.hud.getChat().addClientSystemMessage(message);
     }

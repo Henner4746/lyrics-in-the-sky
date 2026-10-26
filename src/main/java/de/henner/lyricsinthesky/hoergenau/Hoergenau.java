@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +36,11 @@ public final class Hoergenau {
     private static final long SKIP_MS = 2_500;
     /** A player stopping this close to the end of the song has played it to the end (the last song of a queue). */
     private static final long END_MS = 8_000;
+    /** How much of a song with word times is heard to check its sync; enough for a few lines with any intro. */
+    static final long CHECK_MS = 50_000;
+    /** A check that could not tell (no clear singing heard) is tried this often in all. */
+    private static final int CHECK_TRIES = 2;
+    private static final String CHECKED = "\u0000synccheck";
 
     /** What a learnable song is shown with now: nothing, or text spread over it without times. */
     public enum Shown { NOTHING, TEXT_ONLY, TIMED }
@@ -65,15 +71,30 @@ public final class Hoergenau {
         final String key;
         final NowPlaying track;
         final List<String> lines;
+        /** For a sync check: the lyrics with word times whose sync is checked; {@code null} when a song is learned. */
+        final Lyrics check;
         final List<Long> anchors = new ArrayList<>();
         long lastPositionMs;
         String broken;
 
-        Take(String key, NowPlaying track, List<String> lines) {
+        Take(String key, NowPlaying track, List<String> lines, Lyrics check) {
             this.key = key;
             this.track = track;
             this.lines = lines;
+            this.check = check;
         }
+    }
+
+    /** Moves a song's lyrics to where they are really sung; set by the lyrics lookup. */
+    public interface SyncFix {
+        /** @param offsetMs positive to show the words earlier, as the song timing slider */
+        void apply(NowPlaying track, Lyrics lyrics, int offsetMs);
+    }
+
+    private volatile SyncFix syncFix;
+
+    public void fixSyncWith(SyncFix fix) {
+        this.syncFix = fix;
     }
 
     /** How Hoergenau tells the player what it does; called from any thread. */
@@ -86,7 +107,7 @@ public final class Hoergenau {
     }
 
     public Hoergenau(Path dir, SkyLyricsConfig config, LyricsCache saved, Notifier notifier, Consumer<String> learned) {
-        this.engine = new WhisperEngine(dir);
+        this.engine = new WhisperEngine(dir, () -> config.hoergenauModel, () -> config.hoergenauPower);
         this.recorder = new LoopbackRecorder(dir);
         this.saved = saved;
         this.config = config;
@@ -117,8 +138,10 @@ public final class Hoergenau {
      * @param shown whether it has lyrics with times, only text, or nothing; {@code null} while still looking
      * @param text  the lines of the text without times when {@code shown} is {@link Shown#TEXT_ONLY}
      * @param other another player playing at the same time, or {@code null}: its sound would end up in the recording
+     * @param timed the lyrics with times the song is shown with, for checking their sync; {@code null} for none
      */
-    public synchronized void observe(NowPlaying now, String key, Shown shown, List<String> text, String other) {
+    public synchronized void observe(NowPlaying now, String key, Shown shown, List<String> text, String other,
+            Lyrics timed) {
         if (!config.hoergenau || !WhisperEngine.supported()) {
             drop("switched off");
             return;
@@ -138,7 +161,11 @@ public final class Hoergenau {
                 return;
             }
             considered = key;
-            if (shown == Shown.TIMED || working != null) {
+            if (working != null) {
+                return;
+            }
+            if (shown == Shown.TIMED) {
+                startCheck(now, key, timed, other);
                 return;
             }
             long position = now.estimatePositionMs(System.currentTimeMillis());
@@ -152,7 +179,7 @@ public final class Hoergenau {
             }
             try {
                 recorder.start();
-                take = new Take(key, now, shown == Shown.TEXT_ONLY ? List.copyOf(text) : List.of());
+                take = new Take(key, now, shown == Shown.TEXT_ONLY ? List.copyOf(text) : List.of(), null);
                 LOGGER.info("Hoergenau listens to '{}' by '{}' ({})", now.title(), now.artist(),
                         take.lines.isEmpty() ? "no text known" : take.lines.size() + " lines of text known");
                 notifier.toast("Hörgenau hört mit", shown(now.title()) + " – bis zum Ende laufen lassen");
@@ -183,14 +210,53 @@ public final class Hoergenau {
             } else {
                 take.anchors.add(anchor);
             }
+            if (take.check != null && take.broken == null
+                    && recorder.count() >= CHECK_MS * LoopbackRecorder.RATE / 1000) {
+                finish();
+            }
         }
+    }
+
+    /**
+     * A song shown with word times: heard for a while to check that its words come when they are sung, once per song
+     * and only while it plays alone, with enough of it left.
+     */
+    private void startCheck(NowPlaying now, String key, Lyrics timed, String other) {
+        if (timed == null || !config.hoergenauSyncCheck || syncFix == null || other != null || !now.playing()
+                || !checkDue(key)) {
+            return;
+        }
+        long position = now.estimatePositionMs(System.currentTimeMillis());
+        if (now.durationMs() > 0 && now.durationMs() - position < CHECK_MS + 5_000) {
+            return;
+        }
+        try {
+            recorder.start();
+            take = new Take(key, now, List.of(), timed);
+            LOGGER.info("Hoergenau checks the sync of '{}' by '{}'", now.title(), now.artist());
+        } catch (Exception e) {
+            LOGGER.warn("Hoergenau could not start listening: {}", e.toString());
+        }
+    }
+
+    /** Whether the song's sync is still to be checked: never checked, or a check that could not tell, not too often. */
+    private boolean checkDue(String key) {
+        Optional<String> kept = saved.read(key + CHECKED);
+        if (kept.isEmpty()) {
+            return true;
+        }
+        String[] parts = kept.get().trim().split(" ");
+        return parts.length >= 2 && "unsure".equals(parts[0]) && Integer.parseInt(parts[1]) < CHECK_TRIES;
     }
 
     /** Nothing more to hear for this song: the recording ends now, not when the song does, and the player is told why. */
     private void breakTake(String why, String forPlayer) {
         take.broken = why;
         recorder.stop();
-        notifier.toast("Hörgenau hört nicht mehr mit", forPlayer + "; beim nächsten Mal von vorn");
+        if (take.check == null) {
+            // A sync check is quiet; it is simply tried again another time.
+            notifier.toast("Hörgenau hört nicht mehr mit", forPlayer + "; beim nächsten Mal von vorn");
+        }
     }
 
     private void drop(String why) {
@@ -211,6 +277,24 @@ public final class Hoergenau {
             return;
         }
         double heardS = audio.length / (double) LoopbackRecorder.RATE;
+        if (done.check != null) {
+            if (heardS * 1000 < CHECK_MS * 0.7 || done.anchors.isEmpty()) {
+                LOGGER.info("Hoergenau dropped the sync check of '{}': heard {} s", done.track.title(), Math.round(heardS));
+                return;
+            }
+            long offsetMs = median(done.anchors) + recorder.startNanos() / 1_000_000;
+            working = done.track.title();
+            worker.submit(() -> {
+                try {
+                    check(done, audio, offsetMs);
+                } catch (Exception e) {
+                    LOGGER.warn("Hoergenau could not check '{}': {}", done.track.title(), e.toString());
+                } finally {
+                    working = null;
+                }
+            });
+            return;
+        }
         if (done.track.durationMs() > 0 && heardS < MIN_HEARD * done.track.durationMs() / 1000.0) {
             LOGGER.info("Hoergenau dropped '{}': heard {} of {} s", done.track.title(), Math.round(heardS),
                     done.track.durationMs() / 1000);
@@ -280,6 +364,30 @@ public final class Hoergenau {
                 + "). Ab jetzt Wort für Wort" + (shared ? ", und geteilt für alle." : "."));
     }
 
+    /** Sets a checked song's correction when its words were heard clearly enough off where the lyrics have them. */
+    private void check(Take done, short[] audio, long offsetMs) throws Exception {
+        String language = engine.language(audio, audio.length);
+        List<SyncCheck.Timed> heard = engine.transcribe(audio, 0, audio.length, language).stream().flatMap(List::stream)
+                .map(word -> new SyncCheck.Timed(word.startMs() + offsetMs, word.text())).toList();
+        SyncCheck.Result result = SyncCheck.measure(SyncCheck.shown(done.check, done.track.durationMs()), heard);
+        int fix = result.correctionMs();
+        LOGGER.info("Hoergenau sync check of '{}': {} words paired, shown {} ms after they are sung (spread {} ms), {}",
+                done.track.title(), result.pairs(), result.offsetMs(), result.spreadMs(),
+                !result.trusted() ? "unsure" : fix == 0 ? "fits" : "moved by " + fix + " ms");
+        int tries = saved.read(done.key + CHECKED).map(kept -> kept.trim().split(" "))
+                .filter(parts -> parts.length >= 2 && "unsure".equals(parts[0])).map(parts -> Integer.parseInt(parts[1]))
+                .orElse(0);
+        saved.write(done.key + CHECKED, !result.trusted() ? "unsure " + (tries + 1)
+                : fix == 0 ? "fits " + result.offsetMs() : "moved " + fix);
+        SyncFix to = syncFix;
+        if (fix != 0 && to != null) {
+            to.apply(done.track, done.check, fix);
+            notifier.toast("Sync korrigiert: " + shown(done.track.title()),
+                    String.format(Locale.GERMANY, "die Wörter kamen %.1f s zu %s, jetzt passen sie", Math.abs(fix) / 1000.0,
+                            fix > 0 ? "spät" : "früh"));
+        }
+    }
+
     /** Where what is learned here is shared, so other players get it too. */
     private volatile SharedLearned sharer;
 
@@ -317,12 +425,13 @@ public final class Hoergenau {
             return;
         }
         installing = true;
-        notifier.toast("Hörgenau lädt", "einmalig " + WhisperEngine.DOWNLOAD_MB + " MB · 0 %");
+        long megabytes = engine.downloadMb();
+        notifier.toast("Hörgenau lädt", "einmalig " + megabytes + " MB · 0 %");
         worker.submit(() -> {
             try {
                 engine.install(now -> {
                     percent = now;
-                    notifier.toast("Hörgenau lädt", "einmalig " + WhisperEngine.DOWNLOAD_MB + " MB · " + now + " %");
+                    notifier.toast("Hörgenau lädt", "einmalig " + megabytes + " MB · " + now + " %");
                 });
                 notifier.toast("Hörgenau ist bereit", "Songs ohne Wortzeiten hört es ab ihrem Anfang mit");
             } catch (Exception e) {
@@ -357,9 +466,12 @@ public final class Hoergenau {
         }
         Take now = take;
         if (now != null) {
-            return "Hörgenau hört mit: " + shown(now.track.title()) + (now.broken != null ? " (abgebrochen)" : "");
+            return (now.check != null ? "Hörgenau prüft den Sync: " : "Hörgenau hört mit: ") + shown(now.track.title())
+                    + (now.broken != null ? " (abgebrochen)" : "");
         }
-        return working != null ? "Hörgenau lernt: " + shown(working) : "Hörgenau bereit";
+        String model = engine.chosen() == WhisperEngine.Model.TURBO ? "Modell Genau" : "Modell Schnell";
+        return working != null ? "Hörgenau rechnet: " + shown(working)
+                : engine.installed() ? "Hörgenau bereit · " + model : "Hörgenau lädt beim nächsten Song · " + model;
     }
 
     private static long median(List<Long> values) {

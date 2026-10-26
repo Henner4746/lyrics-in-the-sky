@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntConsumer;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -38,26 +39,60 @@ import java.util.zip.ZipInputStream;
 
 /**
  * whisper.cpp, the speech recognition Hoergenau times sung words with. It is not shipped with the mod: switching
- * Hoergenau on downloads the official Windows build of whisper.cpp (8.5 MB, GitHub) and the "small" model (181 MB,
- * Hugging Face) into {@code config/lyricsinthesky/hoergenau}, each checked against a fixed SHA-256 before use. It runs
- * as a process of its own at low priority, so it never takes Minecraft down with it.
+ * Hoergenau on downloads the official Windows build of whisper.cpp (8.5 MB, GitHub) and the chosen model ("small",
+ * 181 MB, or large-v3-turbo, 547 MB, Hugging Face) into {@code config/lyricsinthesky/hoergenau}, each checked against
+ * a fixed SHA-256 before use. It runs as a process of its own at low priority, so it never takes Minecraft down with it.
  */
 public final class WhisperEngine {
     static final String BUILD_URL = "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip";
     static final String BUILD_SHA256 = "6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb";
-    static final String MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin";
-    static final String MODEL_SHA256 = "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb";
-    public static final long DOWNLOAD_MB = 190;
+    /** The build itself, about 8.5 MB; the model comes on top. */
+    static final long BUILD_MB = 9;
+
     /**
-     * A quarter of the cores, two to four, at below normal priority: Windows lets the game go first, and a song still
-     * takes about a minute instead of seconds.
+     * The speech models to choose from ("Modell" in the menu).
+     *
+     * @param dtw    whisper.cpp's alignment preset for the model's attention heads
+     * @param lateMs how late DTW places sung words with this model, measured on three real German songs (rock, pop,
+     *               rap) against their known word times; taken off every DTW time
      */
-    static final int THREADS = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() / 4));
+    public record Model(String id, String file, String sha256, long megabytes, String dtw, long lateMs) {
+        /** Quick on any PC: about a minute per song with two to four cores. */
+        public static final Model SMALL = new Model("small", "ggml-small-q5_1.bin",
+                "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb", 190, "small", 150);
+        /** Whisper large-v3-turbo: hears sung words far better, needs a few times as long. */
+        public static final Model TURBO = new Model("turbo", "ggml-large-v3-turbo-q5_0.bin",
+                "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2", 574, "large.v3.turbo", TURBO_LATE_MS);
+
+        public String url() {
+            return "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/" + file;
+        }
+
+        public static Model of(String id) {
+            return "turbo".equals(id) ? TURBO : SMALL;
+        }
+    }
+
     /**
-     * DTW places sung words late: on three real German songs (rock, pop, rap) line starts came 139 ms late in the
-     * median, so this much is taken off every DTW time.
+     * See {@link Model#lateMs}. Word by word on the three songs, large-v3-turbo placed words 12 ms later than small
+     * (192 against 180 ms in the median), with the same spread; so it is small's 150 ms plus that. It heard 87, 94 and
+     * 86 % of the words where small heard 77, 92 and 80 %, in about four times the time.
      */
-    static final long DTW_LATE_MS = 150;
+    static final long TURBO_LATE_MS = 162;
+    /** Kept for small, the model Hoergenau started with. */
+    static final long DTW_LATE_MS = Model.SMALL.lateMs();
+
+    /**
+     * Threads for whisper.cpp at below normal priority, so Windows lets the game go first: "low" two, "normal" a
+     * quarter of the cores (two to four; a song takes about a minute), "high" all but one.
+     */
+    static int threads(String power, int cores) {
+        return switch (power) {
+            case "low" -> 2;
+            case "high" -> Math.max(2, cores - 1);
+            default -> Math.max(2, Math.min(4, cores / 4));
+        };
+    }
     /**
      * DTW often pins the first word of a line to the end of the pause before it ("Es" 2.6 s before "ist"). A first word
      * this far before the next one is moved to just before it.
@@ -75,9 +110,28 @@ public final class WhisperEngine {
     public record Heard(String text, long startMs) {}
 
     private final Path dir;
+    /** The player's choice of model and power, read whenever whisper.cpp runs. */
+    private final Supplier<String> modelChoice;
+    private final Supplier<String> powerChoice;
 
     public WhisperEngine(Path dir) {
+        this(dir, () -> "small", () -> "normal");
+    }
+
+    public WhisperEngine(Path dir, Supplier<String> modelChoice, Supplier<String> powerChoice) {
         this.dir = dir;
+        this.modelChoice = modelChoice;
+        this.powerChoice = powerChoice;
+    }
+
+    /** The model chosen now. */
+    public Model chosen() {
+        return Model.of(modelChoice.get());
+    }
+
+    /** What is still to download for the chosen model, in MB. */
+    public long downloadMb() {
+        return (Files.isRegularFile(cli()) ? 0 : BUILD_MB) + (Files.isRegularFile(model()) ? 0 : chosen().megabytes());
     }
 
     /** Hoergenau needs Windows: the loopback recording and the whisper.cpp build are Windows ones. */
@@ -96,7 +150,7 @@ public final class WhisperEngine {
     }
 
     private Path model() {
-        return dir.resolve("ggml-small-q5_1.bin");
+        return dir.resolve(chosen().file());
     }
 
     /** Downloads and checks what is missing; reports the progress in percent of the whole. */
@@ -109,8 +163,10 @@ public final class WhisperEngine {
             unpack(zip);
             Files.deleteIfExists(zip);
         }
-        if (!Files.isRegularFile(model())) {
-            download(http, MODEL_URL, MODEL_SHA256, model(), 5, 100, percent);
+        Model model = chosen();
+        Path file = dir.resolve(model.file());
+        if (!Files.isRegularFile(file)) {
+            download(http, model.url(), model.sha256(), file, 5, 100, percent);
         }
         percent.accept(100);
     }
@@ -183,7 +239,8 @@ public final class WhisperEngine {
         try {
             writeWav(wav, samples, from, count);
             // -sns: sung words instead of "*Musik*"; -mc 0: no reading on from its own text, which let it skip a verse.
-            Process process = run(null, "-f", wav.toString(), "-l", language, "--dtw", "small", "-nfa", "-sns",
+            Model model = chosen();
+            Process process = run(null, "-f", wav.toString(), "-l", language, "--dtw", model.dtw(), "-nfa", "-sns",
                     "-mc", "0", "-ojf", "-of", out.toString(), "-np");
             if (!process.waitFor(15, TimeUnit.MINUTES)) {
                 process.destroyForcibly();
@@ -192,7 +249,7 @@ public final class WhisperEngine {
             if (process.exitValue() != 0 || !Files.isRegularFile(json)) {
                 throw new IOException("whisper.cpp ended with " + process.exitValue());
             }
-            List<List<Heard>> segments = parse(Files.readAllBytes(json));
+            List<List<Heard>> segments = parse(Files.readAllBytes(json), model.lateMs());
             if (shift == 0) {
                 return segments;
             }
@@ -241,7 +298,7 @@ public final class WhisperEngine {
     /** whisper-cli with the model and these arguments, below normal priority; what it prints goes to {@code log}. */
     private Process run(Path log, String... args) throws IOException {
         List<String> command = new ArrayList<>(List.of(cli().toString(), "-m", model().toString(),
-                "-t", Integer.toString(THREADS)));
+                "-t", Integer.toString(threads(powerChoice.get(), Runtime.getRuntime().availableProcessors()))));
         command.addAll(List.of(args));
         Process process = new ProcessBuilder(command).redirectErrorStream(true)
                 .redirectOutput(log == null ? ProcessBuilder.Redirect.DISCARD : ProcessBuilder.Redirect.to(log.toFile()))
@@ -269,6 +326,11 @@ public final class WhisperEngine {
      * ("ö" split over two tokens), so the file is read byte by byte and each word decoded once it is whole.
      */
     static List<List<Heard>> parse(byte[] json) {
+        return parse(json, DTW_LATE_MS);
+    }
+
+    /** The same, taking {@code lateMs} off every DTW time (see {@link Model#lateMs}). */
+    static List<List<Heard>> parse(byte[] json, long lateMs) {
         List<List<Heard>> segments = new ArrayList<>();
         JsonElement transcription = JsonParser.parseString(new String(json, StandardCharsets.ISO_8859_1))
                 .getAsJsonObject().get("transcription");
@@ -291,7 +353,7 @@ public final class WhisperEngine {
                     continue;
                 }
                 long dtw = token.has("t_dtw") ? token.get("t_dtw").getAsLong() : -1;
-                long time = dtw >= 0 ? Math.max(0, dtw * 10 - DTW_LATE_MS)
+                long time = dtw >= 0 ? Math.max(0, dtw * 10 - lateMs)
                         : token.getAsJsonObject("offsets").get("from").getAsLong();
                 if (text.startsWith(" ") || word.isEmpty()) {
                     if (!word.isEmpty()) {

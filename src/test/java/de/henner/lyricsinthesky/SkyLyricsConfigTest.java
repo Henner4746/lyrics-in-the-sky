@@ -52,7 +52,8 @@ class SkyLyricsConfigTest {
     void unknownValuesFallBackToTheDefaults(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("lyricsinthesky.json");
         Files.writeString(file, "{\"style\": \"neon\", \"palette\": \"plaid\", \"mode\": \"moon\", \"pauseMode\": \"sleep\", "
-                + "\"hoergenauModel\": \"huge\", \"hoergenauPower\": \"max\", \"menuStyle\": \"wood\"}", StandardCharsets.UTF_8);
+                + "\"hoergenauModel\": \"huge\", \"hoergenauPower\": \"max\", \"menuStyle\": \"wood\", \"hudHighlight\": \"glow\", "
+                + "\"hudFont\": \"comic\"}", StandardCharsets.UTF_8);
         SkyLyricsConfig config = SkyLyricsConfig.load(file);
         assertEquals("elegant", config.style);
         assertEquals("standard", config.palette);
@@ -61,6 +62,8 @@ class SkyLyricsConfigTest {
         assertEquals("small", config.hoergenauModel);
         assertEquals("normal", config.hoergenauPower);
         assertEquals("glass", config.menuStyle);
+        assertEquals("box", config.hudHighlight);
+        assertEquals("auto", config.hudFont);
     }
 
     @Test

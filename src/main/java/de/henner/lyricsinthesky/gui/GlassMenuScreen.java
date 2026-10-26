@@ -57,9 +57,9 @@ public final class GlassMenuScreen extends Screen {
     private static final int SECTION = 22;
     private static final int PREVIEW = 104;
     private static final int LIVE_CARD = 42;
-    private static final int CARD = 48;
+    private static final int CARD = 42;
     private static final int CARD_GAP = 8;
-    private static final int NOW_CARD = 44;
+    private static final int NOW_CARD = 40;
     private static final int CONTROL = 104;
 
     private static final int WINDOW_TOP = 0x15141C;
@@ -67,7 +67,8 @@ public final class GlassMenuScreen extends Screen {
     private static final int TEXT = 0xFFFFFF;
     private static final int DESC = 0x8E8C9C;
     private static final int SECTION_TEXT = 0x9C9AAB;
-    private static final int LINE = 0x16FFFFFF;
+    /** Hairlines between rows and around the header: white at this opacity. */
+    private static final float LINE = 0.08f;
     private static final FontDescription UI = new FontDescription.Resource(
             Identifier.fromNamespaceAndPath(LyricsInTheSkyClient.MOD_ID, "ui"));
     private static final FontDescription UI_MEDIUM = new FontDescription.Resource(
@@ -160,7 +161,8 @@ public final class GlassMenuScreen extends Screen {
                 new Section("Songtexte"),
                 new Toggle("Songtexte zeigen", "Alle Songtexte ein- oder ausblenden", c -> c.enabled, (c, on) -> c.enabled = on),
                 new Choice("Vorlage", "Ein ganzer Look mit einem Klick", SkyLyricsConfig.PRESETS, Map.of("standard", "Standard",
-                        "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig", "glass", "Glas"),
+                        "sky", "Himmel 1:1", "around", "Um dich 1:1", "party", "Party", "calm", "Ruhig", "glass", "Glas",
+                        "", "Eigener Look"),
                         c -> Objects.requireNonNullElse(c.currentPreset(), ""), SkyLyricsConfig::applyPreset),
                 new Choice("Anzeige", "Am Himmel oder um dich herum", SkyLyricsConfig.MODES,
                         Map.of("sky", "Am Himmel", "around", "Um dich herum"), c -> c.mode, (c, v) -> c.mode = v),
@@ -279,6 +281,12 @@ public final class GlassMenuScreen extends Screen {
                 new Toggle("Fortschritt", "Eine feine Linie, wie weit der Song ist", c -> c.hudProgress,
                         (c, on) -> c.hudProgress = on),
                 new Toggle("Equalizer", "Die tanzenden Balken am Ende", c -> c.hudEqualizer, (c, on) -> c.hudEqualizer = on),
+                new Choice("Hervorhebung", "Wie das gesungene Wort markiert ist", SkyLyricsConfig.HUD_HIGHLIGHTS,
+                        Map.of("box", "Hinterlegt", "color", "Farbe", "underline", "Linie"), c -> c.hudHighlight,
+                        (c, v) -> c.hudHighlight = v),
+                new Choice("Schrift", "Schrift der Leiste", SkyLyricsConfig.HUD_FONTS,
+                        Map.of("auto", "Wie Text", "sans", "Modern", "minecraft", "Minecraft"), c -> c.hudFont,
+                        (c, v) -> c.hudFont = v),
                 new Section("Farbe"),
                 new Toggle("Eigene Akzentfarbe", "Das gesungene Wort in deiner Farbe", c -> c.hudOwnAccent,
                         (c, on) -> c.hudOwnAccent = on),
@@ -629,7 +637,7 @@ public final class GlassMenuScreen extends Screen {
         Glass.fill(graphics, cx, y0 + 14, cx + 20, y0 + 34, 10, ARGB.color(open * (0.07f + 0.12f * hoverClose), 0xFFFFFF));
         graphics.centeredText(font, Component.literal("×").withStyle(label), cx + 10, y0 + 19,
                 ARGB.color(open * (0.7f + 0.3f * hoverClose), TEXT));
-        graphics.fill(x0 + PAD, y0 + HEADER - 1, x1 - PAD, y0 + HEADER, ARGB.color(open, LINE));
+        graphics.fill(x0 + PAD, y0 + HEADER - 1, x1 - PAD, y0 + HEADER, ARGB.color(open * LINE, 0xFFFFFF));
     }
 
     /** A rounded tile with a symbol, its color the accent turned a little round the color wheel per card. */
@@ -745,12 +753,12 @@ public final class GlassMenuScreen extends Screen {
 
     private void drawFooter(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float open, float dt) {
         int y = y1 - FOOTER;
-        graphics.fill(x0 + PAD, y, x1 - PAD, y + 1, ARGB.color(open, LINE));
+        graphics.fill(x0 + PAD, y, x1 - PAD, y + 1, ARGB.color(open * LINE, 0xFFFFFF));
         if (category != null) {
             boolean over = inReset(mouseX, mouseY);
             hoverReset = approach(hoverReset, over ? 1f : 0f, dt, 0.08f);
             int color = ARGB.srgbLerp(hoverReset, DESC, TEXT);
-            graphics.text(font, Component.literal("↺  Auf Standard zurücksetzen").withStyle(small), x0 + PAD, y + 9,
+            graphics.text(font, Component.literal("Auf Standard zurücksetzen").withStyle(small), x0 + PAD, y + 9,
                     ARGB.color(open, color), false);
         } else {
             graphics.text(font, Component.literal("Änderungen siehst du sofort").withStyle(small), x0 + PAD, y + 9,
@@ -829,7 +837,7 @@ public final class GlassMenuScreen extends Screen {
 
     private boolean inReset(double mx, double my) {
         int y = y1 - FOOTER;
-        return category != null && mx >= x0 + PAD && mx < x0 + PAD + 150 && my >= y + 4 && my < y + 22;
+        return category != null && mx >= x0 + PAD && mx < x0 + PAD + 130 && my >= y + 4 && my < y + 22;
     }
 
     @Override
@@ -1025,6 +1033,8 @@ public final class GlassMenuScreen extends Screen {
         final String desc;
         boolean enabled = true;
         boolean indent;
+        /** The description did not fit its line; the bubble shows it whole. */
+        boolean cut;
         /** Instead of taking the default from a fresh config: what "Auf Standard zurücksetzen" does here. */
         java.util.function.Consumer<SkyLyricsConfig> reset;
 
@@ -1045,7 +1055,7 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         String more() {
-            return desc;
+            return cut ? desc : null;
         }
 
         @Override
@@ -1057,8 +1067,9 @@ public final class GlassMenuScreen extends Screen {
             int textWidth = w - controlWidth(w) - 12 - (tx - x);
             float dim = enabled ? 1f : 0.45f;
             graphics.text(font, fit(name, label, textWidth), tx, y + 5, ARGB.color(alpha * dim, TEXT), false);
+            cut = !fitsIn(desc, small, textWidth) || !fitsIn(name, label, textWidth);
             graphics.text(font, fit(desc, small, textWidth), tx, y + 17, ARGB.color(alpha * dim, DESC), false);
-            graphics.fill(x, y + ROW - 1, x + w, y + ROW, ARGB.color(alpha, LINE));
+            graphics.fill(x, y + ROW - 1, x + w, y + ROW, ARGB.color(alpha * LINE, 0xFFFFFF));
             drawControl(graphics, x + w - controlWidth(w), y, controlWidth(w), mouseX, mouseY, alpha * dim, dt);
         }
 
@@ -1307,7 +1318,7 @@ public final class GlassMenuScreen extends Screen {
                     ARGB.color(alpha, overLeft ? accentLight() : DESC));
             graphics.centeredText(font, Component.literal("›").withStyle(label), x + w - 9, y + 11,
                     ARGB.color(alpha, overRight ? accentLight() : DESC));
-            String shown = index >= 0 ? name(current) : "Eigene";
+            String shown = names.getOrDefault(current, index >= 0 ? current : "Eigene");
             graphics.centeredText(font, fit(shown, label, w - 40), x + w / 2, y + 11, ARGB.color(alpha, TEXT));
             // Dots for where in the list it is.
             if (values.size() <= 16) {
@@ -1463,7 +1474,7 @@ public final class GlassMenuScreen extends Screen {
 
         @Override
         String more() {
-            return text.get();
+            return cut ? text.get() : null;
         }
 
         @Override
@@ -1475,10 +1486,11 @@ public final class GlassMenuScreen extends Screen {
         void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
             graphics.text(font, fit(name, label, w), x, y + 5, ARGB.color(alpha, TEXT), false);
             List<FormattedCharSequence> lines = font.split(Component.literal(text.get()).withStyle(small), w);
+            cut = lines.size() > 2;
             for (int i = 0; i < Math.min(2, lines.size()); i++) {
                 graphics.text(font, lines.get(i), x, y + 16 + i * 9, ARGB.color(alpha, DESC), false);
             }
-            graphics.fill(x, y + height() - 1, x + w, y + height(), ARGB.color(alpha, LINE));
+            graphics.fill(x, y + height() - 1, x + w, y + height(), ARGB.color(alpha * LINE, 0xFFFFFF));
         }
 
         @Override
@@ -1767,7 +1779,7 @@ public final class GlassMenuScreen extends Screen {
                     : (typed + "______").substring(0, 6);
             graphics.text(font, Component.literal("#" + hex).withStyle(label), swx, sy + 42,
                     ARGB.color(a, typed.isEmpty() ? 0xD8D6E2 : accentLight()), false);
-            graphics.text(font, fit("Hex tippen", small, x + W - 12 - swx), swx, sy + 55, ARGB.color(a, DESC), false);
+            graphics.text(font, fit("tippen", small, x + W - 12 - swx), swx, sy + 55, ARGB.color(a, DESC), false);
             int rowY = sy + SQUARE_H + 10;
             int size = 13;
             int gap = (W - 24 - SWATCHES.length * size) / (SWATCHES.length - 1);

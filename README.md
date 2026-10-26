@@ -34,8 +34,9 @@ you.
 - **Around you:** every sung word floats on its own at a fixed spot near you – big, slanted, slightly
   turned – and stays there while you walk or fight, until it fades out a couple of seconds later. A "now
   playing" card hangs in front of you when a song starts.
-- **Colors of your choice:** gradient text in rose, lavender or eight more palettes (new: *Glas* and *Neon*), or a
-  different one per song; glow at night and shadow by day as strong as you like.
+- **Colors of your choice:** gradient text in rose, lavender or ten more palettes (*Glas*, *Neon*, *Regenbogen* with a
+  new hue for every line), a different one per song, or your **own four colors** (top, bottom, the sung word, the
+  glow) from a color picker; glow at night, shadow by day and an optional **outline** in any color and width.
 - **Four styles:** *Elegant* (the two looks above), *Natürlich 1:1* (the same as if it really stood in the world:
   lines right above the hills, players and blocks in front of the words around you, the words being sung
   highlighted as a group), *Stapel* (the current line in the middle, the next
@@ -49,9 +50,15 @@ you.
 - **Wobble on the beat** (optional): every sung word gives the lyrics a little kick, long words a stronger one.
 - **Behind the hills or always visible:** in the sky the text stands behind mountains, trees and clouds like
   the sun; one switch puts it in front of everything instead.
-- **Settings screen on Right Shift** with live preview, in three pages: *Allgemein* (mode, style, timing, lookups,
-  Spotify), *Aussehen* (theme, font, colors, sizes, glow, the bar) and *Quellen* (where lyrics and word times come
-  from).
+- **The glass menu on Right Shift** (new default): a black glass window over the blurred world with a card for
+  every part of the mod and switches right on the cards; each card opens a page with a **live preview** (a small
+  night sky singing a sample line in your look), sections and rows with switches, sliders, choices and colors,
+  "Auf Standard zurücksetzen" per page and a **live view** that steps the menu aside while the demo sings in the
+  sky. The lively and the minimal menu stay one click away (page *Menü*).
+- **Make it yours:** capitals, animation speed, how strongly it wobbles on the beat, what happens on pause (dim, fade
+  out, keep), lyrics further left or right; the bar's own accent color, a progress line, artist and equalizer on or
+  off, how the sung word is marked (box, color, underline) and the bar's own font; the menu's accent color, blur and
+  animations.
 - **No login needed** for music on your PC. **Optional Spotify login** for music on your phone, console or
   any other Spotify Connect device.
 
@@ -219,9 +226,18 @@ is placed on the recording; if there is none, what was heard becomes the lyrics.
 word by word. If LRCLIB gets real lines later, they replace what was learned.
 
 - **Cost:** a one-time download of about 190 MB (whisper.cpp from GitHub, the "small" model from Hugging Face, both
-  checked against a fixed checksum). Per learned song, once, about 1–2 minutes of up to four CPU cores at low priority
-  and up to 750 MB of memory in a separate process; the listening itself costs next to nothing. Songs with times are
-  never listened to.
+  checked against a fixed checksum), or 574 MB for the model *Genau* (Whisper large-v3-turbo). Per learned song, once,
+  about 1–2 minutes of up to four CPU cores at low priority (*Genau* about four times as long) and up to 750 MB of
+  memory in a separate process; *Leistung* chooses two cores, a quarter of them or all but one. The listening itself
+  costs next to nothing.
+- **Models:** *Schnell* (small) and *Genau* (large-v3-turbo), calibrated on the songs below: *Genau* heard 87, 94 and
+  86 % of the sung words where *Schnell* heard 77, 92 and 80 %, with the same timing.
+- **Sync check** (*Sync prüfen*, on with Hörgenau): a song that has word times is heard once for 50 s, its heard
+  words are compared with the shown ones, and when nearly all agree that the lyrics run early or late by the same
+  amount, the song is moved by it – a source timed for another version of the song. Measured live against the sung
+  audio, two of twelve songs came 0.8 and 1.1 s late this way while the others were within a tenth of a second. The
+  correction is the song's own timing ("Dieser Song"), never replaces one you set, and is shared like one set by
+  hand.
 - **Accuracy:** measured on three real German songs with hand-made timings from the
   [JamendoLyrics](https://github.com/f90/jamendolyrics) benchmark (rock, pop, rap): line starts were 43–89 ms off in
   the median, 71–88 % of them less than 200 ms and 91–100 % less than a second. Played through the speakers while the
@@ -234,7 +250,8 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   other players learned run word by word here at once, without listening. The tracker checks text placed on
   lrclib.net's lyrics against lrclib.net itself; lyrics written down as heard count once players on two networks heard
   alike. On by default; "Teilen" on the page *Quellen* or `/skylyrics sharelearned off` switches it off.
-- **Privacy:** it hears everything that plays on the default speakers, voice chat included, while such a song plays.
+- **Privacy:** it hears everything that plays on the default speakers, voice chat included, while such a song plays
+  (and for the 50 s of a sync check).
   The recording never leaves the PC and does not stay on disk, except briefly as a file for whisper.cpp that is
   deleted right after. With sharing on, the learned lyrics (text and word times) go to the tracker.
 - Switch it on on the page *Quellen* ("Hörgenau"), with `/skylyrics hoergenau on`, or with the button the mod offers

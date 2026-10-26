@@ -10,6 +10,27 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.11 – 2026-10-26
+
+- **The glass menu** (new default, Right Shift): a black glass window over the blurred world. It opens on a card for
+  every part of the mod – Anzeige, Schrift & Farben, Animation, Leiste, Timing, Quellen, Hörgenau (KI), Spotify,
+  Streamer, Menü – with switches right on the cards and the song playing on top. A card opens its page: a live preview
+  (a small synthwave night sky singing a sample line in your look), sections, and rows of a title, a grey line on
+  what it does and a switch, slider, choice or color on the right; a color picker with a saturation field, a hue strip,
+  swatches and typed hex codes; "Auf Standard zurücksetzen" per page; a live view that steps the menu aside while the
+  demo sings in the sky; Esc goes back, then closes. Everything glides, glows and springs open, or keeps still.
+- **27 new options**, each with its effect in the game: own colors (top, bottom, sung word, glow) and a rainbow palette;
+  outline with color and width; shadow by day on its own; capitals; animation speed; beat strength; what happens on
+  pause; lyrics further left or right; the bar's own accent color, progress line, artist, equalizer, highlight (box,
+  color, underline) and font; the menu's accent color, blur and animations; Hörgenau's model, power and sync check.
+- **Hörgenau, better:** the model *Genau* (Whisper large-v3-turbo, 574 MB) hears 87–94 % of the sung words where
+  *Schnell* hears 77–92 %, calibrated on the JamendoLyrics songs; *Leistung* chooses how many cores it may use.
+- **Sync check:** Hörgenau hears 50 s of a song that has word times and moves it when nearly all words agree it runs
+  early or late. Measured live against the sung audio of twelve songs played through Spotify: the words came 38–185 ms
+  from the singing in the median, except two songs whose source had timed another version (In the End 1.1 s late from
+  NetEase, Roller 0.8 s late from Deezer) – exactly what the check finds and corrects.
+- The menu's text in Poppins Regular and Medium.
+
 ### 1.3.0-dev.10 – 2026-10-26
 
 - **Umlauts back in word-timed lyrics:** QQ Music (read through LyricsPlus) loses every umlaut together with the letter

@@ -3,6 +3,7 @@ package de.henner.lyricsinthesky.dev;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
+import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.lyrics.Lyrics;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.Perf;
@@ -33,6 +34,8 @@ public final class LiveTest {
     /** Mode, style and bar, one look a minute. */
     private static final String[][] LOOKS = {{"sky", "elegant", "pill"}, {"around", "elegant", "karaoke"},
             {"sky", "flow", "plain"}, {"sky", "natural", "karaoke"}, {"around", "classic", "pill"}, {"sky", "classic", "title"}};
+    /** Pages of the glass menu shown in turn; {@code null} is its start with the song playing. */
+    private static final String[] MENU_PAGES = {null, "look", "bar", "hoergenau", "display", "motion"};
     private static int ticksInWorld;
     private static Lyrics dumped;
 
@@ -109,10 +112,13 @@ public final class LiveTest {
         if (second % 240 == 180) {
             LyricsInTheSkyClient.setStreamerMode(config, false);
         }
-        // The menu every two minutes, in the fancy look.
+        // The glass menu every two minutes, a different page each time.
         if (second % 120 == 40) {
-            config.menuStyle = "fancy";
+            config.menuStyle = "glass";
             LyricsInTheSkyClient.openSettings(minecraft);
+            if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
+                menu.show(MENU_PAGES[(second / 120) % MENU_PAGES.length]);
+            }
         }
         if (second % 120 == 42) {
             shoot(minecraft, "menu " + second);

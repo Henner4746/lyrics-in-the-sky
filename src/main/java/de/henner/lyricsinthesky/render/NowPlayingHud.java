@@ -75,6 +75,8 @@ public final class NowPlayingHud implements HudElement {
     /** The player's choices: a progress line along the bottom, the equalizer at the pill's end. */
     private boolean progress;
     private boolean equalizer = true;
+    /** How the word being sung is marked; see {@link SkyLyricsConfig#HUD_HIGHLIGHTS}. */
+    private String highlight = "box";
     private Palette palette = Palette.AURORA;
     private Style textStyle = Style.EMPTY;
     /** Highlight the words being sung as one group instead of only the current word. */
@@ -136,6 +138,7 @@ public final class NowPlayingHud implements HudElement {
         Font font = minecraft.font;
         String style = config.hudStyle;
         equalizer = config.hudEqualizer;
+        highlight = config.hudHighlight;
         int maxText = Math.min(MAX_TEXT, graphics.guiWidth() - 90);
         int textWidth = Math.min(maxText, textWidth(font, words));
         int height;
@@ -397,9 +400,13 @@ public final class NowPlayingHud implements HudElement {
         return config.hudOwnAccent ? palette.withAccent(config.hudAccentColor) : palette;
     }
 
-    /** The bar speaks in the same type as the lyrics, except handwriting, which is too busy at this size. */
+    /**
+     * The bar speaks in the type the player chose for it; "auto" the lyrics' own, except handwriting, which is too busy
+     * at this size and becomes the modern one.
+     */
     private static Style barStyle(SkyLyricsConfig config) {
-        return "sans".equals(config.font) ? SkyLyricsRenderer.regularStyle("sans") : Style.EMPTY;
+        String font = "auto".equals(config.hudFont) ? ("minecraft".equals(config.font) ? "minecraft" : "sans") : config.hudFont;
+        return "sans".equals(font) ? SkyLyricsRenderer.regularStyle("sans") : Style.EMPTY;
     }
 
     private void changed(String key, long now) {
@@ -434,20 +441,28 @@ public final class NowPlayingHud implements HudElement {
                 cursor += wordWidth + space;
             }
             float fresh = Easing.outCubic((positionMs - wordTimes[first]) / 180f);
-            int radius = Math.round(6.5f * roundness);
-            Glass.fill(graphics, left - 3, y - 3, right + 3, y + 10, radius,
-                    ARGB.color(opacity * (glass ? 0.62f : 0.85f) * fresh, palette.accentEnd));
-            if (glass) {
-                // A drop of tinted glass sliding under the word.
-                Glass.rim(graphics, left - 3, y - 3, right + 3, y + 10, radius, opacity * fresh * 0.9f);
+            if ("underline".equals(highlight)) {
+                // A line growing under the words being sung, from their left edge.
+                int grown = left + Math.round((right - left) * fresh);
+                Glass.fill(graphics, left, y + 10, grown, y + 12, 1, ARGB.color(opacity, palette.accentStart));
+            } else if ("box".equals(highlight)) {
+                int radius = Math.round(6.5f * roundness);
+                Glass.fill(graphics, left - 3, y - 3, right + 3, y + 10, radius,
+                        ARGB.color(opacity * (glass ? 0.62f : 0.85f) * fresh, palette.accentEnd));
+                if (glass) {
+                    // A drop of tinted glass sliding under the word.
+                    Glass.rim(graphics, left - 3, y - 3, right + 3, y + 10, radius, opacity * fresh * 0.9f);
+                }
             }
         }
+        int sungFrom = lyricLine && current >= 0 && "color".equals(highlight)
+                ? (groupHighlight ? groupStart(current) : current) : Integer.MAX_VALUE;
         int cursor = x;
         for (int i = 0; i < words.length; i++) {
             Component word = Component.literal(words[i]).withStyle(textStyle);
             int wordWidth = font.width(word);
             boolean sung = !lyricLine || i <= current;
-            int color = sung ? 0xFFFFFF : UNSUNG;
+            int color = i >= sungFrom && i <= current ? palette.accentStart : sung ? 0xFFFFFF : UNSUNG;
             graphics.text(font, word, cursor, y, ARGB.color(opacity * (sung ? 1f : 0.85f), color), false);
             cursor += wordWidth + space;
         }

@@ -34,8 +34,10 @@ als einzelne Wörter, die rund um dich schweben.
 - **Um dich herum:** Jedes gesungene Wort schwebt einzeln an einem festen Platz in deiner Nähe – groß,
   kursiv, leicht gedreht – und bleibt dort, während du läufst oder kämpfst, bis es nach ein paar Sekunden
   verblasst. Zum Songstart hängt eine „Now Playing“-Karte vor dir.
-- **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder acht weiteren Paletten (neu: *Glas* und
-  *Neon*), oder je Song anders; Leuchten bei Nacht und Schatten bei Tag so stark, wie du willst.
+- **Farben nach Wahl:** Text mit Farbverlauf in Altrosa, Lavendel oder zehn weiteren Paletten (*Glas*, *Neon*,
+  *Regenbogen* mit neuem Farbton für jede Zeile), je Song anders oder in deinen **eigenen vier Farben** (oben, unten,
+  gesungenes Wort, Leuchten) aus dem Farbwähler; Leuchten bei Nacht, Schatten bei Tag und eine **Kontur** in jeder
+  Farbe und Breite.
 - **Vier Stile:** *Elegant* (die beiden Looks oben), *Natürlich 1:1* (dasselbe, als stünde es wirklich in der Welt:
   Zeilen knapp über den Hügeln, Spieler und Blöcke vor den Wörtern um dich herum, die gesungenen Wörter als
   Gruppe markiert), *Stapel* (aktuelle Zeile in der Mitte, die nächste
@@ -51,9 +53,16 @@ als einzelne Wörter, die rund um dich schweben.
   stärkeren.
 - **Hinter Bergen oder immer sichtbar:** Am Himmel steht die Schrift wie die Sonne hinter Bergen, Bäumen und
   Wolken; ein Schalter holt sie vor alles.
-- **Einstellungen mit der rechten Umschalttaste** mit Live-Vorschau, auf drei Seiten: *Allgemein* (Anzeige, Stil,
-  Timing, Abfragen, Spotify), *Aussehen* (Theme, Schrift, Farben, Größen, Leuchten, die Leiste) und *Quellen*
-  (woher Songtexte und Wortzeiten kommen).
+- **Das Glas-Menü auf der rechten Umschalttaste** (neuer Standard): ein schwarzes Glasfenster über der weichgezeichneten
+  Welt mit einer Karte für jeden Teil der Mod und Schaltern direkt auf den Karten; jede Karte öffnet eine Seite mit
+  **Live-Vorschau** (ein kleiner Nachthimmel singt eine Beispielzeile in deinem Look), Abschnitten und Zeilen mit
+  Schaltern, Reglern, Auswahl und Farben, „Auf Standard zurücksetzen“ je Seite und einer **Live-Ansicht**, bei der das
+  Menü zur Seite tritt, während die Demo am Himmel singt. Das prachtvolle und das minimale Menü bleiben einen Klick
+  entfernt (Seite *Menü*).
+- **Ganz nach deinem Geschmack:** Großbuchstaben, Animationstempo, wie stark es im Takt wackelt, was bei Pause passiert
+  (abdunkeln, ausblenden, weiter zeigen), die Texte weiter links oder rechts; die eigene Akzentfarbe der Leiste, eine
+  Fortschrittslinie, Künstler und Equalizer an oder aus, wie das gesungene Wort markiert ist (hinterlegt, Farbe, Linie)
+  und die eigene Schrift der Leiste; Akzentfarbe, Unschärfe und Animationen des Menüs.
 - **Keine Anmeldung nötig** für Musik auf dem PC. **Optional Spotify-Login** für Musik vom Handy, von der
   Konsole oder einem anderen Spotify-Connect-Gerät.
 
@@ -224,9 +233,18 @@ ohne Zeiten, wird dieser Text auf die Aufnahme gelegt; gibt es keinen, wird das 
 nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte Zeilen, ersetzen die das Gelernte.
 
 - **Kosten:** einmal ca. 190 MB Download (whisper.cpp von GitHub, Modell „small“ von Hugging Face, beide mit fester
-  Prüfsumme). Je gelerntem Song einmal etwa 1–2 Minuten bis zu vier CPU-Kerne mit niedriger Priorität und bis 750 MB
-  Arbeitsspeicher in einem eigenen Prozess; das Mithören selbst kostet kaum etwas. Songs mit Zeiten werden nie
-  mitgehört.
+  Prüfsumme), oder 574 MB für das Modell *Genau* (Whisper large-v3-turbo). Je gelerntem Song einmal etwa 1–2 Minuten
+  bis zu vier CPU-Kerne mit niedriger Priorität (*Genau* etwa viermal so lange) und bis 750 MB Arbeitsspeicher in einem
+  eigenen Prozess; *Leistung* wählt zwei Kerne, ein Viertel davon oder alle bis auf einen. Das Mithören selbst kostet
+  kaum etwas.
+- **Modelle:** *Schnell* (small) und *Genau* (large-v3-turbo), geeicht an den Songs unten: *Genau* hörte 87, 94 und
+  86 % der gesungenen Wörter, wo *Schnell* 77, 92 und 80 % hörte, bei gleicher Zeitgenauigkeit.
+- **Sync prüfen** (an mit Hörgenau): Ein Song, der schon Wortzeiten hat, wird einmal 50 s lang gehört, die gehörten
+  Wörter werden mit den gezeigten verglichen, und wenn fast alle sagen, dass der Text um dasselbe Stück zu früh oder zu
+  spät läuft, wird der Song darum verschoben – eine Quelle, die eine andere Fassung des Songs getimt hat. Live am
+  gesungenen Ton gemessen kamen so zwei von zwölf Songs 0,8 und 1,1 s zu spät, die anderen lagen innerhalb einer
+  Zehntelsekunde. Die Korrektur ist die eigene des Songs („Dieser Song“), ersetzt nie eine, die du gesetzt hast, und
+  wird geteilt wie eine von Hand gesetzte.
 - **Genauigkeit:** Gemessen an drei echten deutschen Songs mit von Hand gesetzten Zeiten aus dem Benchmark
   [JamendoLyrics](https://github.com/f90/jamendolyrics) (Rock, Pop, Rap): Die Zeilenanfänge lagen im Median 43–89 ms
   daneben, 71–88 % weniger als 200 ms und 91–100 % weniger als eine Sekunde. Über die Lautsprecher abgespielt, während
@@ -242,7 +260,7 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   wurde, prüft der Tracker selbst bei lrclib.net; Abgeschriebenes gilt, sobald Spieler aus zwei Netzen es ähnlich
   gehört haben. Von Anfang an an; „Teilen“ auf der Seite *Quellen* oder `/skylyrics sharelearned off` schaltet es ab.
 - **Datenschutz:** Mitgehört wird alles, was über den Standardlautsprecher läuft, also auch Sprachchat, solange so ein
-  Song läuft. Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
+  Song läuft (und für die 50 s einer Sync-Prüfung). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
   die gleich danach gelöscht wird. Mit „Teilen“ geht der gelernte Songtext (Text und Wortzeiten) an den Tracker.
 - Einschalten auf der Seite *Quellen* („Hörgenau“), mit `/skylyrics hoergenau on` oder mit dem Knopf, den die Mod im
   Chat anbietet, wenn ein Song keine Wortzeiten hat. Ein kleiner Hinweis in der Ecke sagt, was es gerade tut; während

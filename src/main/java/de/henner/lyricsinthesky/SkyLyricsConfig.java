@@ -30,6 +30,10 @@ public final class SkyLyricsConfig {
             "sakura", "ocean", "white", "glass", "neon", "rainbow", "custom");
     /** What the lyrics do while the music is paused: "dim" fade to 40 %, "hide" fade out, "keep" stay as they are. */
     public static final List<String> PAUSE_MODES = List.of("dim", "hide", "keep");
+    /** How the bar marks the word being sung: "box" behind it, "color" the word itself, "underline" a line below. */
+    public static final List<String> HUD_HIGHLIGHTS = List.of("box", "color", "underline");
+    /** The bar's type: "auto" as the lyrics (handwriting as "modern"), "sans" modern, "minecraft" the game's. */
+    public static final List<String> HUD_FONTS = List.of("auto", "sans", "minecraft");
     /**
      * Hoergenau's speech model: "small" (190 MB, quick on any PC) or "turbo" (Whisper large-v3-turbo, 574 MB, hears
      * sung words far better and times them more closely, needs a few times as long).
@@ -199,6 +203,10 @@ public final class SkyLyricsConfig {
     public boolean hudArtist = true;
     /** The little equalizer at the right end of the pill. */
     public boolean hudEqualizer = true;
+    /** One of {@link #HUD_HIGHLIGHTS}. */
+    public String hudHighlight = "box";
+    /** One of {@link #HUD_FONTS}. */
+    public String hudFont = "auto";
     /** Accent of the glass menu: switches, sliders, the selected tab. */
     public int menuAccent = 0xA855F7;
     /** The world behind the glass menu softly blurred. */
@@ -326,6 +334,12 @@ public final class SkyLyricsConfig {
         configVersion = CONFIG_VERSION;
         if (menuStyle == null || !MENU_STYLES.contains(menuStyle)) {
             menuStyle = "glass";
+        }
+        if (hudHighlight == null || !HUD_HIGHLIGHTS.contains(hudHighlight)) {
+            hudHighlight = "box";
+        }
+        if (hudFont == null || !HUD_FONTS.contains(hudFont)) {
+            hudFont = "auto";
         }
         if (pauseMode == null || !PAUSE_MODES.contains(pauseMode)) {
             pauseMode = "dim";

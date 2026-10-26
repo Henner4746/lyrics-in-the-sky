@@ -162,7 +162,7 @@ public final class LyricsController {
         if (now == null) {
             trackKey = null;
             if (listener != null) {
-                listener.observe(null, null, null, List.of(), null);
+                listener.observe(null, null, null, List.of(), null, null);
             }
             return;
         }
@@ -176,7 +176,9 @@ public final class LyricsController {
         if (listener != null) {
             listener.observe(now, key, shownFor(cached), cached == null ? List.of() : cached.lyrics()
                     .filter(Lyrics::isEstimated).map(found -> found.lines().stream().map(Lyrics.Line::text).toList())
-                    .orElse(List.of()), simulated != null ? null : source.otherPlaying());
+                    .orElse(List.of()), simulated != null ? null : source.otherPlaying(), cached == null ? null
+                    : cached.lyrics().filter(found -> !found.isEstimated() && !found.isInstrumental()
+                            && !Hoergenau.learned(found)).orElse(null));
         }
         if (cached != null && tracker != null) {
             // Once per song: did other players correct its timing?
@@ -542,6 +544,20 @@ public final class LyricsController {
      * The player's own timing for a song; {@code null} forgets it, so the one many players agreed on applies again.
      * Corrections of timed lyrics are shared, unless the player switched that off.
      */
+    /**
+     * A correction Hoergenau measured for a song; it never replaces one the player set. Shared like a correction set
+     * by hand, so other players get it once enough agree.
+     */
+    public void applyHeardOffset(NowPlaying track, Lyrics lyrics, int offsetMs) {
+        String id = SongId.of(track.artist(), track.title(), lyrics);
+        if (timings.own(id).isPresent()) {
+            LOGGER.info("Hoergenau's correction of {} ms for '{}' not taken: the player set an own one", offsetMs,
+                    track.title());
+            return;
+        }
+        setSongOffset(new Song(id, track.title(), shareable(lyrics)), offsetMs);
+    }
+
     public void setSongOffset(Song song, Integer offsetMs) {
         timings.setOwn(song.id(), offsetMs);
         if (tracker != null && song.shareable()) {
