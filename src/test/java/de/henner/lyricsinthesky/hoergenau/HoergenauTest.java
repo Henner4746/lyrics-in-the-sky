@@ -332,7 +332,7 @@ class HoergenauTest {
     private static Hoergenau checking(Path dir, Recorder recorder, LyricsCache saved) throws Exception {
         Path engineDir = dir.resolve("hoergenau");
         Files.createDirectories(engineDir.resolve("bin"));
-        Files.createFile(engineDir.resolve("bin").resolve("whisper-cli.exe"));
+        Files.createFile(engineDir.resolve("bin").resolve(WhisperEngine.windows() ? "whisper-cli.exe" : "whisper-cli"));
         Files.createFile(engineDir.resolve(WhisperEngine.Model.SMALL.file()));
         SkyLyricsConfig config = new SkyLyricsConfig();
         config.hoergenau = true;
