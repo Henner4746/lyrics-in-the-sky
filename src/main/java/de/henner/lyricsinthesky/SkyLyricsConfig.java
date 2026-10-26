@@ -61,9 +61,13 @@ public final class SkyLyricsConfig {
      * filling up word by word with the next one below, "stage" big lines on the left, the line before and the next ones
      * dimmed, gliding up as the song goes on.
      */
-    public static final List<String> SCREEN_STYLES = List.of("subtitle", "karaoke", "stage");
-    public static final Map<String, String> SCREEN_STYLE_NAMES = Map.of("subtitle", "Untertitel", "karaoke", "Karaoke",
-            "stage", "Bühne");
+    public static final List<String> SCREEN_STYLES = List.of("subtitle", "karaoke", "stage", "word", "typewriter", "ticker",
+            "bounce", "wave", "sidebar", "kinetic", "chat");
+    public static final Map<String, String> SCREEN_STYLE_NAMES = Map.ofEntries(Map.entry("subtitle", "Untertitel"),
+            Map.entry("karaoke", "Karaoke"), Map.entry("stage", "Bühne"), Map.entry("word", "Ein Wort"),
+            Map.entry("typewriter", "Schreibmaschine"), Map.entry("ticker", "Laufband"),
+            Map.entry("bounce", "Springender Ball"), Map.entry("wave", "Welle"), Map.entry("sidebar", "Seitenleiste"),
+            Map.entry("kinetic", "Kinetisch"), Map.entry("chat", "Chat"));
     /** Where the lyrics on the screen sit. */
     public static final List<String> SCREEN_POSITIONS = List.of("bottom", "center", "top");
     /**
@@ -81,13 +85,17 @@ public final class SkyLyricsConfig {
      * lyrics are on.
      */
     public static final List<String> PRESETS = List.of("standard", "sky", "around", "party", "calm", "glass", "subtitle",
-            "karaoke", "stage", "neon", "rainbow", "cinema", "retro", "clean");
+            "karaoke", "stage", "neon", "rainbow", "cinema", "retro", "clean", "word", "typewriter", "ticker", "bounce",
+            "wave", "sidebar", "kinetic", "chat");
     public static final Map<String, String> PRESET_NAMES = Map.ofEntries(Map.entry("standard", "Standard"),
             Map.entry("sky", "Himmel 1:1"), Map.entry("around", "Um dich 1:1"), Map.entry("party", "Party"),
             Map.entry("calm", "Ruhig"), Map.entry("glass", "Glas"), Map.entry("subtitle", "Untertitel"),
             Map.entry("karaoke", "Karaoke"), Map.entry("stage", "Bühne"), Map.entry("neon", "Neon-Nacht"),
             Map.entry("rainbow", "Regenbogen"), Map.entry("cinema", "Kino"), Map.entry("retro", "Retro"),
-            Map.entry("clean", "Schlicht"), Map.entry("", "Eigener Look"));
+            Map.entry("clean", "Schlicht"), Map.entry("word", "Ein Wort"), Map.entry("typewriter", "Schreibmaschine"),
+            Map.entry("ticker", "Laufband"), Map.entry("bounce", "Karaoke-Ball"), Map.entry("wave", "Welle"),
+            Map.entry("sidebar", "Seitenleiste"), Map.entry("kinetic", "Kinetisch"), Map.entry("chat", "Chat"),
+            Map.entry("", "Eigener Look"));
 
     /** What a preset gives, for the menus. */
     public static String presetHint(String preset) {
@@ -106,6 +114,14 @@ public final class SkyLyricsConfig {
             case "cinema" -> "Groß, weiß und in Großbuchstaben mit Kontur, ruhig gleitend wie ein Filmtitel.";
             case "retro" -> "Die Minecraft-Schrift in Gold mit dunkler Kontur, verspielt am Himmel.";
             case "clean" -> "Nur der Text: schlicht weiß am Himmel, kaum Leuchten, ohne Leiste und ohne Titel.";
+            case "word" -> "Nur das Wort, das gerade gesungen wird: groß in der Mitte des Bildschirms, in Neonfarben.";
+            case "typewriter" -> "Die Zeile tippt sich Buchstabe für Buchstabe mit dem Gesang, in der Minecraft-Schrift.";
+            case "ticker" -> "Der ganze Text läuft unten durch wie ein Nachrichtenticker, das gesungene Wort in Gold.";
+            case "bounce" -> "Wie früher beim Karaoke: ein Ball hüpft über die Zeile von Wort zu Wort.";
+            case "wave" -> "Die gesungenen Wörter wogen wie eine Welle, in Ozeanblau.";
+            case "sidebar" -> "Die Zeilen in einer Spalte am rechten Rand, die gesungene hell, alles gleitet hoch.";
+            case "kinetic" -> "Jedes Wort springt in eigener Größe und Neigung auf, wenn es gesungen wird, in Regenbogenfarben.";
+            case "chat" -> "Die Zeilen als Sprechblasen wie im Messenger, abwechselnd links und rechts.";
             default -> "Eine Vorlage setzt Anzeige, Stil, Farben, Schrift und Effekte auf einmal.";
         };
     }
@@ -115,9 +131,9 @@ public final class SkyLyricsConfig {
      */
     public static final List<String> THEMES = List.of("classic", "glass");
     /**
-     * Looks of the menu itself: "minimal" every page and option drawn as the menu always looked (the plain panel, grey
-     * labels, thin lines, nothing moving), "glass" the same as a black glass window with cards and a live preview,
-     * "fancy" the lively older menu with a moving backdrop and sparkles.
+     * Looks of the menu itself, all with the same pages and options: "minimal" drawn as the menu always looked (the plain
+     * panel, grey labels, thin lines, nothing moving), "glass" a black glass window with cards and a live preview,
+     * "fancy" the glass window with an aurora behind it, rising notes and light running around its rim.
      */
     public static final List<String> MENU_STYLES = List.of("minimal", "glass", "fancy");
     /**
@@ -582,6 +598,67 @@ public final class SkyLyricsConfig {
                 glow = 0.4f;
                 shadow = 1.2f;
                 showTitleCard = false;
+                showHud = false;
+            }
+            case "word" -> {
+                mode = "screen";
+                screenStyle = "word";
+                screenPosition = "center";
+                palette = "neon";
+                outline = true;
+                outlineColor = 0x12001F;
+                showHud = false;
+            }
+            case "typewriter" -> {
+                mode = "screen";
+                screenStyle = "typewriter";
+                font = "minecraft";
+                palette = "white";
+                screenBackground = true;
+                showHud = false;
+            }
+            case "ticker" -> {
+                mode = "screen";
+                screenStyle = "ticker";
+                palette = "gold";
+                screenBackground = true;
+                showHud = false;
+            }
+            case "bounce" -> {
+                mode = "screen";
+                screenStyle = "bounce";
+                palette = "sunset";
+                outline = true;
+                outlineColor = 0x1A0B2E;
+                showHud = false;
+            }
+            case "wave" -> {
+                mode = "screen";
+                screenStyle = "wave";
+                palette = "ocean";
+                shadow = 1.4f;
+                showHud = false;
+            }
+            case "sidebar" -> {
+                mode = "screen";
+                screenStyle = "sidebar";
+                screenPosition = "center";
+                palette = "lavender";
+                showHud = false;
+            }
+            case "kinetic" -> {
+                mode = "screen";
+                screenStyle = "kinetic";
+                screenPosition = "center";
+                palette = "rainbow";
+                outline = true;
+                outlineColor = 0x0A0A14;
+                showHud = false;
+            }
+            case "chat" -> {
+                mode = "screen";
+                screenStyle = "chat";
+                palette = "rose";
                 showHud = false;
             }
             default -> {

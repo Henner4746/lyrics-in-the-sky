@@ -96,9 +96,13 @@ public final class SelfTest {
      * sung.
      */
     private static final double OPTIONS_FROM = GLASS_MENU_FROM + GLASS_MENU_SHOTS.length + 1.0;
-    private static final double[] OPTION_SHOTS = {3.0, 6.0, 8.6, 11.2, 13.8, 16.6, 19.4, 22.2};
+    private static final double[] OPTION_SHOTS = {3.0, 6.0, 8.6, 11.2, 13.8, 16.6, 19.4, 22.2, 24.8, 27.4, 30.0, 32.6,
+            35.2, 37.8, 40.4, 43.0};
+    /** After the first looks, these presets one after the other: the cinema look and the screen's newer looks. */
+    private static final String[] LATER_PRESETS = {"cinema", "word", "typewriter", "ticker", "bounce", "wave", "sidebar",
+            "kinetic", "chat"};
     /** The end of the fixed steps; the songs of {@link #SONG_LIST}, if any, come after it, then the game quits. */
-    private static final double QUIT_AT = OPTIONS_FROM + 24.0;
+    private static final double QUIT_AT = OPTIONS_FROM + 45.0;
     private static final String SONG_LIST = "selftest-songs.tsv";
     private static final double SONG_SECONDS = 6.0;
     private static final double SONG_CHECK_AFTER = 5.0;
@@ -565,7 +569,9 @@ public final class SelfTest {
             controller.startDemo();
         }
         String[] names = {"options outline uppercase custom", "options rainbow underline progress", "screen subtitle",
-                "screen karaoke", "screen stage", "preset neon", "preset retro", "preset cinema"};
+                "screen karaoke", "screen stage", "preset neon", "preset retro", "preset cinema", "preset word",
+                "preset typewriter", "preset ticker", "preset bounce", "preset wave", "preset sidebar", "preset kinetic",
+                "preset chat"};
         for (int i = 0; i < OPTION_SHOTS.length; i++) {
             if (atSecond(OPTIONS_FROM + OPTION_SHOTS[i])) {
                 shoot(minecraft, names[i]);
@@ -601,13 +607,16 @@ public final class SelfTest {
                         config.applyPreset("retro");
                         minecraft.player.connection.sendCommand("time set noon");
                     }
-                    case 6 -> config.applyPreset("cinema");
                     default -> {
-                        controller.stopDemo();
-                        config.applyPreset("standard");
-                        SkyLyricsConfig defaults = new SkyLyricsConfig();
-                        config.hudHighlight = defaults.hudHighlight;
-                        config.hudProgress = defaults.hudProgress;
+                        if (i + 1 < OPTION_SHOTS.length) {
+                            config.applyPreset(LATER_PRESETS[i - 6]);
+                        } else {
+                            controller.stopDemo();
+                            config.applyPreset("standard");
+                            SkyLyricsConfig defaults = new SkyLyricsConfig();
+                            config.hudHighlight = defaults.hudHighlight;
+                            config.hudProgress = defaults.hudProgress;
+                        }
                     }
                 }
             }

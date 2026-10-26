@@ -188,7 +188,7 @@ public final class GlassMenuScreen extends Screen {
                 new Choice("Stil", "Wie die Zeilen erscheinen und gehen", SkyLyricsConfig.STYLES, Map.of("elegant", "Elegant",
                         "natural", "Natürlich 1:1", "flow", "Stapel", "classic", "Verspielt"), c -> c.style, (c, v) -> c.style = v).when(c -> !"screen".equals(c.mode)),
                 new Section("Bildschirm").when(c -> "screen".equals(c.mode)),
-                new Choice("Bildschirm-Stil", "Untertitel, Karaoke oder große Zeilen wie auf einer Bühne",
+                new Choice("Bildschirm-Stil", "Untertitel, Karaoke, Bühne, Ein Wort, Laufband, Chat und mehr",
                         SkyLyricsConfig.SCREEN_STYLES, SkyLyricsConfig.SCREEN_STYLE_NAMES, c -> c.screenStyle, (c, v) -> {
                             c.screenStyle = v;
                             c.mode = "screen";
