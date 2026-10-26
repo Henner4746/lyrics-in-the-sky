@@ -7,7 +7,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +48,14 @@ final class LoopbackRecorder implements Recorder {
             Files.copy(in, helper, StandardCopyOption.REPLACE_EXISTING);
         }
         String systemRoot = System.getenv().getOrDefault("SystemRoot", "C:\\Windows");
-        process = new ProcessBuilder(systemRoot + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-NoProfile",
-                "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", helper.toString(),
-                Long.toString(ProcessHandle.current().pid()), player == null || player.isBlank() ? "-" : player)
-                .redirectError(ProcessBuilder.Redirect.DISCARD).start();
+        List<String> command = new ArrayList<>(List.of(systemRoot + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", helper.toString(),
+                Long.toString(ProcessHandle.current().pid())));
+        // Without a player nothing is passed: PowerShell takes an argument such as "-" for a parameter's name.
+        if (player != null && !player.isBlank() && !player.startsWith("-")) {
+            command.add(player);
+        }
+        process = new ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.DISCARD).start();
         count = 0;
         startNanos = 0;
         failure = null;

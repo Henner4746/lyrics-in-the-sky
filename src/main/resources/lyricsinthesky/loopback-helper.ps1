@@ -4,7 +4,7 @@
 # process, so voice chat, videos and the game's own sounds stay out; else, or when the player's own sound stays silent
 # while the PC plays something, everything the default speakers play (WASAPI loopback).
 # Stops when the mod closes stdout or when Minecraft (parent PID) is gone. Nothing is written to disk.
-# Argument 1: PID of Minecraft. Argument 2: the player as the media session names it (its app user model ID), or "-".
+# Argument 1: PID of Minecraft. Argument 2, if any: the player as the media session names it (its app user model ID).
 param([int]$ParentPid = 0, [string]$App = '-')
 $ErrorActionPreference = 'Stop'
 
