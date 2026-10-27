@@ -22,6 +22,8 @@ final class PulseRecorder implements Recorder {
     private static final int MAX_SAMPLES = 10 * 60 * RATE;
     /** Asked of parec, so the first sample is this little older than when it arrives. */
     private static final int LATENCY_MS = 20;
+    /** How long the player's stream is looked for before all the default output is taken, as on Windows. */
+    private static final long DECIDE_MS = 3_000;
 
     private Process process;
     private Thread reader;
@@ -32,22 +34,53 @@ final class PulseRecorder implements Recorder {
     private volatile boolean onlyPlayer;
 
     @Override
-    public void start(String player) throws IOException {
-        String stream = player == null ? null : streamOf(player, pactl("list", "sink-inputs"));
+    public void start(String player) {
+        count = 0;
+        startNanos = 0;
+        failure = null;
+        onlyPlayer = false;
+        stopped = false;
+        reader = new Thread(() -> record(player), "LyricsInTheSky-Hoergenau-Audio");
+        reader.setDaemon(true);
+        reader.start();
+    }
+
+    private volatile boolean stopped;
+
+    /**
+     * Looks for the player's stream for a moment, as a player may open it a few seconds after it says it plays, then
+     * records it, or all the default output plays when it has none.
+     */
+    private void record(String player) {
+        String stream = null;
+        long until = System.nanoTime() + DECIDE_MS * 1_000_000L;
+        while (player != null && !stopped && (stream = streamOf(player, pactl("list", "sink-inputs"))) == null
+                && System.nanoTime() < until) {
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException e) {
+                return;
+            }
+        }
         List<String> command = new ArrayList<>(List.of("parec", "--raw", "--format=s16le", "--rate=" + RATE,
                 "--channels=1", "--latency-msec=" + LATENCY_MS));
         command.add(stream != null ? "--monitor-stream=" + stream : "--device=@DEFAULT_MONITOR@");
         ProcessBuilder builder = new ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.DISCARD);
         builder.environment().put("LC_ALL", "C");
-        process = builder.start();
-        count = 0;
-        startNanos = 0;
-        failure = null;
+        synchronized (this) {
+            if (stopped) {
+                return;
+            }
+            try {
+                process = builder.start();
+            } catch (IOException e) {
+                failure = "parec could not start (pulseaudio-utils installed?): " + e.getMessage();
+                return;
+            }
+        }
         onlyPlayer = stream != null;
-        String what = stream != null ? "only " + player + " (stream " + stream + ")" : "all the PC plays (default output)";
-        reader = new Thread(() -> read(what), "LyricsInTheSky-Hoergenau-Audio");
-        reader.setDaemon(true);
-        reader.start();
+        read(stream != null ? "only " + player + " (stream " + stream + ")"
+                : "all the PC plays (default output" + (player == null ? ")" : ", no stream of " + player + ")"));
     }
 
     /**
@@ -172,8 +205,11 @@ final class PulseRecorder implements Recorder {
 
     @Override
     public short[] stop() {
-        if (process != null) {
-            process.destroyForcibly();
+        synchronized (this) {
+            stopped = true;
+            if (process != null) {
+                process.destroyForcibly();
+            }
         }
         if (reader != null) {
             try {
