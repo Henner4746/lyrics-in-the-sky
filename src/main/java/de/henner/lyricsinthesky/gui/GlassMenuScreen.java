@@ -157,6 +157,9 @@ public final class GlassMenuScreen extends Screen {
             Supplier<List<Row>> rows, Predicate<SkyLyricsConfig> master, BiConsumer<SkyLyricsConfig, Boolean> setMaster) {}
 
     private void buildCategories() {
+        categories.add(new Category("presets", "✧", "Vorlagen",
+                SkyLyricsConfig.PRESETS.size() + " fertige Looks, jeder mit einem Klick", 10, false, this::presetRows, null,
+                null));
         categories.add(new Category("display", "☁", "Anzeige", "Wo und wie die Songtexte erscheinen", 0, false,
                 this::displayRows, c -> c.enabled, (c, on) -> c.enabled = on));
         categories.add(new Category("look", "✎", "Schrift & Farben", "Schrift, Farben, Leuchten und Kontur", 1, true,
@@ -178,11 +181,24 @@ public final class GlassMenuScreen extends Screen {
         categories.add(new Category("menu", "⚙", "Menü", "Aussehen dieses Menüs", 9, false, this::menuRows, null, null));
     }
 
+    /** The presets the start page shows, with a way to all of them: what a first look at the menu should find. */
+    private static final List<String> START_PRESETS = List.of("standard", "party", "glass", "karaoke", "neon");
+
+    private List<Row> presetRows() {
+        return List.of(
+                new Explain("So geht's", "Ein Klick stellt Schrift, Farben, Stil und Anzeige auf einmal um, du siehst es "
+                        + "sofort am Himmel. Danach lässt sich auf den anderen Seiten alles weiter anpassen."),
+                new PresetGallery(SkyLyricsConfig.PRESETS, false));
+    }
+
     private List<Row> displayRows() {
         return List.of(
                 new Section("Songtexte"),
                 new Toggle("Songtexte zeigen", "Alle Songtexte ein- oder ausblenden", c -> c.enabled, (c, on) -> c.enabled = on),
-                new PresetChoice(),
+                new Action("Vorlage", "Ein ganzer Look mit einem Klick",
+                        () -> SkyLyricsConfig.PRESET_NAMES.getOrDefault(Objects.requireNonNullElse(config.currentPreset(), ""),
+                                "Eigener Look") + " · alle " + SkyLyricsConfig.PRESETS.size() + " ansehen",
+                        () -> show("presets"), () -> true, null).leading(),
                 new Choice("Anzeige", "Am Himmel, um dich herum oder auf dem Bildschirm", SkyLyricsConfig.MODES,
                         SkyLyricsConfig.MODE_NAMES, c -> c.mode, (c, v) -> c.mode = v),
                 new Choice("Stil", "Wie die Zeilen erscheinen und gehen", SkyLyricsConfig.STYLES, Map.of("elegant", "Elegant",
@@ -521,7 +537,10 @@ public final class GlassMenuScreen extends Screen {
         pageRows.clear();
         if (category == null) {
             pageRows.add(new NowPlaying());
+            pageRows.add(new Section("Vorlagen · ein Klick, ein ganzer Look"));
+            pageRows.add(new PresetGallery(START_PRESETS, true));
             pageRows.add(new Section("Einstellungen"));
+            pageRows.add(new Overview());
             pageRows.add(new Cards());
         } else {
             pageRows.addAll(category.rows().get());
@@ -597,12 +616,24 @@ public final class GlassMenuScreen extends Screen {
         int cardSwitches = (int) categories.stream().filter(page -> page.master() != null).count();
         counts.put("Start", new int[] {cardSwitches, cardSwitches});
         for (Category page : categories) {
-            List<Row> settings = page.rows().get().stream()
-                    .filter(row -> row instanceof Option && !(row instanceof Info)).toList();
+            List<Row> settings = settingsOf(page);
             counts.put(page.name(), new int[] {(int) settings.stream().filter(row -> row.applies.test(config)).count(),
                     settings.size()});
         }
         return counts;
+    }
+
+    /** The rows of a page that change a setting: no headings, explanations, status lines or links to other pages. */
+    private List<Row> settingsOf(Category page) {
+        return page.rows().get().stream().filter(row -> row instanceof Option && !(row instanceof Info)
+                && !(row instanceof Action action && action.leads)).toList();
+    }
+
+    /** How many settings each page has, counted once. */
+    private final Map<String, Integer> settingCounts = new java.util.HashMap<>();
+
+    private int settingCount(Category page) {
+        return settingCounts.computeIfAbsent(page.id(), id -> settingsOf(page).size());
     }
 
     /** Whether the whole window fits the screen; for the self test. */
@@ -1788,24 +1819,6 @@ public final class GlassMenuScreen extends Screen {
         }
     }
 
-    /** The presets, with what the chosen one gives as its line; picking one may change every other row of the page. */
-    private final class PresetChoice extends Choice {
-        PresetChoice() {
-            super("Vorlage", "Ein ganzer Look mit einem Klick", SkyLyricsConfig.PRESETS, SkyLyricsConfig.PRESET_NAMES,
-                    c -> Objects.requireNonNullElse(c.currentPreset(), ""), SkyLyricsConfig::applyPreset);
-        }
-
-        @Override
-        String hint() {
-            return SkyLyricsConfig.presetHint(Objects.requireNonNullElse(config.currentPreset(), ""));
-        }
-
-        @Override
-        String more() {
-            return null;
-        }
-    }
-
     /** A color: its hex code and a swatch; a click opens the color picker. */
     private final class ColorRow extends Option {
         private final ToIntFunction<SkyLyricsConfig> get;
@@ -1858,6 +1871,8 @@ public final class GlassMenuScreen extends Screen {
 
     /** A button on the right, e.g. "Verbinden". */
     private final class Action extends Option {
+        /** It opens another page rather than doing something here. */
+        boolean leads;
         private final Supplier<String> button;
         private final Runnable action;
         private final BooleanSupplier active;
@@ -1918,6 +1933,11 @@ public final class GlassMenuScreen extends Screen {
             if (resetAction != null) {
                 resetAction.accept(config);
             }
+        }
+
+        Action leading() {
+            leads = true;
+            return this;
         }
     }
 
@@ -2163,6 +2183,180 @@ public final class GlassMenuScreen extends Screen {
         }
     }
 
+    /** "14 Optionen" for a page with settings, the number of presets for the presets page. */
+    private String count(Category page) {
+        if ("presets".equals(page.id())) {
+            return SkyLyricsConfig.PRESETS.size() + " Looks";
+        }
+        int count = settingCount(page);
+        return count == 0 ? "" : count + (count == 1 ? " Option" : " Optionen");
+    }
+
+    private String subtitle(Category page) {
+        String count = count(page);
+        return count.isEmpty() ? page.subtitle() : page.subtitle() + " · " + count;
+    }
+
+    /**
+     * How much there is to set, in one line on the start page: all settings and pages, the presets, the looks on the
+     * screen and the color palettes.
+     */
+    private final class Overview extends Row {
+        private String text() {
+            int settings = 0;
+            int pages = 0;
+            for (Category page : categories) {
+                int count = settingCount(page);
+                settings += count + (page.master() != null ? 1 : 0);
+                pages += count > 0 ? 1 : 0;
+            }
+            return "Alles einstellbar: " + settings + " Einstellungen auf " + pages + " Seiten, "
+                    + SkyLyricsConfig.PRESETS.size() + " Vorlagen, " + SkyLyricsConfig.SCREEN_STYLES.size()
+                    + " Bildschirm-Stile und " + SkyLyricsConfig.PALETTES.size() + " Farbpaletten.";
+        }
+
+        private List<FormattedCharSequence> lines() {
+            return font.split(Component.literal(text()).withStyle(plain() ? title : small), x1 - x0 - 2 * PAD);
+        }
+
+        @Override
+        int height() {
+            return lines().size() * 10 + (plain() ? 6 : 8);
+        }
+
+        @Override
+        void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            int line = y + (plain() ? 2 : 3);
+            for (FormattedCharSequence text : lines()) {
+                graphics.text(font, text, x, line, plain() ? pDim() : ARGB.color(alpha, DESC), false);
+                line += 10;
+            }
+        }
+    }
+
+    /**
+     * Presets as tiles, each a whole look with one click (font, colors, style, where the lyrics show): its name and what
+     * it gives, the chosen one marked. On the start page a few and a last tile for all of them, so whoever opens the
+     * menu for the first time sees there are ready looks to start from.
+     */
+    private final class PresetGallery extends Row {
+        private final List<String> presets;
+        private final boolean toAll;
+        private final float[] hovers;
+        private int hovered = -1;
+
+        PresetGallery(List<String> presets, boolean toAll) {
+            this.presets = presets;
+            this.toAll = toAll;
+            this.hovers = new float[presets.size() + 1];
+        }
+
+        private int tiles() {
+            return presets.size() + (toAll ? 1 : 0);
+        }
+
+        private int columns(int w) {
+            return w >= 330 ? 3 : 2;
+        }
+
+        private int tileHeight() {
+            return plain() ? 26 : 34;
+        }
+
+        private int gap() {
+            return plain() ? 4 : 6;
+        }
+
+        @Override
+        int height() {
+            int columns = columns(x1 - x0 - 2 * PAD);
+            return (tiles() + columns - 1) / columns * (tileHeight() + gap()) + 4;
+        }
+
+        @Override
+        String hint() {
+            if (hovered < 0) {
+                return null;
+            }
+            return hovered < presets.size() ? SkyLyricsConfig.presetHint(presets.get(hovered))
+                    : "Alle " + SkyLyricsConfig.PRESETS.size() + " Vorlagen auf einer Seite";
+        }
+
+        private String name(int i) {
+            return i < presets.size() ? SkyLyricsConfig.PRESET_NAMES.getOrDefault(presets.get(i), presets.get(i))
+                    : "Alle " + SkyLyricsConfig.PRESETS.size() + " Vorlagen ›";
+        }
+
+        private String what(int i) {
+            return i < presets.size() ? SkyLyricsConfig.presetHint(presets.get(i)) : "Jeder Look mit einem Klick";
+        }
+
+        @Override
+        void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            int columns = columns(w);
+            int tileW = (w - (columns - 1) * gap()) / columns;
+            int tileH = tileHeight();
+            String chosen = Objects.requireNonNullElse(config.currentPreset(), "");
+            hovered = -1;
+            for (int i = 0; i < tiles(); i++) {
+                int tx = x + (i % columns) * (tileW + gap());
+                int ty = y + 2 + (i / columns) * (tileH + gap());
+                boolean over = picker == null && mouseX >= tx && mouseX < tx + tileW && mouseY >= ty && mouseY < ty + tileH
+                        && mouseY >= contentTop && mouseY < contentBottom;
+                if (over) {
+                    hovered = i;
+                }
+                boolean all = i >= presets.size();
+                boolean selected = !all && presets.get(i).equals(chosen);
+                if (plain()) {
+                    // The old look: a thin frame, white for the chosen look and under the mouse.
+                    if (glassTheme()) {
+                        Glass.pane(graphics, tx, ty, tx + tileW, ty + tileH, 6, 1f, selected ? 1.5f : over ? 1.3f : 1f);
+                    } else {
+                        graphics.outline(tx, ty, tileW, tileH, selected || over ? 0xFFFFFFFF : P_LINE);
+                    }
+                    graphics.text(font, fit(name(i), title, tileW - 10), tx + 5, ty + 4,
+                            selected || over ? 0xFFFFFFFF : pLabel(), false);
+                    graphics.text(font, fit(what(i), title, tileW - 10), tx + 5, ty + 14, pDim(), false);
+                    if (selected && !glassTheme()) {
+                        graphics.fill(tx + 5, ty + 12, tx + 5 + Math.min(tileW - 10, font.width(
+                                Component.literal(name(i)).withStyle(title))), ty + 13, 0xFFFFFFFF);
+                    }
+                    continue;
+                }
+                hovers[i] = approach(hovers[i], over ? 1f : 0f, dt, 0.09f);
+                float h = hovers[i];
+                Glass.fill(graphics, tx, ty, tx + tileW, ty + tileH, 10,
+                        ARGB.color(alpha * (0.05f + 0.04f * h + (selected ? 0.07f : 0f)), 0xFFFFFF));
+                Glass.outline(graphics, tx, ty, tx + tileW, ty + tileH, 10, selected
+                        ? ARGB.color(alpha * 0.95f, accent())
+                        : ARGB.color(alpha * (0.1f + 0.4f * h), ARGB.srgbLerp(h, 0xFFFFFF, accent())));
+                graphics.text(font, fit(name(i), label, tileW - 16), tx + 8, ty + 7,
+                        ARGB.color(alpha, all ? accentLight() : TEXT), false);
+                graphics.text(font, fit(what(i), small, tileW - 16), tx + 8, ty + 20, ARGB.color(alpha, DESC), false);
+            }
+        }
+
+        @Override
+        boolean click(double mx, double my, int x, int y, int w) {
+            int columns = columns(w);
+            int tileW = (w - (columns - 1) * gap()) / columns;
+            int column = (int) ((mx - x) / (tileW + gap()));
+            int row = (int) ((my - y - 2) / (tileHeight() + gap()));
+            int i = row * columns + column;
+            if (mx < x || column >= columns || my < y + 2 || i < 0 || i >= tiles()
+                    || mx >= x + column * (tileW + gap()) + tileW || my >= y + 2 + row * (tileHeight() + gap()) + tileHeight()) {
+                return false;
+            }
+            if (i >= presets.size()) {
+                show("presets");
+            } else {
+                config.applyPreset(presets.get(i));
+            }
+            return true;
+        }
+    }
+
     /** The cards of the start page, two in a row where there is room. */
     private final class Cards extends Row {
         private final float[] hovers = new float[categories.size()];
@@ -2209,6 +2403,12 @@ public final class GlassMenuScreen extends Screen {
                     graphics.text(font, Component.literal("›").withStyle(title), x + column, ry + 3,
                             over ? 0xFFFFFFFF : pDim(), false);
                 }
+                // How much is behind it, so a first look shows how much there is to set.
+                String count = count(c);
+                if (!count.isEmpty()) {
+                    graphics.text(font, Component.literal(count).withStyle(title), x + column + 62, ry + 3,
+                            over ? P_HOVER : pDim(), false);
+                }
             }
         }
 
@@ -2240,7 +2440,7 @@ public final class GlassMenuScreen extends Screen {
                 int tx = cx + 48;
                 int right = cx + cardW - (c.master() != null ? 44 : 22);
                 graphics.text(font, fit(c.name(), label, right - tx), tx, cy + 12, ARGB.color(a, TEXT), false);
-                graphics.text(font, fit(c.subtitle(), small, right - tx), tx, cy + 25, ARGB.color(a, DESC), false);
+                graphics.text(font, fit(subtitle(c), small, right - tx), tx, cy + 25, ARGB.color(a, DESC), false);
                 if (c.master() != null) {
                     boolean on = c.master().test(config);
                     switchAt(graphics, cx + cardW - 40, cy + 16, on ? 1f : 0f, h, a, 0);

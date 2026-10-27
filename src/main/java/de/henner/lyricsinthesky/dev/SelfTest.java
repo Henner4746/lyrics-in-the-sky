@@ -85,11 +85,11 @@ public final class SelfTest {
      * picker, then in glass its start and a page; each a second after opening so everything has come in.
      */
     private static final double GLASS_MENU_FROM = 79.0;
-    private static final String[][] GLASS_MENU_SHOTS = {{"minimal", "start"}, {"minimal", "display"},
+    private static final String[][] GLASS_MENU_SHOTS = {{"minimal", "start"}, {"minimal", "presets"}, {"minimal", "display"},
             {"minimal", "display-end"}, {"minimal", "look"}, {"minimal", "look-end"}, {"minimal", "motion"},
             {"minimal", "bar"}, {"minimal", "timing"}, {"minimal", "sources"}, {"minimal", "hoergenau"},
             {"minimal", "hoergenau-end"}, {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"},
-            {"minimal", "picker"}, {"glass", "start"}, {"glass", "look"}, {"glass", "hoergenau-end"},
+            {"minimal", "picker"}, {"glass", "start"}, {"glass", "presets"}, {"glass", "look"}, {"glass", "hoergenau-end"},
             {"fancy", "start"}, {"fancy", "menu"}, {"minimal", "intro"}};
     /**
      * Then the demo once more with the new looks: outline, capitals and own colors, the rainbow with the bar's underline
