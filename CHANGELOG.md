@@ -17,8 +17,8 @@
   recording goes on as the song's part to learn or as its sync check, or is dropped as soon as the lookup shows the song
   needs nothing (at most after a minute, never for a livestream).
 - **The title's spelling**: words heard almost like a word of the song's title or artist take that spelling – Whisper
-  wrote "Titchen" 28 times in a song called "Kleine Tittchen". Giving Whisper the title as a prompt was tried first and
-  did not help: with the mod's settings it is not used, and with more context it wrote "Titchen" more often.
+  wrote the title's main word one letter off 28 times in one song. Giving Whisper the title as a prompt was tried first
+  and did not help: with the mod's settings it is not used, and with more context it misspelled the word more often.
 - **Test runs skip the game's welcome screen** in a fresh run folder, which had held the test world back on a new
   Windows PC.
 

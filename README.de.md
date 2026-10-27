@@ -295,8 +295,8 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   ersten Sekunden nicht fehlen; diese Aufnahme bleibt im Speicher und wird verworfen, sobald die Suche zeigt, dass der
   Song nichts braucht (höchstens eine Minute, nie bei Livestreams).
 - **Schreibweise des Titels:** Gehörte Wörter, die fast wie ein Wort aus Titel oder Künstler geschrieben sind, bekommen
-  dessen Schreibweise („Titchen“ wird in einem Song namens „Kleine Tittchen“ zu „Tittchen“); andere Formen des Worts
-  bleiben, wie gehört.
+  dessen Schreibweise (ein Titelwort, das Whisper im ganzen Song einen Buchstaben daneben schreibt, steht wie im
+  Titel); andere Formen des Worts bleiben, wie gehört.
 - **Datenschutz:** Mitgehört wird der Ton des Musikprogramms, wo das nicht geht alles, was über den
   Standardlautsprecher läuft, also auch Sprachchat, solange so ein Song läuft (und für die 50 s einer Sync-Prüfung
   sowie die ersten Sekunden eines neuen Songs, während er gesucht wird). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,

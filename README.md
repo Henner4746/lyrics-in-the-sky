@@ -286,7 +286,8 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   are not missed; that recording stays in memory and is dropped as soon as the lookup shows the song needs nothing
   (at most a minute, never for a livestream).
 - **The title's spelling:** words heard almost like a word of the song's title or artist take that spelling
-  ("Titchen" becomes "Tittchen" in a song called "Kleine Tittchen"); other forms of the word stay as heard.
+  (a title word Whisper writes one letter off all through the song is spelled as in the title); other forms of the
+  word stay as heard.
 - **Privacy:** it hears the sound of your music app, where that cannot be told apart everything that plays on the
   default speakers, voice chat included, while such a song plays (and for the 50 s of a sync check, and the first
   seconds of a new song while it is looked up).
