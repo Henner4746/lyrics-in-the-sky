@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -530,6 +531,18 @@ public final class SelfTest {
             }
             if (atSecond(at + 0.85)) {
                 if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
+                    if (i == 0) {
+                        // What a player can set, as the menu has it: shown with these settings, and in all.
+                        int shown = 0;
+                        int all = 0;
+                        for (Map.Entry<String, int[]> page : menu.settingsPerPage().entrySet()) {
+                            LOGGER.info("SELFTEST settings {}: {} shown, {} in all", page.getKey(), page.getValue()[0],
+                                    page.getValue()[1]);
+                            shown += page.getValue()[0];
+                            all += page.getValue()[1];
+                        }
+                        LOGGER.info("SELFTEST settings, all pages: {} shown, {} in all", shown, all);
+                    }
                     LOGGER.info("SELFTEST menu {} {}: {}", style, shot, menu.fits() ? "fits" : "TOO BIG");
                 } else if (minecraft.gui.screen() instanceof HoergenauIntroScreen intro) {
                     LOGGER.info("SELFTEST menu {} {}: {}", style, shot, intro.fits() ? "fits" : "TOO BIG");

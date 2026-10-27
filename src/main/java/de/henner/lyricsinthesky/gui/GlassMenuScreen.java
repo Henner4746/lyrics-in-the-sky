@@ -586,6 +586,23 @@ public final class GlassMenuScreen extends Screen {
         }
     }
 
+    /**
+     * What a player can set, page by page: the rows that change a setting (no headings, explanations or status lines)
+     * that show with the settings now, and all of them; the start counts the switches on its cards. For the self test.
+     */
+    public Map<String, int[]> settingsPerPage() {
+        Map<String, int[]> counts = new java.util.LinkedHashMap<>();
+        int cardSwitches = (int) categories.stream().filter(page -> page.master() != null).count();
+        counts.put("Start", new int[] {cardSwitches, cardSwitches});
+        for (Category page : categories) {
+            List<Row> settings = page.rows().get().stream()
+                    .filter(row -> row instanceof Option && !(row instanceof Info)).toList();
+            counts.put(page.name(), new int[] {(int) settings.stream().filter(row -> row.applies.test(config)).count(),
+                    settings.size()});
+        }
+        return counts;
+    }
+
     /** Whether the whole window fits the screen; for the self test. */
     public boolean fits() {
         return y0 >= 0 && y1 <= height && x0 >= 0 && x1 <= width;
