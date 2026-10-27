@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.render;
 
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
@@ -39,8 +40,8 @@ public final class NowPlayingHud implements HudElement {
     private static final long MAX_FILL_MS = 1_200;
     private static final int UNSUNG = 0x9AA0B4;
     /** Shown while the bar is being moved and nothing plays. */
-    private static final String[] PREVIEW_LINE = "So sieht deine Leiste aus, Wort für Wort".split(" ");
-    private static final String[] PREVIEW_NEXT = "und hier kommt die nächste Zeile".split(" ");
+    private static final String PREVIEW_LINE = "So sieht deine Leiste aus, Wort für Wort";
+    private static final String PREVIEW_NEXT = "und hier kommt die nächste Zeile";
     private static final long PREVIEW_STEP_MS = 420;
     private static final long PREVIEW_CYCLE_MS = 4_600;
 
@@ -343,7 +344,7 @@ public final class NowPlayingHud implements HudElement {
         }
         // The song; when lyrics are off, not found or LRCLIB does not answer, first why no line shows, so the bar's
         // width limit cuts the title rather than the reason.
-        key = timeline.trackKey() + "#title#" + timeline.state() + "#" + config.hudArtist;
+        key = timeline.trackKey() + "#title#" + timeline.state() + "#" + config.hudArtist + "#" + Lang.english();
         if (!key.equals(contentKey)) {
             String hint = SkyLyricsRenderer.hint(timeline.state());
             String song = timeline.artist().isBlank() || !hint.isEmpty() || !config.hudArtist ? timeline.title()
@@ -361,21 +362,23 @@ public final class NowPlayingHud implements HudElement {
         positionMs = now / 1_000_000L % PREVIEW_CYCLE_MS;
         durationMs = PREVIEW_CYCLE_MS;
         if ("title".equals(config.hudStyle)) {
-            if (!contentKey.equals("preview#title")) {
-                showTitle("preview#title", "Lyrics in the Sky · Vorschau", now);
+            String titleKey = "preview#title#" + Lang.english();
+            if (!contentKey.equals(titleKey)) {
+                showTitle(titleKey, Lang.t("Lyrics in the Sky · Vorschau"), now);
             }
             return;
         }
-        if (!contentKey.equals("preview")) {
-            words = PREVIEW_LINE;
-            nextWords = PREVIEW_NEXT;
+        String lineKey = "preview#" + Lang.english();
+        if (!contentKey.equals(lineKey)) {
+            words = Lang.t(PREVIEW_LINE).split(" ");
+            nextWords = Lang.t(PREVIEW_NEXT).split(" ");
             wordTimes = new long[words.length];
             for (int i = 0; i < words.length; i++) {
                 wordTimes[i] = i * PREVIEW_STEP_MS;
             }
             lineEndMs = words.length * PREVIEW_STEP_MS + 600;
             lyricLine = true;
-            changed("preview", now);
+            changed(lineKey, now);
         }
     }
 

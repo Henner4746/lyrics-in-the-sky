@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.spotify;
 
+import de.henner.lyricsinthesky.Lang;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
@@ -18,24 +19,27 @@ final class CallbackPage {
     private CallbackPage() {}
 
     static String render(boolean success, String error) {
-        String word = success ? "verbunden" : "nicht verbunden";
+        String word = Lang.t(success ? "verbunden" : "nicht verbunden");
         String note = success
-                ? "Spotify ist jetzt mit Lyrics in the Sky verbunden. Du kannst diesen Tab schließen und zurück ins Spiel."
+                ? Lang.t("Spotify ist jetzt mit Lyrics in the Sky verbunden. Du kannst diesen Tab schließen und zurück ins Spiel.")
                 : "access_denied".equals(error)
-                        ? "Du hast die Zustimmung abgelehnt. In Minecraft kannst du es jederzeit noch einmal versuchen."
+                        ? Lang.t("Du hast die Zustimmung abgelehnt. In Minecraft kannst du es jederzeit noch einmal versuchen.")
                 : NOT_REGISTERED.equals(error)
-                        ? "Spotify lässt dein Konto nicht mit dieser App zu: Sie ist im Entwicklungsmodus und nur für "
+                        ? Lang.t("Spotify lässt dein Konto nicht mit dieser App zu: Sie ist im Entwicklungsmodus und nur für "
                                 + "wenige eingetragene Konten offen. Leg in Minecraft über „Spotify-App anlegen …“ deine "
-                                + "eigene App an und trag ihre Client-ID ein."
-                        : "Etwas hat nicht geklappt" + (error.isBlank() ? "" : " (" + escape(error) + ")")
-                                + ". Versuch es in Minecraft noch einmal.";
+                                + "eigene App an und trag ihre Client-ID ein.")
+                        : Lang.f("Etwas hat nicht geklappt%s. Versuch es in Minecraft noch einmal.",
+                                "Something went wrong%s. Try again in Minecraft.",
+                                error.isBlank() ? "" : " (" + escape(error) + ")");
         return TEMPLATE
+                .replace("{{LANG}}", Lang.english() ? "en" : "de")
                 .replace("{{FONT}}", fontFace())
                 .replace("{{STARS}}", stars())
                 .replace("{{HILLS}}", hills())
                 .replace("{{WORD_LABEL}}", word.substring(0, 1).toUpperCase() + word.substring(1))
                 .replace("{{LETTERS}}", letters(word, success ? "#fff4ea" : "#ffb3d6"))
-                .replace("{{SUB}}", success ? "Spotify &amp; Lyrics in the Sky" : "Spotify &amp; Lyrics in the Sky – noch nicht")
+                .replace("{{SUB}}", success ? "Spotify &amp; Lyrics in the Sky"
+                        : Lang.of("Spotify &amp; Lyrics in the Sky – noch nicht", "Spotify &amp; Lyrics in the Sky – not yet"))
                 .replace("{{NOTE}}", note);
     }
 
@@ -112,7 +116,7 @@ final class CallbackPage {
 
     private static final String TEMPLATE = """
             <!doctype html>
-            <html lang="de">
+            <html lang="{{LANG}}">
             <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">

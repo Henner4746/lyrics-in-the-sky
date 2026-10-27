@@ -606,22 +606,25 @@ public final class LyricsController {
     public String status() {
         NowPlaying now = track;
         if (now == null) {
-            return "Keine Mediensitzung gefunden. Läuft Spotify, Amazon Music oder ein Browser-Player?";
+            return Lang.t("Keine Mediensitzung gefunden. Läuft Spotify, Amazon Music oder ein Browser-Player?");
         }
         CacheEntry entry = cache.get(key(now));
         String state = !Boolean.TRUE.equals(config.lrclibAllowed) ? LookupState.NOT_ALLOWED.name()
                 : entry == null ? LookupState.IDLE.name() : entry.state().name();
         if (entry != null && entry.lyrics().map(Hoergenau::learned).orElse(false)) {
-            state += " (wortgenau, durch Mithören gelernt)";
+            state += Lang.of(" (wortgenau, durch Mithören gelernt)", " (word by word, learned by listening)");
         } else if (entry != null && entry.lyrics().map(Lyrics::hasWordTiming).orElse(false)) {
             state += entry.lyrics().flatMap(found -> WordTimeFinder.sourceOf(found.lrc()))
-                    .map(from -> " (wortgenau, " + from + ")").orElse(" (wortgenau)");
+                    .map(from -> Lang.f(" (wortgenau, %s)", " (word by word, %s)", from))
+                    .orElse(Lang.of(" (wortgenau)", " (word by word)"));
         } else if (entry != null && entry.lyrics().map(Lyrics::isEstimated).orElse(false)) {
-            state += " (ohne Zeiten, ungefähr)";
+            state += Lang.of(" (ohne Zeiten, ungefähr)", " (without times, estimated)");
         }
         Hoergenau listener = hoergenau;
-        return String.format("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms%s%s",
-                shown(now.artist()), shown(now.title()), now.app(), now.playing() ? "spielt" : "pausiert",
+        return Lang.f("%s – %s [%s] %s, Position %d s, Lyrics: %s, Offset %+d ms%s%s",
+                "%s – %s [%s] %s, position %d s, lyrics: %s, offset %+d ms%s%s",
+                shown(now.artist()), shown(now.title()), now.app(), now.playing() ? Lang.of("spielt", "playing")
+                        : Lang.of("pausiert", "paused"),
                 now.estimatePositionMs(System.currentTimeMillis()) / 1000, state, config.offsetMs, songTimingText(),
                 listener != null && config.hoergenau ? ", " + listener.statusText() : "");
     }
@@ -633,16 +636,18 @@ public final class LyricsController {
             return "";
         }
         SongTimings.Shared common = timings.shared(song.id());
-        String players = common != null && common.players() > 0 ? ", " + common.players() + " Spieler haben korrigiert" : "";
+        String players = common != null && common.players() > 0
+                ? Lang.f(", %d Spieler haben korrigiert", ", %d players corrected it", common.players()) : "";
         if (timings.own(song.id()).isPresent()) {
-            return String.format(", dieser Song %+d ms (eigenes%s)", timings.own(song.id()).getAsInt(), players);
+            return Lang.f(", dieser Song %+d ms (eigenes%s)", ", this song %+d ms (own%s)", timings.own(song.id()).getAsInt(),
+                    players);
         }
         if (common != null && common.offsetMs() != null) {
             return common.measured() > 0
-                    ? String.format(", dieser Song %+d ms (von Hörgenau gemessen, %d Spieler)", common.offsetMs(),
-                            common.players())
-                    : String.format(", dieser Song %+d ms (gemeinsam von %d Spielern)", common.offsetMs(),
-                            common.players());
+                    ? Lang.f(", dieser Song %+d ms (von Hörgenau gemessen, %d Spieler)",
+                            ", this song %+d ms (measured by Hörgenau, %d players)", common.offsetMs(), common.players())
+                    : Lang.f(", dieser Song %+d ms (gemeinsam von %d Spielern)", ", this song %+d ms (shared by %d players)",
+                            common.offsetMs(), common.players());
         }
         return players.isEmpty() ? "" : players;
     }

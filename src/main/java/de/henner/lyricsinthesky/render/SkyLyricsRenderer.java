@@ -2,6 +2,7 @@ package de.henner.lyricsinthesky.render;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
@@ -540,12 +541,12 @@ public final class SkyLyricsRenderer {
                 : timeline.artist() + " · " + hint;
     }
 
-    /** Why a song shows no lyrics, or empty while they are on their way or shown. */
+    /** Why a song shows no lyrics, in the player's language, or empty while they are on their way or shown. */
     static String hint(LyricsController.LookupState state) {
         return switch (state) {
-            case NOT_ALLOWED -> "Songtexte aus: /skylyrics lrclib on";
-            case NOT_FOUND, INSTRUMENTAL -> "keine Lyrics gefunden";
-            case ERROR -> "lrclib.net antwortet nicht, versuche weiter";
+            case NOT_ALLOWED -> Lang.t("Songtexte aus: /skylyrics lrclib on");
+            case NOT_FOUND, INSTRUMENTAL -> Lang.t("keine Lyrics gefunden");
+            case ERROR -> Lang.t("lrclib.net antwortet nicht, versuche weiter");
             default -> "";
         };
     }

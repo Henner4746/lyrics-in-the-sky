@@ -3,6 +3,7 @@ package de.henner.lyricsinthesky.spotify;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.util.Browser;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -67,15 +68,17 @@ public final class SpotifyAccount {
         return state() == State.CONNECTED;
     }
 
-    /** One line for the settings screen and {@code /skylyrics status}. */
+    /** One line for the settings screen and {@code /skylyrics status}, in the player's language. */
     public String statusText() {
+        Tokens current = tokens;
         return switch (state()) {
-            case NOT_CONFIGURED -> "Spotify: Client-ID fehlt";
-            case DISCONNECTED -> "Spotify: nicht verbunden";
-            case WAITING_FOR_BROWSER -> "Spotify: warte auf den Browser …";
-            case CONNECTED -> "Spotify: verbunden" + (tokens != null && !tokens.displayName().isBlank()
-                    ? " als " + tokens.displayName() : "");
-            case ERROR -> "Spotify: " + problem;
+            case NOT_CONFIGURED -> Lang.t("Spotify: Client-ID fehlt");
+            case DISCONNECTED -> Lang.t("Spotify: nicht verbunden");
+            case WAITING_FOR_BROWSER -> Lang.t("Spotify: warte auf den Browser …");
+            case CONNECTED -> current != null && !current.displayName().isBlank()
+                    ? Lang.f("Spotify: verbunden als %s", "Spotify: connected as %s", current.displayName())
+                    : Lang.t("Spotify: verbunden");
+            case ERROR -> "Spotify: " + Lang.t(problem);
         };
     }
 
@@ -134,7 +137,7 @@ public final class SpotifyAccount {
         } catch (SocketTimeoutException e) {
             fail("Anmeldung abgelaufen (5 Minuten)");
         } catch (java.net.BindException e) {
-            fail("Port " + PORT + " ist belegt");
+            fail(Lang.f("Port %d ist belegt", "Port %d is in use", PORT));
         } catch (IOException | RuntimeException e) {
             LOGGER.warn("Spotify login failed: {}", e.getMessage());
             fail("Anmeldung fehlgeschlagen");

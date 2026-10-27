@@ -136,6 +136,10 @@ public final class SkyLyricsConfig {
      * "fancy" the glass window with an aurora behind it, rising notes and light running around its rim.
      */
     public static final List<String> MENU_STYLES = List.of("minimal", "glass", "fancy");
+    /** Languages of the mod's texts: "auto" the game's, German when the game is in German and English otherwise. */
+    public static final List<String> LANGUAGES = List.of("auto", "de", "en");
+    /** How each of {@link #LANGUAGES} is called in the menu. */
+    public static final Map<String, String> LANGUAGE_NAMES = Map.of("auto", "Wie das Spiel", "de", "Deutsch", "en", "English");
     /**
      * Looks of the now-playing bar: "pill" the rounded bar with the line and the word being sung, "karaoke" two lines
      * in a box with every word filling up as it is sung, "plain" just the words with a shadow, "title" only the song.
@@ -289,6 +293,10 @@ public final class SkyLyricsConfig {
     public boolean menuBlur = true;
     /** The glass menu's movements: opening, gliding switches, hovering cards. */
     public boolean menuAnimations = true;
+    /** One of {@link #LANGUAGES}. */
+    public String language = "auto";
+    /** Whether the player chose the language; until then the menu asks for it when it opens. */
+    public boolean languageChosen = false;
     /** One of {@link #HOERGENAU_MODELS}. */
     public String hoergenauModel = "small";
     /** One of {@link #HOERGENAU_POWERS}. */
@@ -411,6 +419,9 @@ public final class SkyLyricsConfig {
         configVersion = CONFIG_VERSION;
         if (menuStyle == null || !MENU_STYLES.contains(menuStyle)) {
             menuStyle = "minimal";
+        }
+        if (language == null || !LANGUAGES.contains(language)) {
+            language = "auto";
         }
         if (hudHighlight == null || !HUD_HIGHLIGHTS.contains(hudHighlight)) {
             hudHighlight = "box";

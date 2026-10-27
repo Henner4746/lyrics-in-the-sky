@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.gui;
 
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
 import java.util.ArrayList;
@@ -57,7 +58,7 @@ public final class HoergenauIntroScreen extends Screen {
     }
 
     private Component text(String value) {
-        return Component.literal(value).withStyle(text);
+        return Component.literal(Lang.t(value)).withStyle(text);
     }
 
     @Override

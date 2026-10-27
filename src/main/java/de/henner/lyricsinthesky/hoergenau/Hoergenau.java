@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.hoergenau;
 
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine.Heard;
 import de.henner.lyricsinthesky.lyrics.Explicit;
@@ -11,7 +12,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -261,9 +261,11 @@ public final class Hoergenau {
                 LOGGER.info("Hoergenau listens to '{}' by '{}' from {} s ({}, {} % heard before)", now.title(),
                         now.artist(), position / 1000, take.lines.isEmpty() ? "no text known"
                                 : take.lines.size() + " lines of text known", before);
-                notifier.toast("Hörgenau hört mit", shown(now.title()) + (known.isEmpty()
-                        ? " – hörst du nur einen Teil, kommt der Rest beim nächsten Mal"
-                        : " – hört den Rest dazu, " + before + " % kennt es schon"));
+                notifier.toast("Hörgenau hört mit", known.isEmpty()
+                        ? Lang.f("%s – hörst du nur einen Teil, kommt der Rest beim nächsten Mal",
+                                "%s – hear only part of it and the rest comes next time", shown(now.title()))
+                        : Lang.f("%s – hört den Rest dazu, %d %% kennt es schon", "%s – hears the rest, knows %d %% already",
+                                shown(now.title()), before));
             } catch (Exception e) {
                 LOGGER.warn("Hoergenau could not start listening: {}", e.toString());
             }
@@ -359,7 +361,7 @@ public final class Hoergenau {
         take.early = false;
         LOGGER.info("Hoergenau listens to '{}' by '{}' from its start ({})", now.title(), now.artist(),
                 take.lines.isEmpty() ? "no text known" : take.lines.size() + " lines of text known");
-        notifier.toast("Hörgenau hört mit", shown(now.title()) + " – von Anfang an");
+        notifier.toast("Hörgenau hört mit", Lang.f("%s – von Anfang an", "%s – from the start", shown(now.title())));
         return true;
     }
 
@@ -456,7 +458,8 @@ public final class Hoergenau {
         recorder.stop();
         if (take.check == null && !take.early) {
             // A sync check is quiet; it is simply tried again another time.
-            notifier.toast("Hörgenau hört nicht mehr mit", forPlayer + "; beim nächsten Mal noch einmal");
+            notifier.toast("Hörgenau hört nicht mehr mit",
+                    Lang.f("%s; beim nächsten Mal noch einmal", "%s; again next time", Lang.t(forPlayer)));
         }
     }
 
@@ -553,8 +556,9 @@ public final class Hoergenau {
             int percent = (int) Math.round(heard.share(durationMs) * 100);
             LOGGER.info("Hoergenau heard '{}' from {} to {} s, {} % of it now; the rest when it plays again",
                     done.track.title(), offsetMs / 1000, toMs / 1000, percent);
-            notifier.toast("Hörgenau: " + percent + " % gehört", shown(done.track.title())
-                    + " – den Rest hört es beim nächsten Mal dazu");
+            notifier.toast(Lang.f("Hörgenau: %d %% gehört", "Hörgenau: %d %% heard", percent),
+                    Lang.f("%s – den Rest hört es beim nächsten Mal dazu", "%s – it hears the rest next time",
+                            shown(done.track.title())));
             return;
         }
         if (learn(done, heard, again(engine, audio, language, offsetMs), started)) {
@@ -586,14 +590,16 @@ public final class Hoergenau {
             }
             lrc = aligned.get().lrc();
             matched = aligned.get().matched();
-            how = String.format("Songtext auf die Aufnahme gelegt, %d %% der Wörter gehört", Math.round(matched * 100));
+            how = Lang.f("Songtext auf die Aufnahme gelegt, %d %% der Wörter gehört",
+                    "lyrics laid on the recording, %d %% of the words heard", Math.round(matched * 100));
         } else if (!heard.isEmpty()) {
             // The title's spelling for words heard almost like it ("Titchen" in a song called "Kleine Tittchen").
             lrc = HeardLyrics.transcript(HeardLyrics.spelledLike(segments, done.track.title(), done.track.artist()), 0);
-            how = "kein Songtext bekannt, das Gehörte abgeschrieben";
+            how = Lang.of("kein Songtext bekannt, das Gehörte abgeschrieben", "no lyrics known, what was heard written down");
         } else {
             LOGGER.info("Hoergenau heard no singing in '{}'", done.track.title());
-            notifier.toast("Hörgenau: nicht gelernt", "in „" + shown(done.track.title()) + "“ war kein Gesang zu hören");
+            notifier.toast("Hörgenau: nicht gelernt", Lang.f("in „%s“ war kein Gesang zu hören",
+                    "no singing could be heard in “%s”", shown(done.track.title())));
             parts.put(done.key, HeardParts.none());
             saved.write(done.key + PARTS, "");
             return false;
@@ -609,10 +615,13 @@ public final class Hoergenau {
         // On lrclib.net's text only its word times go to the others; a song nobody has the text of goes as written down.
         boolean shared = sharer != null && config.shareLearned && (done.lines.isEmpty()
                 ? sharer.shareHeard(done.key, done.track, lrc) : sharer.share(done.key, done.track, lrc, matched));
-        notifier.toast("Gelernt: " + shown(done.track.title()), "ab jetzt Wort für Wort" + (shared ? ", für alle geteilt" : ""));
-        notifier.chat("Hörgenau hat „" + shown(done.track.title()) + "“ gelernt (" + how
-                + "). Ab jetzt Wort für Wort" + (shared ? done.lines.isEmpty() ? ", und für alle geteilt."
-                        : ", und die Wortzeiten sind für alle geteilt." : "."));
+        notifier.toast(Lang.f("Gelernt: %s", "Learned: %s", shown(done.track.title())), shared
+                ? Lang.of("ab jetzt Wort für Wort, für alle geteilt", "word by word from now on, shared with everyone")
+                : Lang.of("ab jetzt Wort für Wort", "word by word from now on"));
+        String end = !shared ? "." : done.lines.isEmpty() ? Lang.of(", und für alle geteilt.", ", and shared with everyone.")
+                : Lang.of(", und die Wortzeiten sind für alle geteilt.", ", and the word times are shared with everyone.");
+        notifier.chat(Lang.f("Hörgenau hat „%s“ gelernt (%s). Ab jetzt Wort für Wort%s",
+                "Hörgenau learned “%s” (%s). Word by word from now on%s", shown(done.track.title()), how, end));
         return true;
     }
 
@@ -636,9 +645,9 @@ public final class Hoergenau {
             // Also when the lyrics fit: the other players learn that they were checked.
             to.apply(done.track, done.check, fix, result.pairs(), (int) result.spreadMs());
             if (fix != 0) {
-                notifier.toast("Sync korrigiert: " + shown(done.track.title()),
-                        String.format(Locale.GERMANY, "die Wörter kamen %.1f s zu %s, jetzt passen sie",
-                                Math.abs(fix) / 1000.0, fix > 0 ? "spät" : "früh"));
+                notifier.toast(Lang.f("Sync korrigiert: %s", "Sync corrected: %s", shown(done.track.title())),
+                        Lang.f("die Wörter kamen %.1f s zu %s, jetzt passen sie", "the words came %.1f s too %s, now they fit",
+                                Math.abs(fix) / 1000.0, fix > 0 ? Lang.of("spät", "late") : Lang.of("früh", "early")));
             }
         }
     }
@@ -690,20 +699,20 @@ public final class Hoergenau {
         }
         installing = true;
         long megabytes = engine.downloadMb();
-        notifier.toast("Hörgenau lädt", "einmalig " + megabytes + " MB · 0 %");
+        notifier.toast("Hörgenau lädt", Lang.f("einmalig %d MB · 0 %%", "once, %d MB · 0 %%", megabytes));
         worker.submit(() -> {
             try {
                 engine.install(now -> {
                     percent = now;
-                    notifier.toast("Hörgenau lädt", "einmalig " + megabytes + " MB · " + now + " %");
+                    notifier.toast("Hörgenau lädt", Lang.f("einmalig %d MB · %d %%", "once, %d MB · %d %%", megabytes, now));
                 });
                 notifier.toast("Hörgenau ist bereit", "Songs ohne Wortzeiten hört es mit, auch in Teilen");
             } catch (Exception e) {
                 problem = e.getMessage();
                 LOGGER.warn("Hoergenau download failed: {}", e.toString());
                 notifier.toast("Hörgenau konnte nicht laden", "aus- und einschalten für einen neuen Versuch");
-                notifier.chat("Hörgenau konnte nicht laden: " + e.getMessage()
-                        + ". Zum erneuten Versuch aus- und einschalten.");
+                notifier.chat(Lang.f("Hörgenau konnte nicht laden: %s. Zum erneuten Versuch aus- und einschalten.",
+                        "Hörgenau could not download: %s. Switch it off and on to try again.", e.getMessage()));
             } finally {
                 installing = false;
             }
@@ -715,27 +724,32 @@ public final class Hoergenau {
         problem = null;
     }
 
+    /** What Hoergenau does now, in the player's language. */
     public String statusText() {
         if (!config.hoergenau) {
-            return "Hörgenau aus";
+            return Lang.t("Hörgenau aus");
         }
         if (!platform.getAsBoolean()) {
-            return "Hörgenau nur unter Windows und Linux";
+            return Lang.t("Hörgenau nur unter Windows und Linux");
         }
         if (installing) {
-            return "Hörgenau lädt (" + Math.max(0, percent) + " %)";
+            return Lang.f("Hörgenau lädt (%d %%)", "Hörgenau is downloading (%d %%)", Math.max(0, percent));
         }
         if (problem != null) {
-            return "Hörgenau: Laden fehlgeschlagen";
+            return Lang.t("Hörgenau: Laden fehlgeschlagen");
         }
         Take now = take;
         if (now != null) {
-            return (now.check != null ? "Hörgenau prüft den Sync: " : "Hörgenau hört mit: ") + shown(now.track.title())
-                    + (now.broken != null ? " (abgebrochen)" : "");
+            String stopped = now.broken != null ? Lang.of(" (abgebrochen)", " (stopped)") : "";
+            return now.check != null
+                    ? Lang.f("Hörgenau prüft den Sync: %s%s", "Hörgenau checks the sync: %s%s", shown(now.track.title()), stopped)
+                    : Lang.f("Hörgenau hört mit: %s%s", "Hörgenau is listening: %s%s", shown(now.track.title()), stopped);
         }
-        String model = engine.chosen() == WhisperEngine.Model.TURBO ? "Modell Genau" : "Modell Schnell";
-        return working != null ? "Hörgenau rechnet: " + shown(working)
-                : engine.installed() ? "Hörgenau bereit · " + model : "Hörgenau lädt beim nächsten Song · " + model;
+        String model = engine.chosen() == WhisperEngine.Model.TURBO ? Lang.of("Modell Genau", "Accurate model")
+                : Lang.of("Modell Schnell", "Fast model");
+        return working != null ? Lang.f("Hörgenau rechnet: %s", "Hörgenau is working: %s", shown(working))
+                : engine.installed() ? Lang.f("Hörgenau bereit · %s", "Hörgenau ready · %s", model)
+                : Lang.f("Hörgenau lädt beim nächsten Song · %s", "Hörgenau downloads with the next song · %s", model);
     }
 
     private static long median(List<Long> values) {

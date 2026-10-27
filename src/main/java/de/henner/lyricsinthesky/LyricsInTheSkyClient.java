@@ -10,6 +10,7 @@ import de.henner.lyricsinthesky.dev.SelfTest;
 import de.henner.lyricsinthesky.dev.Showcase;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HoergenauIntroScreen;
+import de.henner.lyricsinthesky.gui.LanguageScreen;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.hoergenau.SharedLearned;
 import de.henner.lyricsinthesky.lyrics.SongCatalog;
@@ -86,6 +87,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                 .map(mod -> mod.getMetadata().getVersion().getFriendlyString())
                 .orElse("dev");
         config = SkyLyricsConfig.load(configDir.resolve(MOD_ID + ".json"));
+        Lang.follow(() -> config.language, () -> Minecraft.getInstance().options.languageCode);
 
         // Without login: the OS media session (Spotify, Amazon Music, browsers on this PC). Optional login: the
         // Spotify account, which also covers music playing on a phone or console.
@@ -181,9 +183,17 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         laterKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.lyricsinthesky.later", unbound, category));
     }
 
-    /** Opens the settings screen on top of whatever is shown now. */
+    /**
+     * Opens the settings screen on top of whatever is shown now; the first time, after asking German or English (not
+     * in the tests, which show that question on their own).
+     */
     public static void openSettings(Minecraft client) {
         Screen parent = client.gui.screen();
+        if (!config.languageChosen && !SelfTest.isEnabled() && !LiveTest.isEnabled() && !Showcase.isEnabled()) {
+            client.gui.setScreen(new LanguageScreen(config,
+                    () -> client.gui.setScreen(new GlassMenuScreen(parent, controller, spotify))));
+            return;
+        }
         // One menu with the same pages and options in every look; the look is drawn by the menu itself.
         client.gui.setScreen(new GlassMenuScreen(parent, controller, spotify));
     }
@@ -198,7 +208,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         while (toggleKey.consumeClick()) {
             config.enabled = !config.enabled;
             config.save();
-            client.gui.hud.getChat().addClientSystemMessage(prefix().append(config.enabled ? "an" : "aus"));
+            client.gui.hud.getChat().addClientSystemMessage(prefix().append(config.enabled ? Lang.of("an", "on")
+                    : Lang.of("aus", "off")));
         }
         while (earlierKey.consumeClick()) {
             changeOffset(client, 100);
@@ -224,8 +235,11 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     private static String songOffsetText(LyricsController.Song song) {
         int offset = controller.timings().offsetFor(song.id());
         boolean own = controller.timings().own(song.id()).isPresent();
-        return "Timing für „" + song.title() + "“: " + (offset >= 0 ? "+" : "") + offset + " ms"
-                + (own ? "" : " (gemeinsame Korrektur)") + ", nur dieser Song. Positiv = Lyrics früher.";
+        return own ? Lang.f("Timing für „%s“: %+d ms, nur dieser Song. Positiv = Lyrics früher.",
+                "Timing for “%s”: %+d ms, this song only. Positive = lyrics earlier.", song.title(), offset)
+                : Lang.f("Timing für „%s“: %+d ms (gemeinsame Korrektur), nur dieser Song. Positiv = Lyrics früher.",
+                        "Timing for “%s”: %+d ms (shared correction), this song only. Positive = lyrics earlier.",
+                        song.title(), offset);
     }
 
     private static int songOffset(CommandContext<FabricClientCommandSource> context, Integer offsetMs) {
@@ -246,10 +260,10 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             return;
         }
         MutableComponent message = prefix()
-                .append("Korrigierst du das Timing eines Songs, wird das anonym mit henrik.click geteilt: eine zufällige "
-                        + "Kennung, der Song nur als Prüfsumme. Was Hörgenau misst, passt sofort für alle; von Hand "
-                        + "gilt es, wenn 10 Spieler einen Song gleich korrigiert haben. Die Mod fragt dort bei jedem "
-                        + "Song mit Songtext nach. ")
+                .append(Lang.t("Korrigierst du das Timing eines Songs, wird das anonym mit henrik.click geteilt: eine "
+                        + "zufällige Kennung, der Song nur als Prüfsumme. Was Hörgenau misst, passt sofort für alle; von "
+                        + "Hand gilt es, wenn 10 Spieler einen Song gleich korrigiert haben. Die Mod fragt dort bei jedem "
+                        + "Song mit Songtext nach.") + " ")
                 .append(button("[Ausschalten]", "/skylyrics share off", ChatFormatting.GRAY));
         client.gui.hud.getChat().addClientSystemMessage(message);
         config.timingNoticeShown = true;
@@ -265,9 +279,9 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             return;
         }
         MutableComponent message = prefix()
-                .append("Songs ohne Wortzeiten, die Hörgenau bei anderen Spielern gelernt hat, holt die Mod von "
+                .append(Lang.t("Songs ohne Wortzeiten, die Hörgenau bei anderen Spielern gelernt hat, holt die Mod von "
                         + "henrik.click; gefragt wird mit einer Prüfsumme des Songs. Was dein Hörgenau lernt, wird dort "
-                        + "auch geteilt. ")
+                        + "auch geteilt.") + " ")
                 .append(button("[Ausschalten]", "/skylyrics sharelearned off", ChatFormatting.GRAY));
         client.gui.hud.getChat().addClientSystemMessage(message);
         config.learnedNoticeShown = true;
@@ -283,8 +297,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
             return;
         }
         MutableComponent message = prefix()
-                .append("Songtexte kommen von lrclib.net. Gesendet werden nur Titel, Künstler, Album und Länge "
-                        + "des laufenden Songs. ")
+                .append(Lang.t("Songtexte kommen von lrclib.net. Gesendet werden nur Titel, Künstler, Album und Länge "
+                        + "des laufenden Songs.") + " ")
                 .append(button("[Ausschalten]", "/skylyrics lrclib off", ChatFormatting.GRAY));
         client.gui.hud.getChat().addClientSystemMessage(message);
         config.lrclibNoticeShown = true;
@@ -311,15 +325,18 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         config.wordTimesOffered = true;
         config.save();
         MutableComponent message = prefix()
-                .append("Für „" + timeline.title() + "“ hat lrclib.net keine Lyrics mit Zeiten. „Wortgenau“ fragt zusätzlich "
-                        + "inoffizielle Dienste (Grauzone: Deezer, LyricsPlus, NetEase, Kugou) und schickt ihnen Titel, "
-                        + "Künstler, Album und Länge. Sie können jederzeit wegfallen. ")
+                .append(Lang.f("Für „%s“ hat lrclib.net keine Lyrics mit Zeiten. „Wortgenau“ fragt zusätzlich inoffizielle "
+                        + "Dienste (Grauzone: Deezer, LyricsPlus, NetEase, Kugou) und schickt ihnen Titel, Künstler, Album "
+                        + "und Länge. Sie können jederzeit wegfallen. ",
+                        "lrclib.net has no timed lyrics for “%s”. “Word by word” also asks unofficial services (grey "
+                        + "area: Deezer, LyricsPlus, NetEase, Kugou) and sends them title, artist, album and length. They "
+                        + "may go away at any time. ", timeline.title()))
                 .append(button("[Einschalten]", "/skylyrics wortgenau on", ChatFormatting.GREEN));
         client.gui.hud.getChat().addClientSystemMessage(message);
     }
 
     private static MutableComponent button(String label, String command, ChatFormatting color) {
-        return Component.literal(label).withStyle(style -> style.withColor(color).withUnderlined(true)
+        return Component.literal(Lang.t(label)).withStyle(style -> style.withColor(color).withUnderlined(true)
                 .withClickEvent(new ClickEvent.RunCommand(command))
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal(command))));
     }
@@ -338,10 +355,10 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         Hoergenau listener = controller.hoergenau();
         if (on && listener != null) {
             listener.reset();
-            tell("Hörgenau ist an. Bei Songs ohne Wortzeiten hört es dein Musikprogramm mit (nur im Speicher) und "
+            tell(Lang.t("Hörgenau ist an. Bei Songs ohne Wortzeiten hört es dein Musikprogramm mit (nur im Speicher) und "
                     + "lernt die Wörter im Hintergrund. Hörst du einen Song nur zum Teil, hört es beim nächsten Mal den "
-                    + "Rest dazu; danach läuft er Wort für Wort."
-                    + (settings.shareLearned ? " Geteilt werden Wortzeiten; Text nur bei Songs, für die es keinen gibt."
+                    + "Rest dazu; danach läuft er Wort für Wort.")
+                    + (settings.shareLearned ? " " + Lang.t("Geteilt werden Wortzeiten; Text nur bei Songs, für die es keinen gibt.")
                             : ""));
         }
     }
@@ -353,7 +370,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     private static void toast(String title, String detail) {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> SystemToast.addOrUpdate(client.gui.toastManager(), HOERGENAU_TOAST,
-                Component.literal(title), Component.literal(detail)));
+                Component.literal(Lang.t(title)), Component.literal(Lang.t(detail))));
     }
 
     /** Ticks in a world since the introduction could be shown; it waits until the world has settled. */
@@ -394,7 +411,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             if (client.player != null) {
-                client.gui.hud.getChat().addClientSystemMessage(prefix().append(message));
+                client.gui.hud.getChat().addClientSystemMessage(prefix().append(Lang.t(message)));
             }
         });
     }
@@ -404,14 +421,15 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     }
 
     private static String offsetText() {
-        return "Offset " + (config.offsetMs >= 0 ? "+" : "") + config.offsetMs + " ms (positiv = Lyrics früher)";
+        return Lang.f("Offset %+d ms (positiv = Lyrics früher)", "Offset %+d ms (positive = lyrics earlier)", config.offsetMs);
     }
 
     private static void registerCommands() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             LiteralArgumentBuilder<FabricClientCommandSource> root = ClientCommands.literal("skylyrics")
-                    .executes(context -> reply(context, "Einstellungen: Rechte Umschalttaste oder /skylyrics settings. "
-                            + "Befehle: status, demo, on, off, mode <sky|around>, style <elegant|natural|flow|classic>, "
+                    .executes(context -> reply(context, Lang.of("Einstellungen: Rechte Umschalttaste oder "
+                            + "/skylyrics settings. Befehle: ", "Settings: right Shift or /skylyrics settings. Commands: ")
+                            + "status, demo, on, off, mode <sky|around>, style <elegant|natural|flow|classic>, "
                             + "offset <ms>, songoffset <ms|reset>, share <on|off>, opacity <0.1-1>, scale <0.3-3>, "
                             + "height <10-70>, palette <name>, "
                             + "font <sans|script|minecraft>, follow <on|off>, title <on|off>, hud <on|off>, "
@@ -419,9 +437,13 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                             + "bar <pill|karaoke|plain|title>, barpos <top|bottom>, theme <classic|glass>, "
                             + "barsize <0.75-1.5>, barbg <0-1>, barround <0-1>, glow <0-2>, "
                             + "lrclib <on|off>, wortgenau <on|off>, source <deezer|lyricsplus|netease|kugou> <on|off>, "
-                            + "spotify <connect|disconnect>"))
+                            + "spotify <connect|disconnect>, language <auto|de|en>"))
                     .then(ClientCommands.literal("status").executes(context ->
                             reply(context, controller.status() + " | " + spotify.statusText())))
+                    .then(ClientCommands.literal("language")
+                            .then(language("auto"))
+                            .then(language("de"))
+                            .then(language("en")))
                     .then(ClientCommands.literal("settings").executes(context -> {
                         openSettingsIn = 1;
                         return 1;
@@ -430,8 +452,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                         controller.startDemo();
                         return reply(context, "Demo läuft 37 Sekunden – schau in den Himmel.");
                     }))
-                    .then(choice("mode", SkyLyricsConfig.MODES, (c, value) -> c.mode = value, "Anzeige "))
-                    .then(choice("style", SkyLyricsConfig.STYLES, (c, value) -> c.style = value, "Stil "))
+                    .then(choice("mode", SkyLyricsConfig.MODES, (c, value) -> c.mode = value, "Anzeige"))
+                    .then(choice("style", SkyLyricsConfig.STYLES, (c, value) -> c.style = value, "Stil"))
                     .then(ClientCommands.literal("spotify")
                             .then(ClientCommands.literal("connect").executes(context -> {
                                 if (config.spotifyClientId.isBlank()) {
@@ -444,8 +466,8 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                                 spotify.disconnect();
                                 return reply(context, "Spotify getrennt.");
                             })))
-                    .then(ClientCommands.literal("on").executes(context -> set(context, c -> c.enabled = true, "an")))
-                    .then(ClientCommands.literal("off").executes(context -> set(context, c -> c.enabled = false, "aus")))
+                    .then(ClientCommands.literal("on").executes(context -> set(context, c -> c.enabled = true, Lang.of("an", "on"))))
+                    .then(ClientCommands.literal("off").executes(context -> set(context, c -> c.enabled = false, Lang.of("aus", "off"))))
                     .then(ClientCommands.literal("offset")
                             .then(ClientCommands.argument("ms", IntegerArgumentType.integer(-10_000, 10_000))
                                     .executes(context -> {
@@ -462,26 +484,26 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(ClientCommands.literal("opacity")
                             .then(ClientCommands.argument("value", FloatArgumentType.floatArg(0.1f, 1f))
                                     .executes(context -> set(context, c -> c.opacity = FloatArgumentType.getFloat(context, "value"),
-                                            "Deckkraft " + FloatArgumentType.getFloat(context, "value")))))
+                                            Lang.f("Deckkraft %s", "Opacity %s", FloatArgumentType.getFloat(context, "value"))))))
                     .then(ClientCommands.literal("scale")
                             .then(ClientCommands.argument("value", FloatArgumentType.floatArg(0.3f, 3f))
                                     .executes(context -> set(context, c -> c.scale = FloatArgumentType.getFloat(context, "value"),
-                                            "Größe " + FloatArgumentType.getFloat(context, "value")))))
+                                            Lang.f("Größe %s", "Size %s", FloatArgumentType.getFloat(context, "value"))))))
                     .then(ClientCommands.literal("height")
                             .then(ClientCommands.argument("degrees", FloatArgumentType.floatArg(10f, 70f))
                                     .executes(context -> set(context, c -> c.elevationDeg = FloatArgumentType.getFloat(context, "degrees"),
-                                            "Höhe " + FloatArgumentType.getFloat(context, "degrees") + "°"))))
-                    .then(choice("palette", SkyLyricsConfig.PALETTES, (c, value) -> c.palette = value, "Farben "))
-                    .then(choice("font", SkyLyricsConfig.FONTS, (c, value) -> c.font = value, "Schrift "))
+                                            Lang.f("Höhe %s°", "Height %s°", FloatArgumentType.getFloat(context, "degrees"))))))
+                    .then(choice("palette", SkyLyricsConfig.PALETTES, (c, value) -> c.palette = value, "Farben"))
+                    .then(choice("font", SkyLyricsConfig.FONTS, (c, value) -> c.font = value, "Schrift"))
                     .then(toggle("follow", (c, value) -> c.followView = value, "Zeilen folgen dem Blick"))
                     .then(toggle("title", (c, value) -> c.showTitleCard = value, "Songtitel am Himmel"))
                     .then(toggle("hud", (c, value) -> c.showHud = value, "Now-Playing-Anzeige"))
                     .then(toggle("behind", (c, value) -> c.skyBehindTerrain = value, "Am Himmel hinter Bergen"))
                     .then(toggle("beat", (c, value) -> c.beatBounce = value, "Im Takt wackeln"))
                     .then(toggle("along", (c, value) -> c.followAlong = value, "Mitdrehen"))
-                    .then(choice("preset", SkyLyricsConfig.PRESETS, SkyLyricsConfig::applyPreset, "Vorlage "))
-                    .then(choice("theme", SkyLyricsConfig.THEMES, (c, value) -> c.theme = value, "Theme "))
-                    .then(choice("menu", SkyLyricsConfig.MENU_STYLES, (c, value) -> c.menuStyle = value, "Menü "))
+                    .then(choice("preset", SkyLyricsConfig.PRESETS, SkyLyricsConfig::applyPreset, "Vorlage"))
+                    .then(choice("theme", SkyLyricsConfig.THEMES, (c, value) -> c.theme = value, "Theme"))
+                    .then(choice("menu", SkyLyricsConfig.MENU_STYLES, (c, value) -> c.menuStyle = value, "Menü"))
                     .then(toggle("streamer", LyricsInTheSkyClient::setStreamerMode,
                             "Streamer-Modus (explizite Wörter versteckt)"))
                     .then(number("barsize", 0.75f, 1.5f, (c, value) -> c.hudScale = value, "Leistengröße"))
@@ -491,12 +513,12 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(choice("bar", SkyLyricsConfig.HUD_STYLES, (c, value) -> {
                         c.hudStyle = value;
                         c.showHud = true;
-                    }, "Leiste "))
+                    }, "Leiste"))
                     .then(choice("barpos", SkyLyricsConfig.HUD_ANCHORS, (c, value) -> {
                         c.hudAnchor = value;
                         c.hudOffsetX = 0;
                         c.hudOffsetY = 0;
-                    }, "Leiste "))
+                    }, "Leiste"))
                     .then(toggle("lrclib", (c, value) -> {
                         c.lrclibAllowed = value;
                         controller.retryLookups();
@@ -541,7 +563,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                 .then(ClientCommands.argument("value", FloatArgumentType.floatArg(min, max))
                         .executes(context -> {
                             float value = FloatArgumentType.getFloat(context, "value");
-                            return set(context, c -> setter.apply(c, value), label + " " + Math.round(value * 100) + " %");
+                            return set(context, c -> setter.apply(c, value), Lang.t(label) + " " + Math.round(value * 100) + " %");
                         }));
     }
 
@@ -551,17 +573,28 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> toggle(String name, Setter<Boolean> setter, String label) {
         return ClientCommands.literal(name)
-                .then(ClientCommands.literal("on").executes(context -> set(context, c -> setter.apply(c, true), label + ": an")))
-                .then(ClientCommands.literal("off").executes(context -> set(context, c -> setter.apply(c, false), label + ": aus")));
+                .then(ClientCommands.literal("on").executes(context -> set(context, c -> setter.apply(c, true),
+                        Lang.t(label) + Lang.of(": an", ": on"))))
+                .then(ClientCommands.literal("off").executes(context -> set(context, c -> setter.apply(c, false),
+                        Lang.t(label) + Lang.of(": aus", ": off"))));
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> choice(String name, List<String> values,
             Setter<String> setter, String label) {
         LiteralArgumentBuilder<FabricClientCommandSource> node = ClientCommands.literal(name);
         for (String value : values) {
-            node.then(ClientCommands.literal(value).executes(context -> set(context, c -> setter.apply(c, value), label + value)));
+            node.then(ClientCommands.literal(value).executes(context -> set(context, c -> setter.apply(c, value),
+                    Lang.t(label) + " " + value)));
         }
         return node;
+    }
+
+    /** {@code language <auto|de|en>}: the language the mod speaks in, as on the page "Menü". */
+    private static LiteralArgumentBuilder<FabricClientCommandSource> language(String code) {
+        return ClientCommands.literal(code).executes(context -> set(context, c -> {
+            c.language = code;
+            c.languageChosen = true;
+        }, Lang.of("Sprache: ", "Language: ") + Lang.t(SkyLyricsConfig.LANGUAGE_NAMES.get(code))));
     }
 
     private static int set(CommandContext<FabricClientCommandSource> context, Consumer<SkyLyricsConfig> change, String feedback) {
@@ -571,7 +604,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
     }
 
     private static int reply(CommandContext<FabricClientCommandSource> context, String text) {
-        context.getSource().sendFeedback(prefix().append(text));
+        context.getSource().sendFeedback(prefix().append(Lang.t(text)));
         return 1;
     }
 }

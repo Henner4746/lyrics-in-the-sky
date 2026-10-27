@@ -1,11 +1,13 @@
 package de.henner.lyricsinthesky.dev;
 
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.LyricsController;
 import de.henner.lyricsinthesky.LyricsInTheSkyClient;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HoergenauIntroScreen;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
+import de.henner.lyricsinthesky.gui.LanguageScreen;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.Perf;
 import de.henner.lyricsinthesky.lyrics.Explicit;
@@ -82,7 +84,8 @@ public final class SelfTest {
     private static final double WORD_TIMES_CHECK = 77.0;
     /**
      * Then the menu: in its old look ("minimal") its start, every page, two pages scrolled to their end and the color
-     * picker, then in glass its start and a page; each a second after opening so everything has come in.
+     * picker, then in glass its start and a page; each a second after opening so everything has come in. Last the
+     * question for the language, and pages in English ("en-").
      */
     private static final double GLASS_MENU_FROM = 79.0;
     private static final String[][] GLASS_MENU_SHOTS = {{"minimal", "start"}, {"minimal", "presets"}, {"minimal", "display"},
@@ -90,7 +93,9 @@ public final class SelfTest {
             {"minimal", "bar"}, {"minimal", "timing"}, {"minimal", "sources"}, {"minimal", "hoergenau"},
             {"minimal", "hoergenau-end"}, {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"},
             {"minimal", "picker"}, {"glass", "start"}, {"glass", "presets"}, {"glass", "look"}, {"glass", "hoergenau-end"},
-            {"fancy", "start"}, {"fancy", "menu"}, {"minimal", "intro"}};
+            {"fancy", "start"}, {"fancy", "menu"}, {"minimal", "intro"}, {"minimal", "language"},
+            {"minimal", "en-start"}, {"minimal", "en-presets"}, {"minimal", "en-display"}, {"minimal", "en-hoergenau"},
+            {"minimal", "en-menu"}, {"glass", "en-start"}, {"minimal", "en-intro"}};
     /**
      * Then the demo once more with the new looks: outline, capitals and own colors, the rainbow with the bar's underline
      * and progress line, the three looks on the screen and three of the new presets; each photographed while a line is
@@ -110,6 +115,7 @@ public final class SelfTest {
     private static List<String[]> songs;
     private static String themeBefore;
     private static String menuStyleBefore;
+    private static String languageBefore;
     private static final NowPlaying PROBE = new NowPlaying("selftest", "Sonne", "Rammstein", "Mutter", true, 0, 272_000, 0);
     private static int ticksInWorld;
 
@@ -120,6 +126,8 @@ public final class SelfTest {
     }
 
     public static void register(LyricsController controller, LrclibClient lrclib) {
+        // In German, whatever the game's language is; the pages in English have their own photos.
+        controller.config().language = "de";
         Thread lookup = new Thread(() -> checkLrclib(lrclib), "LyricsInTheSky-SelfTest");
         lookup.setDaemon(true);
         lookup.start();
@@ -498,31 +506,42 @@ public final class SelfTest {
                 clearScreen(minecraft);
                 if (i == 0) {
                     menuStyleBefore = config.menuStyle;
+                    languageBefore = config.language;
                     minecraft.player.connection.sendCommand("time set noon");
                 }
-                if (!style.equals(config.menuStyle) && minecraft.gui.screen() != null) {
+                String language = shot.startsWith("en-") ? "en" : "de";
+                String page = shot.startsWith("en-") ? shot.substring(3) : shot;
+                if ((!style.equals(config.menuStyle) || !language.equals(config.language)) && minecraft.gui.screen() != null) {
+                    // Another look or language: the menu is laid out anew.
                     minecraft.gui.screen().onClose();
                 }
+                if (minecraft.gui.screen() instanceof HoergenauIntroScreen || minecraft.gui.screen() instanceof LanguageScreen) {
+                    minecraft.gui.setScreen(null);
+                }
                 config.menuStyle = style;
-                if ("intro".equals(shot)) {
+                config.language = language;
+                if ("intro".equals(page)) {
                     // The introduction to Hoergenau, as the first world with it shows it once; switching on is not
                     // clicked here.
                     minecraft.gui.setScreen(new HoergenauIntroScreen(config, (c, model) -> { }));
+                } else if ("language".equals(page)) {
+                    // The question the menu asks the first time it opens; nothing is chosen here.
+                    minecraft.gui.setScreen(new LanguageScreen(config, () -> { }));
                 } else if (!(minecraft.gui.screen() instanceof GlassMenuScreen)) {
                     LyricsInTheSkyClient.openSettings(minecraft);
                 }
                 if (minecraft.gui.screen() instanceof GlassMenuScreen menu) {
-                    switch (shot) {
+                    switch (page) {
                         case "start" -> menu.show(null);
                         case "look-end", "display-end", "hoergenau-end" -> {
-                            menu.show(shot.substring(0, shot.indexOf('-')));
+                            menu.show(page.substring(0, page.indexOf('-')));
                             menu.scrollToEnd();
                         }
                         case "picker" -> {
                             menu.show("look");
                             menu.openFirstColor();
                         }
-                        default -> menu.show(shot);
+                        default -> menu.show(page);
                     }
                 }
             }
@@ -546,6 +565,8 @@ public final class SelfTest {
                     LOGGER.info("SELFTEST menu {} {}: {}", style, shot, menu.fits() ? "fits" : "TOO BIG");
                 } else if (minecraft.gui.screen() instanceof HoergenauIntroScreen intro) {
                     LOGGER.info("SELFTEST menu {} {}: {}", style, shot, intro.fits() ? "fits" : "TOO BIG");
+                } else if (minecraft.gui.screen() instanceof LanguageScreen question) {
+                    LOGGER.info("SELFTEST menu {} {}: {}", style, shot, question.fits() ? "fits" : "TOO BIG");
                 } else {
                     LOGGER.info("SELFTEST menu {} {}: NOT open", style, shot);
                 }
@@ -558,8 +579,13 @@ public final class SelfTest {
                 menu.onClose();
             } else if (minecraft.gui.screen() instanceof HoergenauIntroScreen intro) {
                 intro.onClose();
+            } else if (minecraft.gui.screen() instanceof LanguageScreen) {
+                minecraft.gui.setScreen(null);
             }
             config.menuStyle = menuStyleBefore != null ? menuStyleBefore : config.menuStyle;
+            config.language = languageBefore != null ? languageBefore : config.language;
+            // Every text the menu showed in English has an English one; the missing are logged as "LANG missing".
+            LOGGER.info("SELFTEST english: {} texts without English", Lang.missing());
         }
     }
 

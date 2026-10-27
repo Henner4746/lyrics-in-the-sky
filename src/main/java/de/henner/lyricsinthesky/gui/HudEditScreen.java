@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.gui;
 
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.render.Glass;
 import de.henner.lyricsinthesky.render.HudLayout;
@@ -40,7 +41,7 @@ public final class HudEditScreen extends Screen {
     }
 
     private Component text(String value) {
-        return Component.literal(value).withStyle(text);
+        return Component.literal(Lang.t(value)).withStyle(text);
     }
 
     @Override
@@ -71,7 +72,7 @@ public final class HudEditScreen extends Screen {
     }
 
     private Component styleLabel() {
-        return text(STYLE_NAMES.getOrDefault(config.hudStyle, config.hudStyle) + " ›");
+        return Component.literal(Lang.t(STYLE_NAMES.getOrDefault(config.hudStyle, config.hudStyle)) + " ›").withStyle(text);
     }
 
     private void moveTo(String anchor) {

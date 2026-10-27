@@ -3,6 +3,7 @@ package de.henner.lyricsinthesky.hoergenau;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.henner.lyricsinthesky.Lang;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -194,8 +195,9 @@ public final class WhisperEngine {
             download(http, model.url(), model.sha256(), file, 5, 100, percent);
         }
         if (!Files.isRegularFile(cli())) {
-            throw new IOException("whisper.cpp fehlt: unter Linux whisper-cli selbst bauen und mit seinen Bibliotheken "
-                    + "nach " + cli().getParent() + " legen");
+            throw new IOException(Lang.f("whisper.cpp fehlt: unter Linux whisper-cli selbst bauen und mit seinen "
+                    + "Bibliotheken nach %s legen", "whisper.cpp is missing: on Linux, build whisper-cli yourself and put it "
+                    + "with its libraries in %s", cli().getParent()));
         }
         percent.accept(100);
     }

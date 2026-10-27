@@ -1,5 +1,6 @@
 package de.henner.lyricsinthesky.render;
 
+import de.henner.lyricsinthesky.Lang;
 import de.henner.lyricsinthesky.SkyLyricsConfig;
 import java.util.Locale;
 import net.minecraft.client.gui.Font;
@@ -14,10 +15,9 @@ import net.minecraft.util.ARGB;
  * when a setting does, so the effect of each option shows before the menu is closed.
  */
 public final class LookPreview {
-    private static final String[] LINE = "Wort für Wort am Himmel".split(" ");
+    private static final String LINE = "Wort für Wort am Himmel";
     /** One word every this long, a pause, then the line starts over. */
     private static final long WORD_MS = 520;
-    private static final long CYCLE_MS = LINE.length * WORD_MS + 1_400;
     private static final int STARS = 46;
 
     private LookPreview() {}
@@ -100,14 +100,15 @@ public final class LookPreview {
             int right, float alpha, long nowMs) {
         Palette palette = Palette.pick(config, "preview", "around".equals(config.mode));
         Style style = SkyLyricsRenderer.regularStyle(config.font);
-        long at = nowMs % CYCLE_MS;
-        int sung = (int) Math.min(LINE.length - 1, at / WORD_MS);
-        boolean pause = at >= LINE.length * WORD_MS;
-        String[] words = new String[LINE.length];
+        String[] line = Lang.t(LINE).split(" ");
+        long at = nowMs % (line.length * WORD_MS + 1_400);
+        int sung = (int) Math.min(line.length - 1, at / WORD_MS);
+        boolean pause = at >= line.length * WORD_MS;
+        String[] words = new String[line.length];
         int total = 0;
         int space = font.width(Component.literal(" ").withStyle(style));
-        for (int i = 0; i < LINE.length; i++) {
-            words[i] = config.uppercase ? LINE[i].toUpperCase(Locale.ROOT) : LINE[i];
+        for (int i = 0; i < line.length; i++) {
+            words[i] = config.uppercase ? line[i].toUpperCase(Locale.ROOT) : line[i];
             total += font.width(Component.literal(words[i]).withStyle(style)) + (i > 0 ? space : 0);
         }
         float scale = Math.max(0.7f, Math.min(1.8f, config.scale)) * 1.25f;
@@ -124,7 +125,7 @@ public final class LookPreview {
         for (int i = 0; i < words.length; i++) {
             Component word = Component.literal(words[i]).withStyle(style);
             int w = font.width(word);
-            float shown = pause ? 1f - Easing.clamp01((at - LINE.length * WORD_MS) / (fadeMs * 2f))
+            float shown = pause ? 1f - Easing.clamp01((at - line.length * WORD_MS) / (fadeMs * 2f))
                     : i < sung ? 1f : i == sung ? Easing.clamp01(sinceWord / fadeMs) : 0f;
             float a = opacity * shown;
             if (a > 0.01f) {
