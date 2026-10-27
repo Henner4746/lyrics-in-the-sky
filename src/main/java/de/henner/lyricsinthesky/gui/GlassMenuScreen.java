@@ -2302,7 +2302,7 @@ public final class GlassMenuScreen extends Screen {
             }
             // The last line shown ends in "…" when there is more.
             List<FormattedCharSequence> shown = new ArrayList<>(lines.subList(0, descLines() - 1));
-            String rest = what(i);
+            String rest = Lang.t(what(i));
             StringBuilder taken = new StringBuilder();
             for (FormattedCharSequence line : shown) {
                 line.accept((index, lineStyle, codePoint) -> {
@@ -2310,7 +2310,9 @@ public final class GlassMenuScreen extends Screen {
                     return true;
                 });
             }
-            shown.add(fit(rest.substring(Math.min(rest.length(), taken.length())).stripLeading(), style, width));
+            // Cut from the text as shown, already in the player's language.
+            shown.add(fit(Component.literal(rest.substring(Math.min(rest.length(), taken.length())).stripLeading())
+                    .withStyle(style), width));
             return shown;
         }
 
