@@ -79,6 +79,20 @@ subprojects {
         }
     }
 
+    // A run folder the game never started in opens on its welcome screen (narrator, accessibility settings), which
+    // holds --quickPlaySingleplayer back: the unattended runs would wait there and never reach SkyTest, as on a fresh
+    // Windows PC. Without pausing on lost focus the pictures stay clear when a music player takes the focus.
+    tasks.matching { it.name in ["runSelfTest", "runRecordPreview", "runLiveTest", "runShowcase"] }.configureEach {
+        doFirst {
+            File options = file("run/options.txt")
+            List<String> kept = options.exists() ? options.readLines("UTF-8").findAll {
+                !it.startsWith("onboardAccessibility:") && !it.startsWith("pauseOnLostFocus:")
+            } : []
+            options.parentFile.mkdirs()
+            options.setText((kept + ["onboardAccessibility:false", "pauseOnLostFocus:false"]).join("\n") + "\n", "UTF-8")
+        }
+    }
+
     processResources {
         inputs.property "version", project.version
         inputs.property "mc_range", project.mc_range
