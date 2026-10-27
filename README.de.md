@@ -70,7 +70,11 @@ als einzelne Wörter, die rund um dich schweben.
   Menü zur Seite tritt, während die Demo am Himmel singt. Ein dritter Look, „Prachtvoll“, legt Polarlicht, aufsteigende
   Noten und Licht am Rand dazu. Alle drei Looks haben dieselben Seiten und Optionen, auch die Seite *Menü* zum
   Umschalten, und Optionen, die gerade nicht gelten (etwa die Bildschirm-Optionen ohne Anzeige „Bildschirm“), werden
-  ausgeblendet.
+  ausgeblendet. Die Startseite zeigt zuerst fünf Vorlagen und einen Weg zu allen 22 und sagt, wie viel sich einstellen
+  lässt; jede Seite nennt die Zahl ihrer Optionen.
+- **Deutsch oder Englisch:** Beim ersten Öffnen fragt das Menü, in welcher Sprache die Mod redet, die Sprache des
+  Spiels als Hauptknopf. Auf der Seite *Menü* und mit `/skylyrics language <auto|de|en>` lässt sie sich später
+  ändern; *auto* folgt der Sprache des Spiels.
 - **Ganz nach deinem Geschmack:** Großbuchstaben, Animationstempo, wie stark es im Takt wackelt, was bei Pause passiert
   (abdunkeln, ausblenden, weiter zeigen), die Texte weiter links oder rechts; die eigene Akzentfarbe der Leiste, eine
   Fortschrittslinie, Künstler und Equalizer an oder aus, wie das gesungene Wort markiert ist (hinterlegt, Farbe, Linie)
@@ -169,6 +173,7 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics wortgenau <on\|off>` | Alle inoffiziellen Wortzeit-Dienste auf einmal („Wortgenau“, auch `grauzone`; standardmäßig aus) |
 | `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | Einzelne Wortzeit-Dienste |
 | `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
+| `/skylyrics language <auto\|de\|en>` | die Mod auf Deutsch oder Englisch; `auto` wie das Spiel |
 
 **Tasten** (unter *Steuerung → Lyrics in the Sky*): Einstellungen (**rechte Umschalttaste**), dazu
 standardmäßig unbelegt: Lyrics ein/aus, Lyrics 100 ms früher, Lyrics 100 ms später. Läuft ein Song mit

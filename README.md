@@ -66,7 +66,11 @@ you.
   "Auf Standard zurücksetzen" per page and a **live view** that steps the menu aside while the demo sings in the
   sky. A third look, *Prachtvoll*, adds an aurora, rising notes and light on the rim. All three looks have the same
   pages and options, also the page *Menü* to switch between them, and options that do not apply right now (the screen
-  options without the screen display, say) are not shown.
+  options without the screen display, say) are not shown. The start page leads with five presets and a link to all
+  22, and says how much there is to set; every page says how many options it has.
+- **German or English:** the first time the menu opens it asks which language the mod speaks, the game's language
+  as the main button. The page *Menü* and `/skylyrics language <auto|de|en>` change it later; *auto* follows the
+  game's language.
 - **Make it yours:** capitals, animation speed, how strongly it wobbles on the beat, what happens on pause (dim, fade
   out, keep), lyrics further left or right; the bar's own accent color, a progress line, artist and equalizer on or
   off, how the sung word is marked (box, color, underline) and the bar's own font; the menu's accent color, blur and
@@ -164,6 +168,7 @@ working automatically through the media session on your PC.
 | `/skylyrics wortgenau <on\|off>` | All unofficial word time services at once ("Wortgenau", also `grauzone`; off by default) |
 | `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | One word time service at a time |
 | `/skylyrics spotify <connect\|disconnect>` | Connect or disconnect the optional Spotify account |
+| `/skylyrics language <auto\|de\|en>` | The mod in German or English; `auto` as the game |
 
 **Key bindings** (under *Controls → Lyrics in the Sky*): settings (**Right Shift**), and unbound by default:
 toggle lyrics, lyrics 100 ms earlier, lyrics 100 ms later. While a song with lyrics plays, the two timing keys
@@ -330,7 +335,6 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
 - Livestreams and videos without a known length get no lyrics.
 - With a shader pack (Iris) the text is drawn on top of the pack's finished image: hills, trees and walls
   still hide it, the pack's own clouds do not. Tested with Complementary Reimagined.
-- In-game messages and command feedback are in German for now.
 
 ## Building
 

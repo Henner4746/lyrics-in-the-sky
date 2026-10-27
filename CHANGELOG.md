@@ -10,6 +10,15 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### Since 1.3.0-dev.20 (on the branch, no build of its own yet)
+
+- **German or English**: the first time the menu opens it asks which language the mod speaks, the game's language as
+  the main button; the page *Menü* and `/skylyrics language <auto|de|en>` change it later, `auto` follows the game.
+  Menus, the bar, chat notes, Hörgenau's notes and the page after the Spotify login all come in both languages.
+- **Presets first**: the start page of the menu leads with five presets and a link to all 22, a new page shows all of
+  them as tiles with what each one does, and the start page and every page say how many options there are. On the
+  page *Anzeige* the preset row leads to that page.
+
 ### 1.3.0-dev.20 – 2026-10-27
 
 - **Hörgenau hears a new song from its start**: in a game on Windows the lookup took 12 s and Hörgenau began at 9 s,
