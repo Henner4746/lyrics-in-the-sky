@@ -411,7 +411,9 @@ public final class GlassMenuScreen extends Screen {
                         c -> c.shareLearned, (c, on) -> c.shareLearned = on),
                 new Section("Genauer erklärt"),
                 new Explain("Songs lernen", "Hat niemand Wortzeiten für einen Song, hört die KI mit, wo er gerade "
-                        + "läuft. Hörst du nur einen Teil, merkt sie sich das Gehörte und hört beim nächsten Mal den "
+                        + "läuft, bei einem neuen Song schon ab dem Anfang, während er noch gesucht wird; braucht er "
+                        + "nichts, verwirft sie das sofort. Hörst du nur einen Teil, merkt sie sich das Gehörte und hört "
+                        + "beim nächsten Mal den "
                         + "Rest dazu. Sobald sie fast alles kennt, läuft er Wort für Wort. Livestreams, Videos und "
                         + "Podcasts schreibt sie nie ab: Hat niemand den Text, hört sie nur zu, wenn Deezer oder Apple "
                         + "den Song kennen."),

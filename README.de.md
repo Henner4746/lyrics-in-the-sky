@@ -291,8 +291,15 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
 - **Nur Songs:** Einen Song, dessen Text niemand hat, hört Hörgenau nur mit Song-Länge (30 s bis 20 min) und wenn der
   Katalog von Deezer oder Apple einen Song dieses Künstlers mit diesem Titel kennt; Livestreams, Videos und Podcasts
   schreibt es nie ab. Der Tracker prüft dasselbe, bevor er so einen Songtext annimmt.
+- **Von Anfang an:** Ein neuer Song wird schon ab seinem Anfang mitgehört, während er noch gesucht wird, damit seine
+  ersten Sekunden nicht fehlen; diese Aufnahme bleibt im Speicher und wird verworfen, sobald die Suche zeigt, dass der
+  Song nichts braucht (höchstens eine Minute, nie bei Livestreams).
+- **Schreibweise des Titels:** Gehörte Wörter, die fast wie ein Wort aus Titel oder Künstler geschrieben sind, bekommen
+  dessen Schreibweise („Titchen“ wird in einem Song namens „Kleine Tittchen“ zu „Tittchen“); andere Formen des Worts
+  bleiben, wie gehört.
 - **Datenschutz:** Mitgehört wird der Ton des Musikprogramms, wo das nicht geht alles, was über den
-  Standardlautsprecher läuft, also auch Sprachchat, solange so ein Song läuft (und für die 50 s einer Sync-Prüfung). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
+  Standardlautsprecher läuft, also auch Sprachchat, solange so ein Song läuft (und für die 50 s einer Sync-Prüfung
+  sowie die ersten Sekunden eines neuen Songs, während er gesucht wird). Die Aufnahme verlässt nie den PC und bleibt nicht auf der Platte, außer kurz als Datei für whisper.cpp,
   die gleich danach gelöscht wird. Mit „Gelerntes teilen“ gehen die Wortzeiten an den Tracker, und Text nur bei
   Songs, deren Text niemand hat.
 - Einschalten auf der Seite *Hörgenau (KI)* im Menü, die auch Schritt für Schritt erklärt, was die KI tut, mit

@@ -293,6 +293,59 @@ final class HeardLyrics {
         return Normalizer.normalize(lower, Normalizer.Form.NFC).replaceAll("[^\\p{L}\\p{N}]", "");
     }
 
+    /**
+     * Words heard spelled almost like a word of the song's title or artist take that spelling: in a song called
+     * "Kleine Tittchen" Whisper wrote "Titchen" 28 times. Giving Whisper the title as a prompt did not help (with
+     * {@code -mc 0} it is not used at all, with context it wrote "Titchen" more often). Only distinctive words of five
+     * letters and more count, a heard word has to start with the same letter and be one letter off (two for words of
+     * nine letters and more), and not be the start of it or start with it, so other words and other forms stay as heard.
+     */
+    static List<List<Heard>> spelledLike(List<List<Heard>> segments, String... names) {
+        java.util.Map<String, String> spellings = new java.util.LinkedHashMap<>();
+        for (String name : names) {
+            for (String word : name == null ? new String[0] : name.split("[^\\p{L}\\p{N}']+")) {
+                String key = token(word);
+                if (key.length() >= 5) {
+                    spellings.putIfAbsent(key, word);
+                }
+            }
+        }
+        if (spellings.isEmpty()) {
+            return segments;
+        }
+        return segments.stream().map(segment -> segment.stream().map(word -> respelled(word, spellings)).toList())
+                .toList();
+    }
+
+    private static Heard respelled(Heard heard, java.util.Map<String, String> spellings) {
+        String key = token(heard.text());
+        if (key.length() < 4 || spellings.containsKey(key)) {
+            return heard;
+        }
+        for (java.util.Map.Entry<String, String> spelling : spellings.entrySet()) {
+            String wanted = spelling.getKey();
+            int allowed = wanted.length() >= 9 ? 2 : 1;
+            // A word the other starts with is another form of it ("klein" in a song called "Kleine ..."), not a slip.
+            if (key.charAt(0) == wanted.charAt(0) && Math.abs(key.length() - wanted.length()) <= allowed
+                    && !wanted.startsWith(key) && !key.startsWith(wanted) && distance(key, wanted) <= allowed) {
+                return new Heard(respelled(heard.text(), spelling.getValue()), heard.startMs());
+            }
+        }
+        return heard;
+    }
+
+    /** The word as the title spells it, with the heard word's punctuation around it and its first letter's case. */
+    private static String respelled(String heard, String title) {
+        java.util.regex.Matcher core = java.util.regex.Pattern.compile("[\\p{L}\\p{N}']+").matcher(heard);
+        if (!core.find()) {
+            return heard;
+        }
+        String first = heard.substring(core.start(), core.start() + 1);
+        String word = (Character.isUpperCase(first.charAt(0)) ? title.substring(0, 1).toUpperCase(Locale.ROOT)
+                : title.substring(0, 1).toLowerCase(Locale.ROOT)) + title.substring(1);
+        return heard.substring(0, core.start()) + word + heard.substring(core.end());
+    }
+
     /** The same word, or spelled alike: at most about a third of the letters differ (for words of three or more). */
     static boolean similar(String a, String b) {
         if (a.equals(b)) {

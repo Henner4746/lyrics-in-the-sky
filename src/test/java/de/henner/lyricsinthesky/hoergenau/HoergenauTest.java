@@ -331,6 +331,68 @@ class HoergenauTest {
     }
 
     @Test
+    void aSongIsHeardFromItsStartWhileItIsStillLookedUp(@TempDir Path dir) throws Exception {
+        // As in the game on Windows: the lookup took 12 s and the song's first 9 s were never heard.
+        CountingRecorder recorder = new CountingRecorder();
+        LyricsCache saved = new LyricsCache(dir.resolve("lyrics"));
+        Hoergenau hoergenau = checking(dir, recorder, saved);
+        java.util.Map<String, Optional<Boolean>> catalog = new java.util.HashMap<>(java.util.Map.of(
+                "song", Optional.empty(), "video", Optional.of(false)));
+        hoergenau.checkSongsWith((key, track) -> catalog.get(key));
+        hoergenau.observe(track(true, 1_000), "song", null, List.of(), null, null);
+        assertEquals(1, recorder.starts);
+        assertTrue(hoergenau.listeningTo("song"));
+        // Nobody has its text and the catalog is still asked: it listens on, from the start.
+        hoergenau.observe(track(true, 9_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertTrue(hoergenau.listeningTo("song"));
+        catalog.put("song", Optional.of(true));
+        hoergenau.observe(track(true, 12_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(1, recorder.starts, "the recording goes on, not started anew");
+        assertEquals(0, recorder.stops);
+        assertTrue(hoergenau.listeningTo("song"));
+        // What turns out to be no song is dropped at once.
+        hoergenau.observe(track(true, 1_000), "video", null, List.of(), null, null);
+        assertEquals(1, recorder.stops, "the song before ended");
+        hoergenau.observe(track(true, 9_000), "video", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(2, recorder.stops);
+        assertTrue(!hoergenau.listeningTo("video"));
+    }
+
+    @Test
+    void aSongWhoseLyricsNeedNothingIsDroppedOnceItIsLookedUp(@TempDir Path dir) throws Exception {
+        CountingRecorder recorder = new CountingRecorder();
+        LyricsCache saved = new LyricsCache(dir.resolve("lyrics"));
+        saved.write("song\u0000synccheck", "fits 40");
+        Hoergenau hoergenau = checking(dir, recorder, saved);
+        Lyrics timed = Lyrics.parseLrc("[00:12.00]Light the lanterns on the river");
+        hoergenau.observe(track(true, 2_000), "song", null, List.of(), null, null);
+        assertTrue(hoergenau.listeningTo("song"));
+        // Timed and checked before: nothing to hear.
+        hoergenau.observe(track(true, 4_000), "song", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        assertTrue(!hoergenau.listeningTo("song"));
+        assertEquals(1, recorder.stops);
+        // Timed and never checked: the early recording becomes the check, from the song's start.
+        hoergenau.observe(track(true, 2_000), "other", null, List.of(), null, null);
+        hoergenau.observe(track(true, 4_000), "other", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        assertTrue(hoergenau.listeningTo("other"));
+        assertEquals(2, recorder.starts);
+        // Seen first far into the song: not early, as before.
+        hoergenau.observe(track(true, 60_000), "late", null, List.of(), null, null);
+        assertTrue(!hoergenau.listeningTo("late"));
+    }
+
+    @Test
+    void wordsHeardAlmostLikeTheTitleTakeItsSpelling() {
+        List<List<Heard>> heard = List.of(List.of(new Heard("Kleine", 0), new Heard("Titchen,", 300),
+                new Heard("klein", 600), new Heard("Titus", 900), new Heard("titchen.", 1200), new Heard("WHATEVR", 1500)));
+        List<String> spelled = HeardLyrics.spelledLike(heard, "Kleine Tittchen", "SUV WHATEVER").get(0).stream()
+                .map(Heard::text).toList();
+        // A slip of one letter takes the title's spelling, with its own punctuation and case; another form of a title
+        // word ("klein") and words only alike ("Titus") stay as heard.
+        assertEquals(List.of("Kleine", "Tittchen,", "klein", "Titus", "tittchen.", "WHATEVER"), spelled);
+    }
+
+    @Test
     void theLoopbackHelperTellsWhatItRecordsAndSince() {
         LoopbackRecorder.Header only = LoopbackRecorder.Header.of("LOOPBACK 16000 48000 2 16 int 3004 only Spotify.exe#5120");
         assertEquals(3004, only.sinceMs());
@@ -386,6 +448,7 @@ class HoergenauTest {
 
     private static final class CountingRecorder implements Recorder {
         int starts;
+        int stops;
         String player;
 
         @Override
@@ -411,6 +474,7 @@ class HoergenauTest {
 
         @Override
         public short[] stop() {
+            stops++;
             return new short[0];
         }
     }

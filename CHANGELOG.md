@@ -10,6 +10,18 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.20 – 2026-10-27
+
+- **Hörgenau hears a new song from its start**: in a game on Windows the lookup took 12 s and Hörgenau began at 9 s,
+  so the song's start was never heard. Now a new song is listened to from its start while it is still looked up; the
+  recording goes on as the song's part to learn or as its sync check, or is dropped as soon as the lookup shows the song
+  needs nothing (at most after a minute, never for a livestream).
+- **The title's spelling**: words heard almost like a word of the song's title or artist take that spelling – Whisper
+  wrote "Titchen" 28 times in a song called "Kleine Tittchen". Giving Whisper the title as a prompt was tried first and
+  did not help: with the mod's settings it is not used, and with more context it wrote "Titchen" more often.
+- **Test runs skip the game's welcome screen** in a fresh run folder, which had held the test world back on a new
+  Windows PC.
+
 ### 1.3.0-dev.19 – 2026-10-27
 
 - **Hörgenau on Linux**: it records the music app's own PulseAudio stream (PipeWire's PulseAudio server too) with

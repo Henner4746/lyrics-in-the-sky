@@ -42,6 +42,13 @@ public final class Hoergenau {
      */
     static final long MIN_SONG_MS = 30_000;
     static final long MAX_SONG_MS = 20 * 60_000;
+    /**
+     * A song first seen this close to its start is listened to while it is still looked up: the lookup took 12 s in a
+     * game on Windows, and Hoergenau missed the song's first 9 s, which nothing ever filled.
+     */
+    static final long EARLY_MS = 15_000;
+    /** An early recording whose song is still not looked up after this long (the lookup failed) is dropped. */
+    static final long EARLY_LIMIT_MS = 60_000;
     /** A position this far off the line the earlier ones gave means the player skipped. */
     private static final long SKIP_MS = 2_500;
     /** A player stopping this close to the end of the song has played it to the end (the last song of a queue). */
@@ -79,6 +86,8 @@ public final class Hoergenau {
     private volatile String problem;
     private volatile String working;
     private String considered;
+    /** The song an early recording was started for, so it is started once. */
+    private String earlyKey;
     private Take take;
     /** What was heard of songs not learned yet, read once from the store. */
     private final Map<String, HeardParts> parts = new java.util.concurrent.ConcurrentHashMap<>();
@@ -86,7 +95,9 @@ public final class Hoergenau {
     private static final class Take {
         final String key;
         final NowPlaying track;
-        final List<String> lines;
+        List<String> lines;
+        /** Started while the song was still looked up; kept only if it turns out to be one to learn or check. */
+        boolean early;
         /** For a sync check: the lyrics with word times whose sync is checked; {@code null} when a song is learned. */
         Lyrics check;
         final List<Long> anchors = new ArrayList<>();
@@ -205,7 +216,18 @@ public final class Hoergenau {
         if (take != null && (now == null || !take.key.equals(key))) {
             finish();
         }
-        if (now == null || shown == null) {
+        if (now == null) {
+            return;
+        }
+        if (take == null && shown == null) {
+            startEarly(now, key, other);
+            return;
+        }
+        if (take != null && take.early && shown != null && !settle(now, key, shown, text, timed)) {
+            return;
+        }
+        if (take != null && take.early && recorder.count() >= EARLY_LIMIT_MS * LoopbackRecorder.RATE / 1000) {
+            dropEarly("still not looked up after a minute");
             return;
         }
         if (take == null) {
@@ -283,6 +305,71 @@ public final class Hoergenau {
     }
 
     /**
+     * A song seen near its start while it is still looked up: listened to already, so its beginning is not missed should
+     * it turn out to be one to learn or to check. The recording stays in memory and is dropped as soon as the lookup
+     * shows the song needs nothing; never for a livestream, and not where the song was heard before.
+     */
+    private void startEarly(NowPlaying now, String key, String other) {
+        if (key.equals(earlyKey) || !now.playing() || heardAlong(other) || notSongs.contains(key)
+                || now.durationMs() < MIN_SONG_MS || now.durationMs() > MAX_SONG_MS) {
+            return;
+        }
+        long position = now.estimatePositionMs(System.currentTimeMillis());
+        if (position > EARLY_MS || parts(key).covers(position)) {
+            return;
+        }
+        earlyKey = key;
+        try {
+            recorder.start(player.get());
+            take = new Take(key, now, List.of(), null);
+            take.early = true;
+            LOGGER.info("Hoergenau listens to '{}' from {} s while it is looked up", now.title(), position / 1000);
+        } catch (Exception e) {
+            LOGGER.warn("Hoergenau could not start listening: {}", e.toString());
+        }
+    }
+
+    /**
+     * The lookup of a song listened to early is done: the recording goes on as the song's part to learn, or as its sync
+     * check, or it is dropped. Whether it goes on.
+     */
+    private boolean settle(NowPlaying now, String key, Shown shown, List<String> text, Lyrics timed) {
+        if (shown == Shown.TIMED) {
+            if (timed != null && config.hoergenauSyncCheck && syncFix != null && checkDue(key) && !key.equals(considered)) {
+                considered = key;
+                take.check = timed;
+                take.early = false;
+                LOGGER.info("Hoergenau checks the sync of '{}' by '{}', heard from its start", now.title(), now.artist());
+                return true;
+            }
+            dropEarly(timed == null ? "nothing to learn or check" : "its sync was checked before");
+            return false;
+        }
+        if (shown == Shown.NOTHING) {
+            Optional<Boolean> isSong = songState(now, key);
+            if (isSong.isEmpty()) {
+                return true;  // the catalog is still being asked; the recording goes on meanwhile
+            }
+            if (!isSong.get()) {
+                dropEarly("no song");
+                return false;
+            }
+        }
+        take.lines = shown == Shown.TEXT_ONLY ? List.copyOf(text) : List.of();
+        take.early = false;
+        LOGGER.info("Hoergenau listens to '{}' by '{}' from its start ({})", now.title(), now.artist(),
+                take.lines.isEmpty() ? "no text known" : take.lines.size() + " lines of text known");
+        notifier.toast("Hörgenau hört mit", shown(now.title()) + " – von Anfang an");
+        return true;
+    }
+
+    private void dropEarly(String why) {
+        recorder.stop();
+        LOGGER.info("Hoergenau dropped the start of '{}': {}", take.track.title(), why);
+        take = null;
+    }
+
+    /**
      * Whether another player playing at the same time (a stream or video in the browser) would end up in the recording:
      * only when the app playing the song is not known, so everything the PC plays is recorded. With the app known only
      * its own sound is taken, and should Windows not manage that, the part ends once the other is heard.
@@ -296,15 +383,20 @@ public final class Hoergenau {
      * catalog as a song of that artist. Waits while the catalog is asked.
      */
     private boolean song(NowPlaying now, String key) {
+        return songState(now, key).orElse(false);
+    }
+
+    /** The same, empty while the catalog is asked. */
+    private Optional<Boolean> songState(NowPlaying now, String key) {
         if (now.durationMs() < MIN_SONG_MS || now.durationMs() > MAX_SONG_MS) {
             noSong(now, key, now.durationMs() <= 0 ? "no length, a livestream" : now.durationMs() / 1000 + " s long");
-            return false;
+            return Optional.of(false);
         }
         Optional<Boolean> known = songs.isSong(key, now);
         if (known.isPresent() && !known.get()) {
             noSong(now, key, "no music catalog knows it");
         }
-        return known.orElse(false);
+        return known;
     }
 
     private void noSong(NowPlaying now, String key, String why) {
@@ -362,7 +454,7 @@ public final class Hoergenau {
     private void breakTake(String why, String forPlayer) {
         take.broken = why;
         recorder.stop();
-        if (take.check == null) {
+        if (take.check == null && !take.early) {
             // A sync check is quiet; it is simply tried again another time.
             notifier.toast("Hörgenau hört nicht mehr mit", forPlayer + "; beim nächsten Mal noch einmal");
         }
@@ -385,6 +477,11 @@ public final class Hoergenau {
             recorded = Arrays.copyOf(recorded, done.endSamples);
         }
         short[] audio = recorded;
+        if (done.early) {
+            LOGGER.info("Hoergenau dropped the start of '{}': it ended before it was looked up ({})", done.track.title(),
+                    done.broken != null ? done.broken : "changed");
+            return;
+        }
         if (done.broken != null) {
             LOGGER.info("Hoergenau dropped '{}': {}", done.track.title(), done.broken);
             return;
@@ -491,7 +588,8 @@ public final class Hoergenau {
             matched = aligned.get().matched();
             how = String.format("Songtext auf die Aufnahme gelegt, %d %% der Wörter gehört", Math.round(matched * 100));
         } else if (!heard.isEmpty()) {
-            lrc = HeardLyrics.transcript(segments, 0);
+            // The title's spelling for words heard almost like it ("Titchen" in a song called "Kleine Tittchen").
+            lrc = HeardLyrics.transcript(HeardLyrics.spelledLike(segments, done.track.title(), done.track.artist()), 0);
             how = "kein Songtext bekannt, das Gehörte abgeschrieben";
         } else {
             LOGGER.info("Hoergenau heard no singing in '{}'", done.track.title());
