@@ -37,7 +37,7 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 - A "now playing" bar you can drag anywhere, in four looks (pill, karaoke, plain, title only), with an optional progress line, artist, equalizer and the sung word highlighted
 - Timing per song: a song that runs early or late is fixed with one slider; what Hörgenau measured applies for everyone at once, corrections by hand once many players agree (see below)
 - More songs word by word with *Wortgenau*: optional word-time services, off until you switch them on (see below)
-- *Hörgenau* (Windows, optional): a speech AI listens on your PC and times songs no service has timed – also when you hear them in parts on different days – and checks that word-timed songs are in sync with what you hear (see below); a short introduction explains it once
+- *Hörgenau* (Windows and Linux, optional): a speech AI listens on your PC and times songs no service has timed – also when you hear them in parts on different days – and checks that word-timed songs are in sync with what you hear (see below); a short introduction explains it once
 - Streamer mode: explicit words in lyrics, titles and artists shown as "F***"
 - Works without any login for music on your PC; an optional Spotify login also covers your phone, console or other Spotify Connect devices
 - Lyrics found once are kept on your PC, so a song heard before shows them at once, even when LRCLIB is busy or you are offline
@@ -52,7 +52,7 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 
 Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around|screen`, `preset <name>`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `songoffset <ms>`, `menu minimal|glass|fancy`, `source <name> on|off`, `hoergenau on|off`, `streamer on|off`, `share on|off`, `sharelearned on|off`, `lrclib on|off`, `spotify connect|disconnect`.
 
-## Hörgenau: the AI that listens (Windows, off until you switch it on)
+## Hörgenau: the AI that listens (Windows and Linux, off until you switch it on)
 
 Some songs nobody has timed word by word. With *Hörgenau* on, the mod listens while such a song plays – if you hear only part of it, it keeps what it heard and hears the rest the next time – and lets [whisper.cpp](https://github.com/ggml-org/whisper.cpp) – OpenAI's Whisper speech recognition, running on your own PC – find when each word is sung. From the next play on, the song runs word by word. For songs that already have word times, it listens once for 50 seconds and moves the lyrics when they come too early or too late.
 
@@ -74,7 +74,7 @@ No client secret is needed (the login uses PKCE).
 ## Requirements
 
 - Minecraft Java Edition 26.2 or 26.3, Fabric Loader 0.18.4+ (26.2) or 0.19.3+ (26.3), Fabric API
-- Windows 10/11, or Linux with `gdbus` (part of GLib). macOS is not supported yet. Hörgenau is Windows only.
+- Windows 10/11, or Linux with `gdbus` (part of GLib). macOS is not supported yet. Hörgenau runs on Windows and on Linux (with PulseAudio or PipeWire and a whisper.cpp you build yourself).
 - In-game messages and the settings are in German for now.
 
 ## Network access and privacy
@@ -126,7 +126,7 @@ Not affiliated with Mojang, Microsoft, Spotify, Amazon, Deezer, Apple, NetEase, 
 - The now-playing bar can be dragged anywhere and comes in four looks, with progress line, artist and equalizer
 - Timing per song with one slider; corrections many players agreed on apply for everyone (optional)
 - Wortgenau: optional word-time services for many more songs word by word (off until you switch them on)
-- Hörgenau (Windows, optional): a speech AI on your PC times songs nobody has timed, also heard in parts on different days, and checks the sync of word-timed songs; it hears only your music app, shares word times – and the text only of songs nobody has the text of – and introduces itself once
+- Hörgenau (Windows and Linux, optional): a speech AI on your PC times songs nobody has timed, also heard in parts on different days, and checks the sync of word-timed songs; it hears only your music app, shares word times – and the text only of songs nobody has the text of – and introduces itself once
 - Streamer mode hides explicit words
 - More songs get lyrics: titles are also tried without version notes
 - Works with shader packs, lyrics kept on your PC, and many fixes

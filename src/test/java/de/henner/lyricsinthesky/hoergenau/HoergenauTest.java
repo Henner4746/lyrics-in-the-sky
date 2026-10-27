@@ -124,6 +124,33 @@ class HoergenauTest {
     }
 
     @Test
+    void aLongGroupWhisperHeardBecomesLinesThatReadInTheSky() {
+        // As learned in the game: Whisper put 20 words and more in one group, which showed as a cloud of words.
+        List<Heard> group = new ArrayList<>();
+        String[] words = "Sie ist dünn und sie ist nett, vorne flach wie ein Brett, praktisch klein und gut versteckt"
+                .split(" ");
+        long at = 10_000;
+        for (String word : words) {
+            group.add(new Heard(word, at));
+            at += word.endsWith(",") ? 900 : 350;
+        }
+        List<List<Heard>> lines = HeardLyrics.lines(group);
+        assertEquals(List.of("Sie ist dünn und sie ist nett,", "vorne flach wie ein Brett,",
+                "praktisch klein und gut versteckt"), lines.stream()
+                .map(line -> String.join(" ", line.stream().map(Heard::text).toList())).toList());
+        Lyrics lyrics = Lyrics.parseLrc(HeardLyrics.transcript(List.of(group), 0));
+        assertEquals(3, lyrics.lines().size());
+        // Every word keeps its own time.
+        assertEquals(group.get(7).startMs(), lyrics.lines().get(1).wordStartsMs()[0]);
+        // Without commas, at the longest pause, never a line of fewer than three words.
+        List<Heard> chant = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            chant.add(new Heard("la", i * 400L + (i >= 5 ? 600 : 0)));
+        }
+        assertEquals(List.of(5, 5), HeardLyrics.lines(chant).stream().map(List::size).toList());
+    }
+
+    @Test
     void readsWhisperCppTokensWithDtwTimes() {
         String json = """
                 {"transcription":[{"tokens":[

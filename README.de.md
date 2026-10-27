@@ -238,7 +238,7 @@ in derselben Reihenfolge, gelten dessen Zeiten, außer ein anderer Dienst passt 
 und „nichts gefunden“ für zwei Wochen, bleiben in `config/lyricsinthesky/lyrics`; ein Dienst, der nicht antwortet,
 hat fünf Minuten Pause, sodass nichts hängt. Ohne LRCLIB-Songtext springt der erste Dienst ein, der den Song hat.
 
-### Hörgenau: Mithören für Songs, die kein Dienst kennt (nur Windows, aus bis du es einschaltest)
+### Hörgenau: Mithören für Songs, die kein Dienst kennt (Windows und Linux, aus bis du es einschaltest)
 
 Manche Songs hat niemand getimt, manche haben nirgends einen Songtext. Für die hört **Hörgenau** mit: Läuft so ein
 Song, nimmt die Mod den Ton deines Musikprogramms auf, wo sie ihn noch nicht gehört hat (Windows-Audio-Loopback, nur
@@ -273,6 +273,10 @@ nächsten Abspielen läuft der Song Wort für Wort. Bekommt LRCLIB später echte
   ab. Findet Windows den Player nicht, oder bleibt sein Ton stumm, während der PC etwas spielt, nimmt Hörgenau wie
   früher alles auf. Dann gilt: Spielt ein anderer Player mit (ein Video im Browser), hört es nicht mit oder verwirft
   die Aufnahme, und Sprachchat kann es nicht unterscheiden.
+- **Unter Linux** nimmt Hörgenau den eigenen PulseAudio-Kanal des Musikprogramms auf (PipeWires PulseAudio-Server geht
+  auch), mit `parec` aus `pulseaudio-utils`, gefunden über seinen MPRIS-Namen; ohne ihn alles, was die
+  Standardausgabe spielt. whisper.cpp hat keinen fertigen Linux-Build: selbst bauen und `whisper-cli` mit seinen
+  Bibliotheken nach `config/lyricsinthesky/hoergenau/bin` legen; das Modell lädt und prüft die Mod wie unter Windows.
 - **Leise Aufnahmen, erfundene Zeilen:** Der Ton des Players allein kommt ohne das, was Windows danach noch anhebt, und
   war bis 17 dB leiser; Hörgenau macht ihn vor Whisper lauter (*Genau* hörte darin sonst nur eine erfundene Zeile,
   danach den ganzen Song). Zeilen, die Whisper aus Untertiteln erfindet („Untertitel im Auftrag des ZDF“), verwirft

@@ -231,7 +231,7 @@ are taken unless another service fits closely. Otherwise the words are estimated
 `config/lyricsinthesky/lyrics`; a service that fails is left alone for five minutes, so nothing hangs. Without
 LRCLIB lyrics, the first service that has the song stands in.
 
-### Hörgenau: listening for songs no service knows (Windows only, off until you switch it on)
+### Hörgenau: listening for songs no service knows (Windows and Linux, off until you switch it on)
 
 Some songs nobody has timed, some have no lyrics anywhere. For those **Hörgenau** listens: when such a song plays,
 the mod records the sound of your music app wherever it has not heard it yet (Windows audio loopback, in memory only).
@@ -265,6 +265,10 @@ word by word. If LRCLIB gets real lines later, they replace what was learned.
   When Windows cannot find the player, or its sound stays silent while the PC plays something, Hörgenau records
   everything as before. Then: while another player sounds too (a video in the browser), it does not listen or throws
   the recording away, and voice chat it cannot tell apart.
+- **On Linux** Hörgenau records the music app's own PulseAudio stream (PipeWire's PulseAudio server works too) with
+  `parec` from `pulseaudio-utils`, found by its MPRIS name; without it, all the default output plays. whisper.cpp
+  ships no build for Linux: build it yourself and put `whisper-cli` with its libraries into
+  `config/lyricsinthesky/hoergenau/bin`; the model is downloaded and checked as on Windows.
 - **Quiet recordings, made-up lines:** the player's own sound comes without what Windows raises afterwards and was up
   to 17 dB quieter; Hörgenau makes it louder before Whisper hears it (*Genau* otherwise heard only a made-up line in it,
   and the whole song after). Lines Whisper makes up from subtitles ("Untertitel im Auftrag des ZDF") are dropped.

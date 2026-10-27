@@ -10,6 +10,17 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.19 – 2026-10-27
+
+- **Hörgenau on Linux**: it records the music app's own PulseAudio stream (PipeWire's PulseAudio server too) with
+  `parec`, found by the app's MPRIS name, and looks for it a few seconds, as a player may open it after it says it
+  plays; without it, all the default output plays. whisper.cpp has no build for Linux, so it is built by the player and
+  put into `config/lyricsinthesky/hoergenau/bin`; the model is downloaded and checked as on Windows. The one-time
+  introduction stays on Windows, where one click sets everything up.
+- **Lines that read in the sky**: what Hörgenau writes down for a song nobody has the text of came in Whisper's groups,
+  20 words and more in one line, which showed as a cloud of words. Now they are lines of at most eight words, broken
+  after a comma or a full stop, else at the longest pause; every word keeps its time.
+
 ### 1.3.0-dev.18 – 2026-10-26
 
 - **Only songs are written down**: in a real game a Twitch stream in the browser has no length, and Hörgenau wrote down

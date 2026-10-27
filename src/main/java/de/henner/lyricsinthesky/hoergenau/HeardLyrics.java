@@ -238,18 +238,54 @@ final class HeardLyrics {
         }
     }
 
-    /** What was heard, line by line as Whisper grouped it, for songs whose text nobody has. */
+    /**
+     * What was heard, for songs whose text nobody has: line by line as Whisper grouped it, a long group split into lines
+     * of at most {@link #MAX_LINE_WORDS} words, so a line still reads in the sky.
+     */
     static String transcript(List<List<Heard>> segments, long offsetMs) {
         StringBuilder lrc = new StringBuilder(MARK).append(" heard\n");
         for (List<Heard> segment : segments) {
-            lrc.append('[').append(stamp(segment.get(0).startMs() + offsetMs)).append(']');
-            for (int i = 0; i < segment.size(); i++) {
-                lrc.append(i == 0 ? "" : " ").append('<').append(stamp(segment.get(i).startMs() + offsetMs)).append('>')
-                        .append(segment.get(i).text());
+            for (List<Heard> line : lines(segment)) {
+                lrc.append('[').append(stamp(line.get(0).startMs() + offsetMs)).append(']');
+                for (int i = 0; i < line.size(); i++) {
+                    lrc.append(i == 0 ? "" : " ").append('<').append(stamp(line.get(i).startMs() + offsetMs)).append('>')
+                            .append(line.get(i).text());
+                }
+                lrc.append('\n');
             }
-            lrc.append('\n');
         }
         return lrc.toString();
+    }
+
+    /** Words a line written down as heard has at most; Whisper groups up to 30 s, 20 words and more, in one. */
+    static final int MAX_LINE_WORDS = 8;
+    private static final int MIN_LINE_WORDS = 3;
+    private static final java.util.regex.Pattern PUNCTUATION = java.util.regex.Pattern.compile("[,.;:!?…)\"”]$");
+
+    /**
+     * A group of words heard, as lines of {@link #MAX_LINE_WORDS} words at most: each broken where the words allow it
+     * best, after a comma or a full stop, else at the longest pause.
+     */
+    static List<List<Heard>> lines(List<Heard> words) {
+        List<List<Heard>> lines = new ArrayList<>();
+        int from = 0;
+        while (words.size() - from > MAX_LINE_WORDS) {
+            int best = from + MAX_LINE_WORDS;
+            long bestScore = Long.MIN_VALUE;
+            // Each line, the last one too, keeps a few words.
+            for (int i = from + MIN_LINE_WORDS; i <= from + MAX_LINE_WORDS && words.size() - i >= MIN_LINE_WORDS; i++) {
+                long pause = words.get(i).startMs() - words.get(i - 1).startMs();
+                long score = pause + (PUNCTUATION.matcher(words.get(i - 1).text()).find() ? 10_000 : 0);
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = i;
+                }
+            }
+            lines.add(words.subList(from, best));
+            from = best;
+        }
+        lines.add(words.subList(from, words.size()));
+        return lines;
     }
 
     static String token(String text) {
