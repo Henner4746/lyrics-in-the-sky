@@ -31,7 +31,8 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 ## Features
 
 - Lyrics synced word by word: exact word timing when the lyrics have it, otherwise at the pace the song is sung; skipping within a song shows up at once
-- A settings menu on **Right Shift** with every option on its own page and a live preview, in three looks with the same options: *Minimal* (the plain panel, default), *Glas* (a black glass window over the blurred world) or *Prachtvoll* (the glass window with an aurora); options that do not apply right now are not shown
+- A settings menu on **Right Shift** with every option on its own page and a live preview, in three looks with the same options: *Minimal* (the plain panel, default), *Glass* (a black glass window over the blurred world) or *Splendid* (the glass window with an aurora); options that do not apply right now are not shown. The start page leads with presets and says how much there is to set
+- In English or German: the first time the menu opens it asks which language the mod speaks; change it later on the page *Menu* or with `/skylyrics language`
 - 22 presets that set the whole look with one click: Standard, Himmel 1:1, Um dich 1:1, Party, Ruhig, Glas, Untertitel, Karaoke, Bühne, Neon-Nacht, Regenbogen, Kino, Retro, Schlicht, Ein Wort, Schreibmaschine, Laufband, Karaoke-Ball, Welle, Seitenleiste, Kinetisch and Chat
 - Make it yours: gradient palettes, a rainbow or your own colors with a color picker; outline, shadow, glow, capitals; Modern (Poppins), handwriting (Kalam) or the Minecraft font; size, height, opacity, animation speed, a kick on the beat, what happens on pause, lyrics further left or right
 - A "now playing" bar you can drag anywhere, in four looks (pill, karaoke, plain, title only), with an optional progress line, artist, equalizer and the sung word highlighted
@@ -50,7 +51,7 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 3. Lyrics come from lrclib.net, which is on from the start; the first time, a note in chat says what is sent and offers to switch it off.
 4. Press **Right Shift** for the settings, or run `/skylyrics demo` to see it without music.
 
-Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around|screen`, `preset <name>`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `songoffset <ms>`, `menu minimal|glass|fancy`, `source <name> on|off`, `hoergenau on|off`, `streamer on|off`, `share on|off`, `sharelearned on|off`, `lrclib on|off`, `spotify connect|disconnect`.
+Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around|screen`, `preset <name>`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `songoffset <ms>`, `menu minimal|glass|fancy`, `source <name> on|off`, `hoergenau on|off`, `streamer on|off`, `share on|off`, `sharelearned on|off`, `lrclib on|off`, `spotify connect|disconnect`, `language auto|de|en`.
 
 ## Hörgenau: the AI that listens (Windows and Linux, off until you switch it on)
 
@@ -58,16 +59,16 @@ Some songs nobody has timed word by word. With *Hörgenau* on, the mod listens w
 
 - **Only your music app is heard:** it records only the sound of the app playing the song (Windows' process loopback, Windows 10 2004 and newer) – not voice chat, videos in other apps or the game. Where Windows cannot tell the app apart, it records what the PC plays.
 - **Nothing leaves your PC:** the recording stays in memory and is never uploaded.
-- **Two models:** *Schnell* (fast: 190 MB, about 15 s for 50 s of music) and *Genau* (accurate: 574 MB, hears more words, about a minute), downloaded once when you switch it on; running in the background at low priority.
-- The page *Hörgenau (KI)* in the settings explains step by step what it does.
+- **Two models:** *Fast* (190 MB, about 15 s for 50 s of music) and *Accurate* (574 MB, hears more words, about a minute), downloaded once when you switch it on; running in the background at low priority.
+- The page *Hörgenau (AI)* in the settings explains step by step what it does.
 
 ## Optional: Spotify login
 
 Music playing on your PC needs no login. To show lyrics for Spotify on your phone, console or another Spotify Connect device, connect your account in the settings. Spotify lets an app in development mode serve only its owner and five added people, so you need a free Spotify developer app of your own (takes two minutes):
 
-1. Click "Spotify-App anlegen …" in the settings. It opens the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
+1. Click "Create app" on the page *Spotify* in the settings. It opens the [Spotify developer dashboard](https://developer.spotify.com/dashboard).
 2. Create an app with the redirect URI `http://127.0.0.1:43217/callback` and tick "Web API".
-3. Paste its Client ID into the settings, click "Mit Spotify verbinden", then "Agree" in the browser.
+3. Copy its Client ID, click "Paste" in the settings, then "Connect", then "Agree" in the browser.
 
 No client secret is needed (the login uses PKCE).
 
@@ -75,7 +76,7 @@ No client secret is needed (the login uses PKCE).
 
 - Minecraft Java Edition 26.2 or 26.3, Fabric Loader 0.18.4+ (26.2) or 0.19.3+ (26.3), Fabric API
 - Windows 10/11, or Linux with `gdbus` (part of GLib). macOS is not supported yet. Hörgenau runs on Windows and on Linux (with PulseAudio or PipeWire and a whisper.cpp you build yourself).
-- In-game messages and the settings are in German for now.
+- The mod speaks English or German.
 
 ## Network access and privacy
 
@@ -84,7 +85,7 @@ This mod connects to the internet. Everything it sends, and to whom, is listed h
 **On from the start** (each with a note in chat the first time, and a switch to turn it off):
 
 - **lrclib.net:** the title, artist, album and length of the song that is playing, to look up its lyrics. Lyrics that were found are kept on your PC in `config/lyricsinthesky/lyrics` (up to 1000 songs); delete the folder at any time. Off: `/skylyrics lrclib off`.
-- **Timing tracker on henrik.click** (run by the mod's author): for every song with lyrics the mod asks for its correction (the song ID, a hash of artist, title and the first lines). When you correct a song's timing, or Hörgenau measures it, it sends the song ID, the correction in milliseconds (for a measurement also how many words were paired and how close) and a random installation ID. A Hörgenau measurement applies to everyone at once, corrections by hand once many players agree. The tracker keeps keyed hashes of the installation ID and network, no IP addresses and no access log. Sending off: "Teilen" in the settings or `/skylyrics share off`.
+- **Timing tracker on henrik.click** (run by the mod's author): for every song with lyrics the mod asks for its correction (the song ID, a hash of artist, title and the first lines). When you correct a song's timing, or Hörgenau measures it, it sends the song ID, the correction in milliseconds (for a measurement also how many words were paired and how close) and a random installation ID. A Hörgenau measurement applies to everyone at once, corrections by hand once many players agree. The tracker keeps keyed hashes of the installation ID and network, no IP addresses and no access log. Sending off: "Share corrections" in the settings or `/skylyrics share off`.
 
 **Only when you switch them on:**
 
@@ -95,7 +96,7 @@ This mod connects to the internet. Everything it sends, and to whom, is listed h
   - Kugou: artist, title, length to `lyrics.kugou.com`
   - SyncLRC: title, artist, album, length to `api.synclrc.dev`
   - Better Lyrics: title, artist, album, length to `api.betterlyrics.org`
-- **Hörgenau:** downloads whisper.cpp once from GitHub and the model from Hugging Face, both checked against a fixed SHA-256. The recording never leaves your PC. With "Gelerntes teilen" (on with Hörgenau) it sends the **word times** of a song it learned on lrclib.net's text to the tracker on henrik.click – the song's names and length, the times of the words, a fingerprint of the text and the random installation ID, **not the lyrics** – and asks it for word times others learned, which the mod puts on lrclib.net's text on your own PC. For a song **nobody has the text of**, it sends what it wrote down as heard, **with its text**, so others get the song word by word; that counts once players on two networks heard it alike, and only while lrclib.net has no text for it. Such a song is heard only when Deezer's or Apple's catalog know it (artist and title to `api.deezer.com`, else `itunes.apple.com`), so no livestream, video or podcast is written down. Sending off: `/skylyrics sharelearned off`; what others learned is fetched either way.
+- **Hörgenau:** downloads whisper.cpp once from GitHub and the model from Hugging Face, both checked against a fixed SHA-256. The recording never leaves your PC. With "Share what it learns" (on with Hörgenau) it sends the **word times** of a song it learned on lrclib.net's text to the tracker on henrik.click – the song's names and length, the times of the words, a fingerprint of the text and the random installation ID, **not the lyrics** – and asks it for word times others learned, which the mod puts on lrclib.net's text on your own PC. For a song **nobody has the text of**, it sends what it wrote down as heard, **with its text**, so others get the song word by word; that counts once players on two networks heard it alike, and only while lrclib.net has no text for it. Such a song is heard only when Deezer's or Apple's catalog know it (artist and title to `api.deezer.com`, else `itunes.apple.com`), so no livestream, video or podcast is written down. Sending off: `/skylyrics sharelearned off`; what others learned is fetched either way.
 - **Spotify Web API** (only if you connect your account): reads which song is playing (scopes `user-read-currently-playing` and `user-read-playback-state`). The tokens stay in `config/lyricsinthesky/spotify.json` on your PC; disconnect at any time.
 
 **On your PC only:** on Windows a small PowerShell script bundled in the mod (`lyricsinthesky/smtc-helper.ps1`, readable inside the jar) reads the system media session – the same information Windows shows in its volume overlay. On Linux the mod asks MPRIS via `gdbus`. Hörgenau's recording helper (`lyricsinthesky/loopback-helper.ps1`) runs only while it listens.
@@ -114,7 +115,11 @@ No telemetry, no ads, no cookies. The mod ships no lyrics; the tracker keeps lyr
 - Lyrics: [LRCLIB](https://lrclib.net), a free community database of synced lyrics
 - Speech recognition: [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT) with OpenAI's Whisper models (MIT)
 - Fonts: [Poppins](https://fonts.google.com/specimen/Poppins) by The Poppins Project Authors and [Kalam](https://fonts.google.com/specimen/Kalam) by Indian Type Foundry, both SIL Open Font License 1.1
-- This mod's code was written with the help of AI (Claude). All images on this page are in-game screenshots of the mod itself.
+- All images on this page are in-game screenshots of the mod itself. The icon is the mod's name set in the bundled Kalam font on a color gradient, rendered with ffmpeg – no image AI.
+
+## How it was made
+
+The idea, the looks and every decision come from Henrik (Henner4746), who also tried each version in his own games. The code, these texts and the release notes were written by an AI, Claude (Anthropic), on his instructions; the automated tests and in-game self tests ran on his own server. The project is marked "Contains AI-generated content" for that reason.
 
 Not affiliated with Mojang, Microsoft, Spotify, Amazon, Deezer, Apple, NetEase, Kugou, Tencent, OpenAI or LRCLIB.
 

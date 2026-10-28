@@ -10,7 +10,7 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
-### Since 1.3.0-dev.20 (on the branch, no build of its own yet)
+### 1.3.0-dev.21 – 2026-10-28
 
 - **German or English**: the first time the menu opens it asks which language the mod speaks, the game's language as
   the main button; the page *Menü* and `/skylyrics language <auto|de|en>` change it later, `auto` follows the game.
