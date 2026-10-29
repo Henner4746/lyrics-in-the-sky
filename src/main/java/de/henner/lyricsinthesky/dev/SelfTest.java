@@ -614,7 +614,9 @@ public final class SelfTest {
                 minecraft.player.connection.sendCommand(SkyLyricsConfig.DAY_SKIES.contains(sky) ? "time set noon"
                         : "time set midnight");
                 config.sky = sky;
-                controller.startDemo();
+                if (i % 8 == 0) {
+                    controller.startDemo();
+                }
             }
             if (atSecond(at + SKY_SLOT - 0.3)) {
                 LOGGER.info("SELFTEST sky {}: {}", sky, CustomSky.INSTANCE.shown().equals(sky)
@@ -624,6 +626,7 @@ public final class SelfTest {
         }
         if (atSecond(SKY_FROM + skies.size() * SKY_SLOT)) {
             config.sky = "off";
+            controller.stopDemo();
         }
     }
 

@@ -230,13 +230,13 @@ public final class CustomSky {
         nextAmbient -= dt;
         boolean ambient = nextAmbient <= 0f;
         if (ambient) {
-            nextAmbient = 3f + random.nextFloat() * 4f;
+            nextAmbient = "fireworks".equals(shown) ? 1.2f + random.nextFloat() * 1.6f : 3f + random.nextFloat() * 4f;
         }
         Minecraft minecraft = Minecraft.getInstance();
         float yaw = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.yRot;
         switch (shown) {
             case "fireworks" -> {
-                if (newLine || pulse > 0.8f && sinceBurst > 0.45f || ambient && sinceBurst > 2.5f) {
+                if (newLine || pulse > 0.8f && sinceBurst > 0.45f || ambient && sinceBurst > 1.2f) {
                     burst(yaw);
                     if (newLine && random.nextBoolean()) {
                         burst(yaw);
@@ -244,7 +244,7 @@ public final class CustomSky {
                 }
             }
             case "storm" -> {
-                if (pulse > 0.75f && sinceStrike > 2.2f && random.nextFloat() < 0.6f || ambient && sinceStrike > 6f) {
+                if (pulse > 0.75f && sinceStrike > 2.2f && random.nextFloat() < 0.6f || ambient && sinceStrike > 3.5f) {
                     strike(yaw);
                 }
             }
@@ -481,8 +481,8 @@ public final class CustomSky {
             float sway = (float) Math.toRadians(32 * Math.sin(time * 0.5f + k * 1.3f));
             float tipEl = (float) Math.toRadians(52 + 16 * Math.sin(time * 0.37f + k * 0.7f));
             int color = k % 3 == 0 ? colorA : k % 3 == 1 ? colorB : 0xFFE36B;
-            float flash = 0.3f + 0.7f * pulse + 0.5f * accentA;
-            beam(batch, base, (float) Math.toRadians(-3), base + sway, tipEl, 0.5f, 7f, argb(Math.min(1f, alpha * flash), color));
+            float flash = 0.55f + 0.6f * pulse + 0.5f * accentA;
+            beam(batch, base, (float) Math.toRadians(-3), base + sway, tipEl, 0.6f, 9f, argb(Math.min(1f, alpha * flash), color));
         }
         // The light of the stage, low over the horizon.
         for (int k = 0; k < 6; k++) {
@@ -557,7 +557,7 @@ public final class CustomSky {
         if (bursts.size() > 14) {
             return;
         }
-        float az = (float) Math.toRadians(yaw + (random.nextFloat() - 0.5f) * 90f);
+        float az = (float) Math.toRadians(yaw + (random.nextFloat() - 0.5f) * 70f);
         float el = 22f + random.nextFloat() * 26f;
         int[] colors = {0xFF5C8A, 0xFFD36B, 0x6BE0FF, 0xB08CFF, 0x7CFFA0, colorA, colorB};
         int count = 54 + random.nextInt(24);
@@ -758,6 +758,10 @@ public final class CustomSky {
         streaks.clear();
         ripples.clear();
         eqLevel = new float[64];
+        // Something happens soon after a sky is chosen, music or not.
+        nextAmbient = 0.4f;
+        sinceBurst = 99f;
+        sinceStrike = 99f;
     }
 
     // ---------------------------------------------------------------------------------------------------- geometry

@@ -68,6 +68,11 @@ you.
   pages and options, also the page *Menü* to switch between them, and options that do not apply right now (the screen
   options without the screen display, say) are not shown. The start page leads with five presets and a link to all
   22, and says how much there is to set; every page says how many options it has.
+- **Painted skies:** 16 skies of the mod's own behind the lyrics – northern lights, a sea of stars, a nebula, a light
+  show, fireworks, a thunderstorm, an equalizer around the horizon, a retro sun, afterglow, petal rain, a full moon, a
+  ringed planet, a black hole, a vinyl moon, a pastel morning and a rainbow. They move with the music: lights flare up
+  on every sung word, a new line sends up fireworks or a shooting star, strong words strike lightning. On the page
+  *Himmel* (Sky), with a picture of each, or `/skylyrics sky <name|off>`.
 - **German or English:** the first time the menu opens it asks which language the mod speaks, the game's language
   as the main button. The page *Menü* and `/skylyrics language <auto|de|en>` change it later; *auto* follows the
   game's language.
@@ -169,6 +174,7 @@ working automatically through the media session on your PC.
 | `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | One word time service at a time |
 | `/skylyrics spotify <connect\|disconnect>` | Connect or disconnect the optional Spotify account |
 | `/skylyrics language <auto\|de\|en>` | The mod in German or English; `auto` as the game |
+| `/skylyrics sky <name\|off>` | A painted sky behind the lyrics (`northern`, `stars`, `nebula`, `lightshow`, `fireworks`, …) |
 
 **Key bindings** (under *Controls → Lyrics in the Sky*): settings (**Right Shift**), and unbound by default:
 toggle lyrics, lyrics 100 ms earlier, lyrics 100 ms later. While a song with lyrics plays, the two timing keys

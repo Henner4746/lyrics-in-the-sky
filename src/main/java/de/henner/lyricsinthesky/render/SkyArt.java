@@ -113,7 +113,7 @@ final class SkyArt {
                 int c = gradient(el, -40, 0x12051F, -1, 0x401060, 0, 0xFF3E8A, 4, 0xFF7A4A, 12, 0x9A2A7A, 35,
                         0x34105A, 90, 0x0B0425);
                 float lines = (float) Math.pow(Math.abs(Math.sin(el * 0.9f)), 30f);
-                yield add(c, 0xFF7AD9, 0.12f * lines * band(el, 2, 30));
+                yield add(c, 0xFF7AD9, 0.05f * lines * band(el, 2, 30));
             }
             case "afterglow" -> {
                 int c = gradient(el, -40, 0x2A1A30, 0, 0xFF8A4C, 6, 0xF2985E, 18, 0x9A6A8E, 40, 0x405C9C, 90, 0x1E2E5E);

@@ -72,6 +72,11 @@ als einzelne Wörter, die rund um dich schweben.
   Umschalten, und Optionen, die gerade nicht gelten (etwa die Bildschirm-Optionen ohne Anzeige „Bildschirm“), werden
   ausgeblendet. Die Startseite zeigt zuerst fünf Vorlagen und einen Weg zu allen 22 und sagt, wie viel sich einstellen
   lässt; jede Seite nennt die Zahl ihrer Optionen.
+- **Gemalte Himmel:** 16 eigene Himmel hinter den Songtexten – Nordlicht, Sternenmeer, Sternnebel, Lichtshow,
+  Feuerwerk, Gewitter, ein Equalizer rund um den Horizont, Retro-Sonne, Abendrot, Blütenregen, Vollmond, Ringplanet,
+  Ereignishorizont, Vinyl-Mond, Pastellmorgen und Regenbogen. Sie leben mit der Musik: Lichter leuchten bei jedem
+  gesungenen Wort auf, eine neue Zeile bringt Feuerwerk oder eine Sternschnuppe, starke Wörter lassen es blitzen. Auf
+  der Seite *Himmel* mit einem Bild von jedem, oder `/skylyrics sky <name|off>`.
 - **Deutsch oder Englisch:** Beim ersten Öffnen fragt das Menü, in welcher Sprache die Mod redet, die Sprache des
   Spiels als Hauptknopf. Auf der Seite *Menü* und mit `/skylyrics language <auto|de|en>` lässt sie sich später
   ändern; *auto* folgt der Sprache des Spiels.
@@ -174,6 +179,7 @@ Anmeldung für fremde Apps; es läuft weiter automatisch über die Mediensitzung
 | `/skylyrics source <deezer\|lyricsplus\|netease\|kugou> <on\|off>` | Einzelne Wortzeit-Dienste |
 | `/skylyrics spotify <connect\|disconnect>` | optionales Spotify-Konto verbinden oder trennen |
 | `/skylyrics language <auto\|de\|en>` | die Mod auf Deutsch oder Englisch; `auto` wie das Spiel |
+| `/skylyrics sky <name\|off>` | ein gemalter Himmel hinter den Songtexten (`northern`, `stars`, `nebula`, `lightshow`, `fireworks`, …) |
 
 **Tasten** (unter *Steuerung → Lyrics in the Sky*): Einstellungen (**rechte Umschalttaste**), dazu
 standardmäßig unbelegt: Lyrics ein/aus, Lyrics 100 ms früher, Lyrics 100 ms später. Läuft ein Song mit

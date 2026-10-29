@@ -10,6 +10,16 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### Since 1.3.0-dev.21 (on the branch, no build of its own yet)
+
+- **Painted skies**: 16 skies of the mod's own, painted behind the lyrics in place of the game's sky – northern
+  lights, a sea of stars, a nebula, a light show, fireworks, a thunderstorm, an equalizer around the horizon, a retro
+  sun, afterglow, petal rain, a full moon, a ringed planet, a black hole, a vinyl moon, a pastel morning and a
+  rainbow. They live with the music: aurora, beams, bars and the record's sheen flare up on every sung word, a new
+  line sends up fireworks or a shooting star, strong words strike lightning. Everything is painted by the mod itself
+  from noise, no image files. New page *Himmel* (Sky) with a picture of every sky, strength, speed, on the beat, in
+  the lyrics' colors and night only; `/skylyrics sky <name|off>`. Not with a shader pack, which paints its own sky.
+
 ### 1.3.0-dev.21 – 2026-10-28
 
 - **German or English**: the first time the menu opens it asks which language the mod speaks, the game's language as
