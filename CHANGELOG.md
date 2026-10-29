@@ -10,7 +10,7 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
-### Since 1.3.0-dev.21 (on the branch, no build of its own yet)
+### 1.3.0-dev.22 – 2026-10-29
 
 - **Painted skies**: 16 skies of the mod's own, painted behind the lyrics in place of the game's sky – northern
   lights, a sea of stars, a nebula, a light show, fireworks, a thunderstorm, an equalizer around the horizon, a retro
