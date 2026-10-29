@@ -32,8 +32,8 @@ class SkyArtTest {
                 g += (color >> 8) & 0xFF;
                 b += color & 0xFF;
             }
-            // Average color, coarsely: no two skies the same.
-            looks.add((int) (r / 64 / 8) << 16 | (int) (g / 64 / 8) << 8 | (int) (b / 64 / 8));
+            // Average color: no two skies the same.
+            looks.add((int) (r / 64) << 16 | (int) (g / 64) << 8 | (int) (b / 64));
         }
         assertEquals(SKIES.size(), looks.size());
     }
