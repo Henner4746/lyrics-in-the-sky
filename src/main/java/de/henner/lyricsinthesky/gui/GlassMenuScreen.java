@@ -7,6 +7,7 @@ import de.henner.lyricsinthesky.SkyLyricsConfig;
 import de.henner.lyricsinthesky.WordSourceInfo;
 import de.henner.lyricsinthesky.hoergenau.Hoergenau;
 import de.henner.lyricsinthesky.hoergenau.WhisperEngine;
+import de.henner.lyricsinthesky.render.CustomSky;
 import de.henner.lyricsinthesky.render.Glass;
 import de.henner.lyricsinthesky.render.LookPreview;
 import de.henner.lyricsinthesky.render.SkyLyricsRenderer;
@@ -165,6 +166,8 @@ public final class GlassMenuScreen extends Screen {
                 this::displayRows, c -> c.enabled, (c, on) -> c.enabled = on));
         categories.add(new Category("look", "✎", "Schrift & Farben", "Schrift, Farben, Leuchten und Kontur", 1, true,
                 this::lookRows, null, null));
+        categories.add(new Category("sky", "☾", "Himmel", "Eigene Himmel, die mit der Musik leben", 11, false,
+                this::skyRows, null, null));
         categories.add(new Category("motion", "✦", "Animation", "Tempo, Takt und Verhalten bei Pause", 2, true,
                 this::motionRows, null, null));
         categories.add(new Category("bar", "▬", "Leiste", "Die Now-Playing-Leiste am Bildschirmrand", 3, false,
@@ -276,6 +279,24 @@ public final class GlassMenuScreen extends Screen {
                 }).when(c -> c.outline),
                 new Slider("Konturstärke", "Wie breit der Rand ist", 0.5, 2, 0.05, c -> c.outlineWidth,
                         (c, v) -> c.outlineWidth = (float) v, GlassMenuScreen::percent).when(c -> c.outline));
+    }
+
+    private List<Row> skyRows() {
+        return List.of(
+                new Explain("So geht's", "Ein Klick malt einen eigenen Himmel hinter die Songtexte. Er lebt mit der Musik: "
+                        + "Lichter leuchten bei jedem Wort auf, eine neue Zeile bringt Feuerwerk oder eine Sternschnuppe."),
+                new SkyGallery(),
+                new Section("Einstellungen").when(c -> !"off".equals(c.sky)),
+                new Slider("Stärke", "Wie sehr er den Himmel des Spiels überdeckt", 0.3, 1.0, 0.05, c -> c.skyStrength,
+                        (c, v) -> c.skyStrength = (float) v, GlassMenuScreen::percent).when(c -> !"off".equals(c.sky)),
+                new Slider("Tempo", "Wie schnell sich Wolken, Lichter und Sterne bewegen", 0.25, 2.0, 0.05, c -> c.skySpeed,
+                        (c, v) -> c.skySpeed = (float) v, GlassMenuScreen::percent).when(c -> !"off".equals(c.sky)),
+                new Toggle("Im Takt", "Lichter, Blitze und Feuerwerk mit dem Gesang", c -> c.skyReactive,
+                        (c, on) -> c.skyReactive = on).when(c -> !"off".equals(c.sky)),
+                new Toggle("In Songtext-Farben", "Polarlicht, Strahlen und Balken in den Farben der Songtexte",
+                        c -> c.skySongColors, (c, on) -> c.skySongColors = on).when(c -> !"off".equals(c.sky)),
+                new Toggle("Nur nachts", "Nachthimmel erst, wenn die Sonne untergeht", c -> c.skyNightOnly,
+                        (c, on) -> c.skyNightOnly = on).when(c -> !"off".equals(c.sky)));
     }
 
     private List<Row> motionRows() {
@@ -2214,6 +2235,9 @@ public final class GlassMenuScreen extends Screen {
         if ("presets".equals(page.id())) {
             return Lang.f("%d Looks", "%d looks", SkyLyricsConfig.PRESETS.size());
         }
+        if ("sky".equals(page.id())) {
+            return Lang.f("%d Himmel", "%d skies", SkyLyricsConfig.SKIES.size() - 1);
+        }
         int count = settingCount(page);
         return count == 0 ? "" : count == 1 ? Lang.of("1 Option", "1 option") : Lang.f("%d Optionen", "%d options", count);
     }
@@ -2236,10 +2260,10 @@ public final class GlassMenuScreen extends Screen {
                 settings += count + (page.master() != null ? 1 : 0);
                 pages += count > 0 ? 1 : 0;
             }
-            return Lang.f("Alles einstellbar: %d Einstellungen auf %d Seiten, %d Vorlagen, %d Bildschirm-Stile und %d "
-                    + "Farbpaletten.", "Everything can be set: %d settings on %d pages, %d presets, %d screen styles and %d "
-                    + "color palettes.", settings, pages, SkyLyricsConfig.PRESETS.size(), SkyLyricsConfig.SCREEN_STYLES.size(),
-                    SkyLyricsConfig.PALETTES.size());
+            return Lang.f("Alles einstellbar: %d Einstellungen auf %d Seiten, %d Vorlagen, %d Himmel, %d Bildschirm-Stile "
+                    + "und %d Farbpaletten.", "Everything can be set: %d settings on %d pages, %d presets, %d skies, %d screen "
+                    + "styles and %d color palettes.", settings, pages, SkyLyricsConfig.PRESETS.size(),
+                    SkyLyricsConfig.SKIES.size() - 1, SkyLyricsConfig.SCREEN_STYLES.size(), SkyLyricsConfig.PALETTES.size());
         }
 
         private List<FormattedCharSequence> lines() {
@@ -2266,6 +2290,111 @@ public final class GlassMenuScreen extends Screen {
      * it gives, the chosen one marked. On the start page a few and a last tile for all of them, so whoever opens the
      * menu for the first time sees there are ready looks to start from.
      */
+    /** The skies as pictures, each a click away; the first keeps the game's own sky. */
+    private final class SkyGallery extends Row {
+        private final float[] hovers = new float[SkyLyricsConfig.SKIES.size()];
+        private int hovered = -1;
+
+        private int columns(int w) {
+            return w >= 330 ? 3 : 2;
+        }
+
+        private int gap() {
+            return plain() ? 4 : 6;
+        }
+
+        private int tileWidth(int w) {
+            int columns = columns(w);
+            return (w - (columns - 1) * gap()) / columns;
+        }
+
+        private int pictureHeight(int tileW) {
+            return Math.round((tileW - 2) * 9f / 16f);
+        }
+
+        private int tileHeight(int tileW) {
+            return pictureHeight(tileW) + (plain() ? 14 : 18);
+        }
+
+        @Override
+        int height() {
+            int w = x1 - x0 - 2 * PAD;
+            int columns = columns(w);
+            int rows = (SkyLyricsConfig.SKIES.size() + columns - 1) / columns;
+            return rows * (tileHeight(tileWidth(w)) + gap()) + 4;
+        }
+
+        @Override
+        String hint() {
+            return hovered < 0 ? null : SkyLyricsConfig.skyHint(SkyLyricsConfig.SKIES.get(hovered));
+        }
+
+        @Override
+        void draw(GuiGraphicsExtractor graphics, int x, int y, int w, int mouseX, int mouseY, float alpha, float dt) {
+            int columns = columns(w);
+            int tileW = tileWidth(w);
+            int tileH = tileHeight(tileW);
+            int pictureH = pictureHeight(tileW);
+            List<String> skies = SkyLyricsConfig.SKIES;
+            hovered = -1;
+            for (int i = 0; i < skies.size(); i++) {
+                String sky = skies.get(i);
+                int tx = x + (i % columns) * (tileW + gap());
+                int ty = y + 2 + (i / columns) * (tileH + gap());
+                boolean over = picker == null && mouseX >= tx && mouseX < tx + tileW && mouseY >= ty && mouseY < ty + tileH
+                        && mouseY >= contentTop && mouseY < contentBottom;
+                if (over) {
+                    hovered = i;
+                }
+                boolean selected = sky.equals(config.sky);
+                hovers[i] = approach(hovers[i], over ? 1f : 0f, dt, 0.09f);
+                float h = hovers[i];
+                // The picture, painted in the background; a gradient of its colors until it is ready.
+                Identifier picture = "off".equals(sky) ? null : CustomSky.INSTANCE.postcard(sky);
+                if (picture != null) {
+                    graphics.blit(picture, tx + 1, ty + 1, tx + tileW - 1, ty + 1 + pictureH, 0f, 1f, 0f, 1f);
+                } else {
+                    int[] colors = CustomSky.previewColors(sky);
+                    graphics.fillGradient(tx + 1, ty + 1, tx + tileW - 1, ty + 1 + pictureH, colors[0], colors[1]);
+                }
+                String name = SkyLyricsConfig.SKY_NAMES.getOrDefault(sky, sky);
+                if (plain()) {
+                    graphics.outline(tx, ty, tileW, tileH, selected || over ? 0xFFFFFFFF : P_LINE);
+                    graphics.text(font, fit(name, title, tileW - 8), tx + 4, ty + pictureH + 4,
+                            selected || over ? 0xFFFFFFFF : pLabel(), false);
+                    continue;
+                }
+                Glass.outline(graphics, tx, ty, tx + tileW, ty + tileH, 8, selected
+                        ? ARGB.color(alpha * 0.95f, accent())
+                        : ARGB.color(alpha * (0.15f + 0.45f * h), ARGB.srgbLerp(h, 0xFFFFFF, accent())));
+                graphics.text(font, fit(name, label, tileW - 12), tx + 6, ty + pictureH + 6,
+                        ARGB.color(alpha, selected ? accentLight() : TEXT), false);
+            }
+        }
+
+        @Override
+        boolean click(double mx, double my, int x, int y, int w) {
+            int columns = columns(w);
+            int tileW = tileWidth(w);
+            int tileH = tileHeight(tileW);
+            int column = (int) ((mx - x) / (tileW + gap()));
+            int row = (int) ((my - y - 2) / (tileH + gap()));
+            int i = row * columns + column;
+            if (mx < x || column >= columns || my < y + 2 || i < 0 || i >= SkyLyricsConfig.SKIES.size()
+                    || mx >= x + column * (tileW + gap()) + tileW || my >= y + 2 + row * (tileH + gap()) + tileH) {
+                return false;
+            }
+            // The settings below show once a sky is chosen; the menu finds that out on its next frame.
+            config.sky = SkyLyricsConfig.SKIES.get(i);
+            return true;
+        }
+
+        @Override
+        void resetTo(SkyLyricsConfig config, SkyLyricsConfig defaults) {
+            config.sky = defaults.sky;
+        }
+    }
+
     private final class PresetGallery extends Row {
         private final List<String> presets;
         private final boolean toAll;

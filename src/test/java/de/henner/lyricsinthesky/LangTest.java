@@ -63,6 +63,10 @@ class LangTest {
         names.addAll(SkyLyricsConfig.SCREEN_STYLE_NAMES.values());
         names.addAll(SkyLyricsConfig.PRESET_NAMES.values());
         names.addAll(SkyLyricsConfig.LANGUAGE_NAMES.values());
+        names.addAll(SkyLyricsConfig.SKY_NAMES.values());
+        for (String sky : SkyLyricsConfig.SKIES) {
+            names.add(SkyLyricsConfig.skyHint(sky));
+        }
         for (String preset : SkyLyricsConfig.PRESETS) {
             names.add(SkyLyricsConfig.presetHint(preset));
         }

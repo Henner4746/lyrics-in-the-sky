@@ -8,6 +8,7 @@ import de.henner.lyricsinthesky.gui.GlassMenuScreen;
 import de.henner.lyricsinthesky.gui.HoergenauIntroScreen;
 import de.henner.lyricsinthesky.gui.HudEditScreen;
 import de.henner.lyricsinthesky.gui.LanguageScreen;
+import de.henner.lyricsinthesky.render.CustomSky;
 import de.henner.lyricsinthesky.render.NowPlayingHud;
 import de.henner.lyricsinthesky.render.Perf;
 import de.henner.lyricsinthesky.lyrics.Explicit;
@@ -92,7 +93,7 @@ public final class SelfTest {
             {"minimal", "display-end"}, {"minimal", "look"}, {"minimal", "look-end"}, {"minimal", "motion"},
             {"minimal", "bar"}, {"minimal", "timing"}, {"minimal", "sources"}, {"minimal", "hoergenau"},
             {"minimal", "hoergenau-end"}, {"minimal", "spotify"}, {"minimal", "streamer"}, {"minimal", "menu"},
-            {"minimal", "picker"}, {"glass", "start"}, {"glass", "presets"}, {"glass", "look"}, {"glass", "hoergenau-end"},
+            {"minimal", "picker"}, {"minimal", "sky"}, {"glass", "start"}, {"glass", "presets"}, {"glass", "sky"}, {"glass", "look"}, {"glass", "hoergenau-end"},
             {"fancy", "start"}, {"fancy", "menu"}, {"minimal", "intro"}, {"minimal", "language"},
             {"minimal", "en-start"}, {"minimal", "en-presets"}, {"minimal", "en-display"}, {"minimal", "en-hoergenau"},
             {"minimal", "en-menu"}, {"glass", "en-start"}, {"minimal", "en-intro"}};
@@ -107,8 +108,11 @@ public final class SelfTest {
     /** After the first looks, these presets one after the other: the cinema look and the screen's newer looks. */
     private static final String[] LATER_PRESETS = {"cinema", "word", "typewriter", "ticker", "bounce", "wave", "sidebar",
             "kinetic", "chat"};
+    /** Then every painted sky in the world, with the demo singing in front of it; night skies at midnight. */
+    private static final double SKY_FROM = OPTIONS_FROM + 45.0;
+    private static final double SKY_SLOT = 3.5;
     /** The end of the fixed steps; the songs of {@link #SONG_LIST}, if any, come after it, then the game quits. */
-    private static final double QUIT_AT = OPTIONS_FROM + 45.0;
+    private static final double QUIT_AT = SKY_FROM + (SkyLyricsConfig.SKIES.size() - 1) * SKY_SLOT + 1.0;
     private static final String SONG_LIST = "selftest-songs.tsv";
     private static final double SONG_SECONDS = 6.0;
     private static final double SONG_CHECK_AFTER = 5.0;
@@ -226,6 +230,7 @@ public final class SelfTest {
             glassSteps(minecraft, controller);
             glassMenuSteps(minecraft, controller);
             optionSteps(minecraft, controller);
+            skySteps(minecraft, controller);
             wordTimeSteps(controller);
             songSteps(minecraft, controller);
         }
@@ -505,6 +510,7 @@ public final class SelfTest {
             if (atSecond(at)) {
                 clearScreen(minecraft);
                 if (i == 0) {
+                    SkyLyricsConfig.SKIES.forEach(CustomSky.INSTANCE::postcard);
                     menuStyleBefore = config.menuStyle;
                     languageBefore = config.language;
                     minecraft.player.connection.sendCommand("time set noon");
@@ -586,6 +592,38 @@ public final class SelfTest {
             config.language = languageBefore != null ? languageBefore : config.language;
             // Every text the menu showed in English has an English one; the missing are logged as "LANG missing".
             LOGGER.info("SELFTEST english: {} texts without English", Lang.missing());
+        }
+    }
+
+    /** Every painted sky, looking at the side it is named after, with the demo singing. */
+    private static void skySteps(Minecraft minecraft, LyricsController controller) {
+        SkyLyricsConfig config = controller.config();
+        List<String> skies = SkyLyricsConfig.SKIES.subList(1, SkyLyricsConfig.SKIES.size());
+        for (int i = 0; i < skies.size(); i++) {
+            double at = SKY_FROM + i * SKY_SLOT;
+            String sky = skies.get(i);
+            if (atSecond(at)) {
+                clearScreen(minecraft);
+                if (i == 0) {
+                    config.mode = "sky";
+                    config.style = "elegant";
+                    config.palette = "standard";
+                    config.skyStrength = 1f;
+                    config.skyNightOnly = false;
+                }
+                minecraft.player.connection.sendCommand(SkyLyricsConfig.DAY_SKIES.contains(sky) ? "time set noon"
+                        : "time set midnight");
+                config.sky = sky;
+                controller.startDemo();
+            }
+            if (atSecond(at + SKY_SLOT - 0.3)) {
+                LOGGER.info("SELFTEST sky {}: {}", sky, CustomSky.INSTANCE.shown().equals(sky)
+                        ? "ok, " + CustomSky.INSTANCE.lastVertexCount() + " vertices" : "NOT shown (" + CustomSky.INSTANCE.shown() + ")");
+                shoot(minecraft, "sky " + sky);
+            }
+        }
+        if (atSecond(SKY_FROM + skies.size() * SKY_SLOT)) {
+            config.sky = "off";
         }
     }
 

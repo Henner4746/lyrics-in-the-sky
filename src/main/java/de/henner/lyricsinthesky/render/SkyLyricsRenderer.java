@@ -116,6 +116,14 @@ public final class SkyLyricsRenderer {
             return;
         }
         long started = Perf.start();
+        LyricsController controller = LyricsInTheSkyClient.controller();
+        // The painted sky first, so the lyrics stand in front of it.
+        SkyMesh sky = controller == null ? null : CustomSky.INSTANCE.frame(controller.config(), skyLuminance);
+        if (sky != null) {
+            SkyDrawer.draw(target, sky);
+        }
+        Perf.stop(Perf.SKY, started);
+        started = Perf.start();
         List<SkyGlyph> glyphs = collect(skyLuminance);
         skyPassRan = true;
         boolean behind = behindTerrain();
@@ -210,7 +218,7 @@ public final class SkyLyricsRenderer {
         return strength == 1f ? kick : new Beat.Kick(kick.strength() * strength, kick.tilt() * strength);
     }
 
-    private static Beat.Kick kick(LyricsController.Timeline timeline) {
+    static Beat.Kick kick(LyricsController.Timeline timeline) {
         Lyrics lyrics = timeline.lyrics();
         if (lyrics == null || lyrics.isEmpty()) {
             return Beat.Kick.NONE;

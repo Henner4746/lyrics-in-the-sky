@@ -437,7 +437,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                             + "bar <pill|karaoke|plain|title>, barpos <top|bottom>, theme <classic|glass>, "
                             + "barsize <0.75-1.5>, barbg <0-1>, barround <0-1>, glow <0-2>, "
                             + "lrclib <on|off>, wortgenau <on|off>, source <deezer|lyricsplus|netease|kugou> <on|off>, "
-                            + "spotify <connect|disconnect>, language <auto|de|en>"))
+                            + "spotify <connect|disconnect>, language <auto|de|en>, sky <name|off>"))
                     .then(ClientCommands.literal("status").executes(context ->
                             reply(context, controller.status() + " | " + spotify.statusText())))
                     .then(ClientCommands.literal("language")
@@ -504,6 +504,7 @@ public final class LyricsInTheSkyClient implements ClientModInitializer {
                     .then(choice("preset", SkyLyricsConfig.PRESETS, SkyLyricsConfig::applyPreset, "Vorlage"))
                     .then(choice("theme", SkyLyricsConfig.THEMES, (c, value) -> c.theme = value, "Theme"))
                     .then(choice("menu", SkyLyricsConfig.MENU_STYLES, (c, value) -> c.menuStyle = value, "Menü"))
+                    .then(choice("sky", SkyLyricsConfig.SKIES, (c, value) -> c.sky = value, "Himmel"))
                     .then(toggle("streamer", LyricsInTheSkyClient::setStreamerMode,
                             "Streamer-Modus (explizite Wörter versteckt)"))
                     .then(number("barsize", 0.75f, 1.5f, (c, value) -> c.hudScale = value, "Leistengröße"))

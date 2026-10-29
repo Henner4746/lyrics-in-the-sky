@@ -8,7 +8,8 @@ public final class Perf {
     public static final int LAYOUT = 0;
     public static final int DRAW = 1;
     public static final int BAR = 2;
-    private static final String[] NAMES = {"Aufbau", "Zeichnen", "Leiste"};
+    public static final int SKY = 3;
+    private static final String[] NAMES = {"Aufbau", "Zeichnen", "Leiste", "Himmel"};
     private static final boolean ON = Boolean.getBoolean("lyricsinthesky.selftest")
             || Integer.getInteger("lyricsinthesky.livetest", 0) > 0;
     private static final long[] TOTAL = new long[NAMES.length];

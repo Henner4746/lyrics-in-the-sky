@@ -125,6 +125,46 @@ public final class SkyLyricsConfig {
             default -> "Eine Vorlage setzt Anzeige, Stil, Farben, Schrift und Effekte auf einmal.";
         };
     }
+
+    /**
+     * Skies painted behind the lyrics in place of the game's own, each living with the music: "off" keeps the game's
+     * sky. Painted by the mod itself; none of them is a texture from elsewhere.
+     */
+    public static final List<String> SKIES = List.of("off", "northern", "stars", "nebula", "lightshow", "fireworks",
+            "storm", "equalizer", "retro", "afterglow", "petals", "fullmoon", "ringworld", "blackhole", "vinyl", "pastel",
+            "rainbow");
+    public static final Map<String, String> SKY_NAMES = Map.ofEntries(Map.entry("off", "Wie im Spiel"),
+            Map.entry("northern", "Nordlicht"), Map.entry("stars", "Sternenmeer"), Map.entry("nebula", "Sternnebel"),
+            Map.entry("lightshow", "Lichtshow"), Map.entry("fireworks", "Feuerwerk"), Map.entry("storm", "Gewitter"),
+            Map.entry("equalizer", "Equalizer"), Map.entry("retro", "Retro-Sonne"), Map.entry("afterglow", "Abendrot"),
+            Map.entry("petals", "Blütenregen"), Map.entry("fullmoon", "Vollmond"), Map.entry("ringworld", "Ringplanet"),
+            Map.entry("blackhole", "Ereignishorizont"), Map.entry("vinyl", "Vinyl-Mond"), Map.entry("pastel", "Pastellmorgen"),
+            Map.entry("rainbow", "Regenbogen"));
+    /** Skies made for the day as well; the others go with "Nur nachts" when the sun is up. */
+    public static final List<String> DAY_SKIES = List.of("storm", "retro", "afterglow", "pastel", "rainbow");
+
+    /** What a sky shows and how it moves with the music, for the menu. */
+    public static String skyHint(String sky) {
+        return switch (sky) {
+            case "northern" -> "Grüne und violette Vorhänge aus Licht wehen über den Himmel und leuchten bei jedem Wort auf.";
+            case "stars" -> "Tausende funkelnde Sterne und die Milchstraße; bei jeder neuen Zeile zieht eine Sternschnuppe vorbei.";
+            case "nebula" -> "Leuchtende Gaswolken in Violett, Türkis und Pink, die langsam ziehen und im Takt glimmen.";
+            case "lightshow" -> "Scheinwerfer wie auf einem Konzert schwenken über den Himmel und blitzen bei jedem Wort.";
+            case "fireworks" -> "Bei jeder neuen Zeile und kräftigen Wörtern steigt Feuerwerk auf, dort wo du hinschaust.";
+            case "storm" -> "Dunkle Wolken ziehen, und bei starken Wörtern zuckt ein Blitz über den Himmel.";
+            case "equalizer" -> "Leuchtende Balken rund um den Horizont springen mit dem Gesang.";
+            case "retro" -> "Eine gestreifte Sonne versinkt im pink-orangen Horizont wie in den 80ern.";
+            case "afterglow" -> "Warmes Licht einer tiefen Sonne mit Strahlen und goldenen Wolken.";
+            case "petals" -> "Rosa Dämmerung, durch die Blütenblätter treiben; bei kräftigen Wörtern weht ein Windstoß.";
+            case "fullmoon" -> "Ein großer, heller Mond mit Hof über silbernen Wolken.";
+            case "ringworld" -> "Ein riesiger Planet mit Ringen steht über dem Horizont.";
+            case "blackhole" -> "Ein schwarzes Loch mit glühender Scheibe, die im Takt aufleuchtet.";
+            case "vinyl" -> "Statt des Mondes dreht sich eine riesige Schallplatte, ihr Etikett in den Farben deiner Songtexte.";
+            case "pastel" -> "Ein heller Himmel in Pastell mit weichen Wolken, schön auch am Tag.";
+            case "rainbow" -> "Ein klarer Tageshimmel mit Wolken und einem großen Regenbogen.";
+            default -> "Der Himmel des Spiels, so wie er ist.";
+        };
+    }
     /**
      * Looks of the menu and the now-playing bar: "classic" the plain black-and-white panel and dark bar, "glass" Liquid
      * Glass, frosted see-through glass with a bright rim and a soft shadow, like Apple's iOS 26.
@@ -295,6 +335,18 @@ public final class SkyLyricsConfig {
     public boolean menuAnimations = true;
     /** One of {@link #LANGUAGES}. */
     public String language = "auto";
+    /** One of {@link #SKIES}: the sky painted behind the lyrics. */
+    public String sky = "off";
+    /** How much the painted sky covers the game's own, 0.3 to 1. */
+    public float skyStrength = 1f;
+    /** Night skies only at night: when the sun is up, the game's sky comes back. */
+    public boolean skyNightOnly = false;
+    /** The sky moves with the words being sung: aurora, beams, bars, fireworks and lightning. */
+    public boolean skyReactive = true;
+    /** Aurora, beams, bars and the record's label in the lyrics' colors instead of the sky's own. */
+    public boolean skySongColors = false;
+    /** How fast the sky moves, 0.25 to 2. */
+    public float skySpeed = 1f;
     /** Whether the player chose the language; until then the menu asks for it when it opens. */
     public boolean languageChosen = false;
     /** One of {@link #HOERGENAU_MODELS}. */
@@ -423,6 +475,11 @@ public final class SkyLyricsConfig {
         if (language == null || !LANGUAGES.contains(language)) {
             language = "auto";
         }
+        if (sky == null || !SKIES.contains(sky)) {
+            sky = "off";
+        }
+        skyStrength = Float.isFinite(skyStrength) ? Math.max(0.3f, Math.min(1f, skyStrength)) : 1f;
+        skySpeed = Float.isFinite(skySpeed) ? Math.max(0.25f, Math.min(2f, skySpeed)) : 1f;
         if (hudHighlight == null || !HUD_HIGHLIGHTS.contains(hudHighlight)) {
             hudHighlight = "box";
         }
