@@ -118,9 +118,9 @@ public final class SkyLyricsRenderer {
         long started = Perf.start();
         LyricsController controller = LyricsInTheSkyClient.controller();
         // The painted sky first, so the lyrics stand in front of it.
-        SkyMesh sky = controller == null ? null : CustomSky.INSTANCE.frame(controller.config(), skyLuminance);
-        if (sky != null) {
-            SkyDrawer.draw(target, sky);
+        SkyMesh painted = controller == null ? null : CustomSky.INSTANCE.frame(controller.config(), skyLuminance);
+        if (painted != null) {
+            SkyDrawer.draw(target, painted);
         }
         Perf.stop(Perf.SKY, started);
         started = Perf.start();
