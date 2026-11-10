@@ -10,6 +10,11 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.23 – 2026-11-10
+
+- **Fix:** skipping within a song that Hörgenau was learning (one nobody has the text of) crashed the game. Now the
+  part heard up to there ends as it should, and Hörgenau listens on from where the song went.
+
 ### 1.3.0-dev.22 – 2026-10-29
 
 - **Painted skies**: 16 skies of the mod's own, painted behind the lyrics in place of the game's sky – northern
