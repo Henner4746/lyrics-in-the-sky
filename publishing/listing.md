@@ -52,7 +52,7 @@ Play music on your PC – Spotify, Amazon Music, YouTube Music or any other play
 3. Lyrics come from lrclib.net, which is on from the start; the first time, a note in chat says what is sent and offers to switch it off.
 4. Press **Right Shift** for the settings, or run `/skylyrics demo` to see it without music.
 
-Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around|screen`, `preset <name>`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `songoffset <ms>`, `menu minimal|glass|fancy`, `source <name> on|off`, `hoergenau on|off`, `streamer on|off`, `share on|off`, `sharelearned on|off`, `lrclib on|off`, `spotify connect|disconnect`, `language auto|de|en`.
+Commands: `/skylyrics settings`, `status`, `demo`, `on` / `off`, `mode sky|around|screen`, `preset <name>`, `palette <name>`, `font sans|script|minecraft`, `offset <ms>`, `songoffset <ms>`, `menu minimal|glass|fancy`, `source <name> on|off`, `hoergenau on|off`, `streamer on|off`, `share on|off`, `sharelearned on|off`, `lrclib on|off`, `spotify connect|disconnect`, `language auto|de|en`, `sky <name|off>`.
 
 ## Hörgenau: the AI that listens (Windows and Linux, off until you switch it on)
 
@@ -102,7 +102,7 @@ This mod connects to the internet. Everything it sends, and to whom, is listed h
 
 **On your PC only:** on Windows a small PowerShell script bundled in the mod (`lyricsinthesky/smtc-helper.ps1`, readable inside the jar) reads the system media session – the same information Windows shows in its volume overlay. On Linux the mod asks MPRIS via `gdbus`. Hörgenau's recording helper (`lyricsinthesky/loopback-helper.ps1`) runs only while it listens.
 
-No telemetry, no ads, no cookies. The mod ships no lyrics; the tracker keeps lyrics only of songs nobody has the text of, as players' Hörgenau wrote them down.
+No ads, no cookies, and nothing sent beyond what is listed here. The mod ships no lyrics; the tracker keeps lyrics only of songs nobody has the text of, as players' Hörgenau wrote them down.
 
 ## Known limitations
 
