@@ -406,6 +406,29 @@ class HoergenauTest {
     }
 
     @Test
+    void skippingWithinASongEndsWhatIsHeardWithoutACrash(@TempDir Path dir) throws Exception {
+        // As found in a player's game: skipped within a song to learn, the part ended and the next line crashed the game.
+        CountingRecorder recorder = new CountingRecorder();
+        recorder.startNanos = 1;
+        Hoergenau hoergenau = checking(dir, recorder, new LyricsCache(dir.resolve("lyrics")));
+        hoergenau.observe(track(true, 20_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        hoergenau.observe(track(true, 20_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertTrue(hoergenau.listeningTo("song"));
+        hoergenau.observe(track(true, 120_000), "song", Hoergenau.Shown.NOTHING, List.of(), null, null);
+        assertEquals(1, recorder.stops, "the part ends where it was skipped");
+        assertTrue(!hoergenau.listeningTo("song"));
+        // A sync check skipped within is broken off, and stays so on the following ticks.
+        Lyrics timed = Lyrics.parseLrc("[00:12.00]Light the lanterns on the river");
+        hoergenau.observe(track(true, 20_000), "timed", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        hoergenau.observe(track(true, 20_000), "timed", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        assertTrue(hoergenau.listeningTo("timed"));
+        hoergenau.observe(track(true, 120_000), "timed", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        hoergenau.observe(track(true, 120_000), "timed", Hoergenau.Shown.TIMED, List.of(), null, timed);
+        assertTrue(!hoergenau.listeningTo("timed"));
+        assertEquals(2, recorder.stops);
+    }
+
+    @Test
     void aSongCheckedBeforeIsNotHeardAgain(@TempDir Path dir) throws Exception {
         LyricsCache saved = new LyricsCache(dir.resolve("lyrics"));
         saved.write("song\u0000synccheck", "fits 40");
@@ -450,6 +473,8 @@ class HoergenauTest {
         int starts;
         int stops;
         String player;
+        /** When the recording began; 0 while it has not (as the real recorder before its first sound). */
+        long startNanos;
 
         @Override
         public void start(String player) {
@@ -459,7 +484,7 @@ class HoergenauTest {
 
         @Override
         public long startNanos() {
-            return 0;
+            return startNanos;
         }
 
         @Override

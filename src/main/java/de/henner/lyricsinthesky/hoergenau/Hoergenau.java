@@ -295,10 +295,11 @@ public final class Hoergenau {
             take.lastPositionMs = now.estimatePositionMs(System.currentTimeMillis());
             long anchor = take.lastPositionMs - System.nanoTime() / 1_000_000;
             if (!take.anchors.isEmpty() && Math.abs(anchor - median(take.anchors)) > SKIP_MS) {
+                // A song to learn is done with here (the take is gone), a check is broken off: nothing more this tick.
                 endPart("skipped");
-            } else {
-                take.anchors.add(anchor);
+                return;
             }
+            take.anchors.add(anchor);
             if (take.check != null && take.broken == null
                     && recorder.count() >= CHECK_MS * LoopbackRecorder.RATE / 1000) {
                 finish();
