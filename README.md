@@ -185,7 +185,7 @@ nothing else is contacted: no analytics, no ads, no update check.
 | Kugou Music | `lyrics.kugou.com` | word times ("KRC") | Wortgenau | artist, title, length |
 | SyncLRC | `api.synclrc.dev` | word times, for songs someone timed before | Wortgenau | title, artist, album, length |
 | [Better Lyrics](https://better-lyrics.boidu.dev/) | `api.betterlyrics.org` | word times, mostly Apple Music's | Wortgenau | title, artist, album, length |
-| Timing tracker ([source](tracker/)) | `henrik.click/lyrics-sync/v1/corrections` | timing corrections players agreed on | asked for every song with lyrics; sending is on from the start, `/skylyrics share off` | the song as a hash; when sending, your correction and a random ID of your installation |
+| Timing tracker ([source](https://github.com/Henner4746/lyrics-in-the-sky/tree/lyricsplus/tracker)) | `henrik.click/lyrics-sync/v1/corrections` | timing corrections players agreed on | asked for every song with lyrics; sending is on from the start, `/skylyrics share off` | the song as a hash; when sending, your correction and a random ID of your installation |
 | Shared learning (same tracker) | `henrik.click/lyrics-sync/v1/learned` | songs other players' Hörgenau timed | asked before a song without word times is estimated; sending only with Hörgenau on, `/skylyrics sharelearned off` | the song as a hash; when sending, the song (artist, title, album, length), the word times with a fingerprint of the text, the text itself only for songs nobody has the text of, and the installation ID |
 | Music catalogs | `api.deezer.com/search`, `itunes.apple.com/search` | whether something is a song (no livestream, video or podcast) | only with Hörgenau on, for songs nobody has the text of | artist and title |
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | `github.com` (release b5454) | the speech AI program for Hörgenau, Windows build | once, when you switch Hörgenau on | nothing; the download is checked against a fixed checksum |
@@ -278,7 +278,7 @@ flowchart LR
   2009", "(Single Mix)"), then a free search. If LRCLIB only has the text without times, it is spread over the song
   (marked "≈").
 - **Timing per song:** a song whose lyrics run early or late can be corrected on its own. These corrections are
-  shared anonymously with a small tracker at `henrik.click/lyrics-sync` (source in [`tracker/`](tracker/)). What a
+  shared anonymously with a small tracker at `henrik.click/lyrics-sync` (source in [`tracker/`](https://github.com/Henner4746/lyrics-in-the-sky/tree/lyricsplus/tracker)). What a
   player's Hörgenau measured applies to everyone at once, unless other measurements contradict it; corrections set
   by hand apply once 10 players corrected a song and most of them agree. The mod asks for every song with lyrics,
   also with sharing switched off.

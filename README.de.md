@@ -188,7 +188,7 @@ Stellen unten, und sonst wird nichts kontaktiert: keine Statistik, keine Werbung
 | Kugou Music | `lyrics.kugou.com` | Wortzeiten („KRC“) | Wortgenau | Künstler, Titel, Länge |
 | SyncLRC | `api.synclrc.dev` | Wortzeiten, für Songs, die schon jemand getimt hat | Wortgenau | Titel, Künstler, Album, Länge |
 | [Better Lyrics](https://better-lyrics.boidu.dev/) | `api.betterlyrics.org` | Wortzeiten, meist die von Apple Music | Wortgenau | Titel, Künstler, Album, Länge |
-| Timing-Tracker ([Quelltext](tracker/)) | `henrik.click/lyrics-sync/v1/corrections` | Timing-Korrekturen, auf die sich Spieler geeinigt haben | gefragt bei jedem Song mit Songtext; Senden von Anfang an an, `/skylyrics share off` | der Song als Prüfsumme; beim Senden deine Korrektur und eine zufällige Kennung deiner Installation |
+| Timing-Tracker ([Quelltext](https://github.com/Henner4746/lyrics-in-the-sky/tree/lyricsplus/tracker)) | `henrik.click/lyrics-sync/v1/corrections` | Timing-Korrekturen, auf die sich Spieler geeinigt haben | gefragt bei jedem Song mit Songtext; Senden von Anfang an an, `/skylyrics share off` | der Song als Prüfsumme; beim Senden deine Korrektur und eine zufällige Kennung deiner Installation |
 | Gemeinsam Gelerntes (derselbe Tracker) | `henrik.click/lyrics-sync/v1/learned` | Songs, die Hörgenau bei anderen Spielern getimt hat | gefragt, bevor ein Song ohne Wortzeiten geschätzt wird; Senden nur mit Hörgenau, `/skylyrics sharelearned off` | der Song als Prüfsumme; beim Senden der Song (Künstler, Titel, Album, Länge), die Wortzeiten mit einem Fingerabdruck des Textes, der Text selbst nur bei Songs, deren Text niemand hat, und die Installations-Kennung |
 | Musikkataloge | `api.deezer.com/search`, `itunes.apple.com/search` | ob etwas ein Song ist (kein Livestream, Video oder Podcast) | nur mit Hörgenau, bei Songs, deren Text niemand hat | Künstler und Titel |
 | [whisper.cpp](https://github.com/ggml-org/whisper.cpp) | `github.com` (Release b5454) | das Sprach-KI-Programm für Hörgenau, Windows-Build | einmal, wenn du Hörgenau einschaltest | nichts; der Download wird gegen eine feste Prüfsumme geprüft |
@@ -282,7 +282,7 @@ flowchart LR
   wird er über den Song verteilt (markiert mit „≈“).
 - **Timing pro Song:** Läuft der Text eines Songs zu früh oder zu spät, lässt er sich einzeln korrigieren. Diese
   Korrekturen werden anonym mit einem kleinen Tracker auf `henrik.click/lyrics-sync` geteilt (Quelltext in
-  [`tracker/`](tracker/)). Was Hörgenau bei einem Spieler gemessen hat, gilt sofort für alle, solange keine andere
+  [`tracker/`](https://github.com/Henner4746/lyrics-in-the-sky/tree/lyricsplus/tracker)). Was Hörgenau bei einem Spieler gemessen hat, gilt sofort für alle, solange keine andere
   Messung widerspricht; von Hand gesetzte Korrekturen gelten, wenn 10 Spieler einen Song korrigiert haben und die
   meisten sich einig sind. Die Mod fragt bei jedem Song mit Songtext nach, auch wenn du selbst nichts teilst.
 - **Optionaler Spotify-Login** über Spotifys offizielle Web API mit Authorization Code + PKCE: kein
