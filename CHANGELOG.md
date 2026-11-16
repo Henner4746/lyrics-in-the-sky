@@ -10,6 +10,17 @@
 
 ## Development builds (branch `lyricsplus`, not on CurseForge)
 
+### 1.3.0-dev.24 – 2026-11-16
+
+- **Fix: an old song stayed on screen.** With the Spotify account connected, a song from long before could stay
+  in the bar and the sky while Spotify on the PC played another one: the account still said it was playing (the PC
+  plays on another account, or its Spotify does not report to Spotify), and the account always won. Now Spotify
+  playing on this PC wins whenever it plays another song than the account says.
+- **An answer of the Spotify account counts for 15 s.** While Spotify refuses to answer (429, 403), this PC's media
+  session tells what plays; how long Spotify asks to wait goes into the log.
+- **The Windows media session helper is watched:** what it said counts for 6 s, and after 20 s without a word it is
+  started anew.
+
 ### 1.3.0-dev.23 – 2026-11-10
 
 - **Fix:** skipping within a song that Hörgenau was learning (one nobody has the text of) crashed the game. Now the
