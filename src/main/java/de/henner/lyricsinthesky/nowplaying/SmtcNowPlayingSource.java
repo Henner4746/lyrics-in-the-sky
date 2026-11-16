@@ -25,10 +25,20 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
     private static final Logger LOGGER = LoggerFactory.getLogger("lyricsinthesky");
     private static final String HELPER_RESOURCE = "/lyricsinthesky/smtc-helper.ps1";
     private static final long RESTART_DELAY_MS = 5_000;
+    /**
+     * The helper prints a line every quarter second, or every two when Windows is slow to answer. With none for this
+     * long what it said last no longer counts: a helper that hangs kept its last song on screen while another played.
+     */
+    static final long STALE_MS = 6_000;
+    /** With no line for this long the helper hangs and is started anew. */
+    static final long HUNG_MS = 20_000;
 
     private final Path helperScript;
     private volatile NowPlaying current;
     private volatile String otherPlaying;
+    /** When the helper last printed a line, or was started. */
+    private volatile long lastLineAtMs;
+    private volatile Process helper;
     private volatile boolean running;
     private Thread worker;
 
@@ -38,18 +48,30 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
 
     @Override
     public NowPlaying current() {
-        return current;
+        long now = System.currentTimeMillis();
+        Process started = helper;
+        if (started != null && now - lastLineAtMs > HUNG_MS) {
+            LOGGER.warn("SMTC helper sent nothing for {} s, starting it anew", (now - lastLineAtMs) / 1000);
+            lastLineAtMs = now;
+            started.destroyForcibly();  // the supervisor sees its output end and starts a new one
+        }
+        return fresh(lastLineAtMs, now) ? current : null;
     }
 
     @Override
     public String otherPlaying() {
-        return otherPlaying;
+        return fresh(lastLineAtMs, System.currentTimeMillis()) ? otherPlaying : null;
     }
 
     @Override
     public String localPlayer() {
-        NowPlaying now = current;
+        NowPlaying now = current();
         return now != null && now.playing() ? now.app() : null;
+    }
+
+    /** Whether the helper's last line, printed at {@code lineAtMs}, still tells what plays. */
+    static boolean fresh(long lineAtMs, long nowMs) {
+        return nowMs - lineAtMs <= STALE_MS;
     }
 
     @Override
@@ -84,7 +106,9 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
                 if (process != null) {
                     process.destroyForcibly();
                 }
+                helper = null;
                 current = null;
+                otherPlaying = null;
             }
             if (!running) {
                 break;
@@ -118,7 +142,10 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
                 Long.toString(ProcessHandle.current().pid()), "250");
         builder.redirectError(ProcessBuilder.Redirect.DISCARD);
         LOGGER.info("Starting SMTC helper");
-        return builder.start();
+        lastLineAtMs = System.currentTimeMillis();  // PowerShell takes a moment to start; that is no hang
+        Process started = builder.start();
+        helper = started;
+        return started;
     }
 
     private void readHelperOutput(Process process) throws IOException {
@@ -128,6 +155,7 @@ public final class SmtcNowPlayingSource implements NowPlayingSource {
             while (running && (line = reader.readLine()) != null) {
                 current = parse(line);
                 otherPlaying = othersOf(line);
+                lastLineAtMs = System.currentTimeMillis();
             }
         }
     }

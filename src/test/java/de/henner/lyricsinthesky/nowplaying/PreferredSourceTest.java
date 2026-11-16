@@ -1,7 +1,9 @@
 package de.henner.lyricsinthesky.nowplaying;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -118,6 +120,36 @@ class PreferredSourceTest {
         assertNull(SmtcNowPlayingSource.othersOf("{\"ok\":true,\"title\":\"t\"}"));
         assertEquals("Brave, Brave", SmtcNowPlayingSource.othersOf("{\"ok\":true,\"othersPlaying\":[\"Brave\",\"Brave\"]}"));
         assertNull(SmtcNowPlayingSource.othersOf("not json"));
+    }
+
+    @Test
+    void spotifyOnThisPcWinsWhenTheAccountTellsAnotherSong() {
+        // As found in a player's game: the account still said a song from long before was playing while Spotify on the
+        // PC played another one; the bar showed the old song. An account plays on one device at a time.
+        NowPlaying account = new NowPlaying("Spotify (Konto)", "Old Song", "Old Artist", "", true, 40_000, 261_000, 1_000);
+        NowPlaying here = new NowPlaying("Spotify.exe", "New Song", "New Artist", "Album", true, 10_000, 200_000, 1_000);
+        PreferredNowPlayingSource source = new PreferredNowPlayingSource(fixed(account), session(here));
+        assertEquals(here, source.current());
+        assertEquals("Spotify.exe", source.localPlayer());
+        assertNull(source.otherPlaying());
+        // The Store app's name counts too.
+        NowPlaying store = new NowPlaying("SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify", "New Song", "New Artist", "",
+                true, 10_000, 200_000, 1_000);
+        assertEquals(store, pick(account, store));
+        // Another player here (a video, Amazon Music) leaves the account's song, which may play on a phone.
+        NowPlaying video = new NowPlaying("Brave", "Ein Video", "Kanal", "", true, 10_000, 600_000, 1_000);
+        assertEquals(account, pick(account, video));
+        // Spotify here paused: the account's song plays elsewhere.
+        assertEquals(account, pick(account, new NowPlaying("Spotify.exe", "New Song", "New Artist", "", false, 0, 200_000, 0)));
+    }
+
+    @Test
+    void aHelperThatFellSilentNoLongerTellsWhatPlays() {
+        // It prints every quarter second, or every two while Windows is slow; a hanging one kept its last song on screen.
+        assertTrue(SmtcNowPlayingSource.fresh(1_000, 1_000 + SmtcNowPlayingSource.STALE_MS));
+        assertFalse(SmtcNowPlayingSource.fresh(1_000, 1_001 + SmtcNowPlayingSource.STALE_MS));
+        assertTrue(SmtcNowPlayingSource.STALE_MS >= 3 * 2_000, "longer than a slow round of the helper");
+        assertTrue(SmtcNowPlayingSource.HUNG_MS > SmtcNowPlayingSource.STALE_MS);
     }
 
     @Test

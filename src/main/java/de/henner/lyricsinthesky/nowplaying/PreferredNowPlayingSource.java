@@ -1,5 +1,7 @@
 package de.henner.lyricsinthesky.nowplaying;
 
+import java.util.Locale;
+
 /**
  * Combines the Spotify account with the operating system's media session: whichever is playing wins, and
  * when both are, the Spotify account (exact position, works across devices). When both play the same song, the
@@ -31,6 +33,9 @@ public final class PreferredNowPlayingSource implements NowPlayingSource {
     public NowPlaying current() {
         NowPlaying first = preferred.current();
         NowPlaying second = fallback.current();
+        if (spotifyHereDiffers(first, second)) {
+            return second;
+        }
         if (first != null && first.playing()) {
             if (second != null && second.playing() && second.sameSong(first) && second.updatedAtMs() > first.updatedAtMs()) {
                 // Keep the preferred source's names and length so the song never looks like a new one.
@@ -46,27 +51,43 @@ public final class PreferredNowPlayingSource implements NowPlayingSource {
     }
 
     /**
-     * When the account's song is not what this PC plays (it plays on a phone or a console), whatever the PC sounds is
-     * something else; otherwise the media session's own report.
+     * Whether the Spotify app on this PC plays another song than the account says. An account plays on one device at
+     * a time, so the account's answer is old (Spotify kept refusing to answer) or the mod is connected to another
+     * account: what this PC plays is what is heard.
      */
+    static boolean spotifyHereDiffers(NowPlaying account, NowPlaying here) {
+        return account != null && account.playing() && here != null && here.playing() && !here.sameSong(account)
+                && here.app() != null && here.app().toLowerCase(Locale.ROOT).contains("spotify");
+    }
+
     /** The media session's app when it plays the song here; the account's song may play on a phone or a console. */
     @Override
     public String localPlayer() {
         NowPlaying first = preferred.current();
         NowPlaying second = fallback.current();
-        if (first != null && first.playing() && (second == null || !second.playing() || !second.sameSong(first))) {
+        if (playsElsewhere(first, second)) {
             return null;
         }
         return fallback.localPlayer();
     }
 
+    /**
+     * When the account's song is not what this PC plays (it plays on a phone or a console), whatever the PC sounds is
+     * something else; otherwise the media session's own report.
+     */
     @Override
     public String otherPlaying() {
         NowPlaying first = preferred.current();
         NowPlaying second = fallback.current();
-        if (first != null && first.playing() && (second == null || !second.playing() || !second.sameSong(first))) {
+        if (playsElsewhere(first, second)) {
             return second != null && second.playing() ? second.app() : "the song plays on another device";
         }
         return fallback.otherPlaying();
+    }
+
+    /** Whether the account's song is what is shown and plays on another device than this PC. */
+    private static boolean playsElsewhere(NowPlaying account, NowPlaying here) {
+        return account != null && account.playing() && !spotifyHereDiffers(account, here)
+                && (here == null || !here.playing() || !here.sameSong(account));
     }
 }

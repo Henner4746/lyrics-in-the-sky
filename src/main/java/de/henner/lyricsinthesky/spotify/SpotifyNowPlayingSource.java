@@ -35,10 +35,18 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
     /** Rejected tokens in a row, each followed by a fresh one, before the login ends. */
     private static final int UNAUTHORIZED_LIMIT = 3;
     private int unauthorizedInARow;
+    /**
+     * An answer older than this no longer counts. While Spotify keeps refusing (429 with a long wait, 403) the last
+     * song stayed "playing" and won over what the PC really played, as found in a player's game: the bar showed a song
+     * from long before while Spotify played another.
+     */
+    static final long STALE_MS = 15_000;
 
     private final SpotifyAccount account;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
     private volatile NowPlaying current;
+    /** When Spotify last told what plays (or that nothing does). */
+    private volatile long freshAtMs;
     private volatile boolean running;
     private Thread worker;
 
@@ -48,7 +56,12 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
 
     @Override
     public NowPlaying current() {
-        return account.isConnected() ? current : null;
+        return account.isConnected() ? fresh(current, freshAtMs, System.currentTimeMillis()) : null;
+    }
+
+    /** {@code value} while it was told at most {@link #STALE_MS} ago, else {@code null}: nobody knows what plays now. */
+    static NowPlaying fresh(NowPlaying value, long toldAtMs, long nowMs) {
+        return value != null && nowMs - toldAtMs <= STALE_MS ? value : null;
     }
 
     @Override
@@ -114,10 +127,12 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
             case 200 -> {
                 // The position was measured somewhere between sending and receiving; the middle is the best guess.
                 current = parse(response.body(), (sentAt + receivedAt) / 2);
+                freshAtMs = receivedAt;
                 return current != null && current.playing() ? POLL_PLAYING_MS : POLL_IDLE_MS;
             }
             case 204 -> {
                 current = null;
+                freshAtMs = receivedAt;
                 return POLL_IDLE_MS;
             }
             case 401 -> {
@@ -149,6 +164,10 @@ public final class SpotifyNowPlayingSource implements NowPlayingSource {
             }
             case 429 -> {
                 long retry = response.headers().firstValueAsLong("Retry-After").orElse(5);
+                if (retry * 1000L > STALE_MS) {
+                    LOGGER.info("Spotify asks to wait {} s (429); meanwhile this PC's media session tells what plays",
+                            retry);
+                }
                 return Math.max(1, retry) * 1000L;
             }
             default -> {

@@ -18,6 +18,19 @@ import org.junit.jupiter.api.Test;
 
 class SpotifyTest {
     @Test
+    void anAnswerSpotifyGaveLongAgoNoLongerTellsWhatPlays() {
+        // As found in a player's game: Spotify refused to answer for a long time, the last song stayed "playing" and
+        // the bar showed it while another one played.
+        NowPlaying song = new NowPlaying("Spotify (Konto)", "Old Song", "Artist", "", true, 40_000, 200_000, 1_000);
+        long told = 1_000;
+        assertEquals(song, SpotifyNowPlayingSource.fresh(song, told, told + SpotifyNowPlayingSource.STALE_MS));
+        assertNull(SpotifyNowPlayingSource.fresh(song, told, told + SpotifyNowPlayingSource.STALE_MS + 1));
+        assertNull(SpotifyNowPlayingSource.fresh(null, told, told));
+        // Slower than the slowest regular poll (3 s idle), so a paused song does not flicker away between polls.
+        assertTrue(SpotifyNowPlayingSource.STALE_MS >= 10_000);
+    }
+
+    @Test
     void onlyARefusalThatSaysSoMeansTheAccountIsNotAdded() {
         assertTrue(SpotifyAccount.notRegistered(
                 "{\"error\":{\"status\":403,\"message\":\"Check settings on developer.spotify.com/dashboard, the user may not be registered.\"}}"));
